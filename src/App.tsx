@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import type {
   DeviceMetadata,
   LiveMetrics,
@@ -14,7 +14,7 @@ import type {
 import { whoopBLE } from './services/WhoopBLEManager';
 import { whoopSimulator, type SimulatorState } from './services/WhoopSimulator';
 import { metricsEngine } from './services/MetricsEngine';
-import { storageService } from './services/StorageService';
+import { storageService, type DayHistoryRecord } from './services/StorageService';
 import {
   generateHealthMonitorMetrics,
   generateSleepMetrics,
@@ -33,6 +33,8 @@ import { MoreView } from './components/views/MoreView';
 import { OledSleepOverlay } from './components/views/OledSleepOverlay';
 import { RecoveryTestModal } from './components/RecoveryTestModal';
 import { QuickActionModal } from './components/QuickActionModal';
+import { StrapConnectSheet } from './components/StrapConnectSheet';
+import { WorkoutHudModal } from './components/views/WorkoutHudModal';
 
 import { AlertCircle, X } from 'lucide-react';
 
@@ -49,10 +51,16 @@ export const App: React.FC = () => {
   // --- Navigation States ---
   const [mainTab, setMainTab] = useState<MainTabType>('home');
   const [homeSubTab, setHomeSubTab] = useState<HomeSubTab>('overview');
-  const [selectedDateIndex, setSelectedDateIndex] = useState(0); // 0 = TODAY, 1 = YESTERDAY...
-  const dateLabels = ['TODAY', 'YESTERDAY', '2 DAYS AGO', '3 DAYS AGO'];
+  const [selectedDateIndex, setSelectedDateIndex] = useState(0); // 0 = TODAY, 1 = YESTERDAY, 2 = 2 DAYS AGO...
+
+  // --- 7-Day History Records from Storage ---
+  const [daysHistory, setDaysHistory] = useState<DayHistoryRecord[]>(() =>
+    storageService.getDaysHistory()
+  );
 
   // --- Modal States ---
+  const [isStrapSheetOpen, setIsStrapSheetOpen] = useState(false);
+  const [isWorkoutHudOpen, setIsWorkoutHudOpen] = useState(false);
   const [isRecoveryTestOpen, setIsRecoveryTestOpen] = useState(false);
   const [isOledNightLockOpen, setIsOledNightLockOpen] = useState(false);
   const [isQuickActionOpen, setIsQuickActionOpen] = useState(false);
@@ -63,8 +71,8 @@ export const App: React.FC = () => {
   const [isSimulator, setIsSimulator] = useState<boolean>(true); // Pre-enabled for immediate out-of-the-box exploration
   const [simulatorMode, setSimulatorMode] = useState<SimulatorState>('resting');
 
-  // --- Live Metrics State ---
-  const [metrics, setMetrics] = useState<LiveMetrics>(() => ({
+  // --- Live Metrics State (for Today) ---
+  const [liveMetrics, setLiveMetrics] = useState<LiveMetrics>(() => ({
     currentHr: 62,
     currentHrv: settings.hrvBaseline,
     sdnn: Math.round(settings.hrvBaseline * 1.1),
@@ -84,17 +92,11 @@ export const App: React.FC = () => {
     timestamp: Date.now(),
   }));
 
-  // --- Health Monitor & Sleep Data ---
-  const [healthMetrics, setHealthMetrics] = useState<HealthMonitorMetric[]>(() =>
-    generateHealthMonitorMetrics(settings.hrvBaseline, settings.restingHrBaseline, settings)
-  );
-  const [sleepData] = useState<SleepMetrics>(() => generateSleepMetrics(98));
-
   // --- Active Workout State ---
   const [isWorkoutActive, setIsWorkoutActive] = useState(false);
   const [workoutStartTime, setWorkoutStartTime] = useState<number | null>(null);
   const [workoutElapsedSec, setWorkoutElapsedSec] = useState(0);
-  const [activeSportTitle, setActiveSportTitle] = useState('Workout');
+  const [activeSportTitle, setActiveSportTitle] = useState('Running');
   const [workoutSamples, setWorkoutSamples] = useState<Array<{ timestamp: number; hr: number; hrv: number }>>([]);
 
   // --- Sessions & BLE Explorer Packets ---
@@ -107,6 +109,7 @@ export const App: React.FC = () => {
     try {
       const all = await storageService.getAllSessions();
       setSessions(all);
+      setDaysHistory(storageService.getDaysHistory());
     } catch (e) {
       console.warn('Failed loading sessions:', e);
     }
@@ -146,15 +149,11 @@ export const App: React.FC = () => {
     const updated = metricsEngine.ingestSample(bpm, rrIntervals);
     const target = calculateOptimalStrainTarget(updated.recoveryScore);
 
-    setMetrics({
+    setLiveMetrics({
       ...updated,
       sleepPerformance: 98,
       optimalStrainTarget: target,
     });
-
-    setHealthMetrics(
-      generateHealthMonitorMetrics(updated.currentHrv, updated.restingHr, settings)
-    );
 
     // If workout is active, collect session samples
     if (isWorkoutActive) {
@@ -163,7 +162,7 @@ export const App: React.FC = () => {
         { timestamp: Date.now(), hr: bpm, hrv: updated.currentHrv },
       ]);
     }
-  }, [settings, isWorkoutActive]);
+  }, [isWorkoutActive]);
 
   // BLE & Simulator event subscriptions
   useEffect(() => {
@@ -273,8 +272,7 @@ export const App: React.FC = () => {
     setWorkoutStartTime(Date.now());
     setActiveSportTitle(sport);
     setWorkoutSamples([]);
-    setMainTab('home');
-    setHomeSubTab('strain');
+    setIsWorkoutHudOpen(true);
   };
 
   const handleStopWorkout = async () => {
@@ -296,6 +294,7 @@ export const App: React.FC = () => {
     setIsWorkoutActive(false);
     setWorkoutStartTime(null);
     setWorkoutSamples([]);
+    setIsWorkoutHudOpen(false);
   };
 
   const handleSaveSettings = (newSettings: UserSettings) => {
@@ -306,7 +305,7 @@ export const App: React.FC = () => {
 
   const handleResetDayCounters = () => {
     metricsEngine.resetDayCounters();
-    setMetrics((prev) => ({
+    setLiveMetrics((prev) => ({
       ...prev,
       dailyStrain: 0,
       activeCalories: 0,
@@ -314,29 +313,74 @@ export const App: React.FC = () => {
     }));
   };
 
+  // --- Effective Metrics based on Selected Date ---
+  const currentDayRecord = daysHistory[selectedDateIndex] || daysHistory[0];
+
+  const effectiveMetrics: LiveMetrics = useMemo(() => {
+    if (selectedDateIndex === 0) {
+      return liveMetrics;
+    }
+    // For past days, present historical record snapshot
+    return {
+      currentHr: 0,
+      currentHrv: currentDayRecord.hrv,
+      sdnn: Math.round(currentDayRecord.hrv * 1.1),
+      meanRR: 850,
+      minHr: 48,
+      maxHr: 165,
+      avgHr: 65,
+      restingHr: currentDayRecord.rhr,
+      dailyStrain: currentDayRecord.dayStrain,
+      recoveryScore: currentDayRecord.recoveryScore,
+      recoveryCategory: currentDayRecord.recoveryCategory,
+      sleepPerformance: currentDayRecord.sleepPerformance,
+      activeCalories: currentDayRecord.activeCalories,
+      currentZone: 0,
+      zoneSeconds: { 0: 3600, 1: 1800, 2: 900, 3: 600, 4: 300, 5: 0 },
+      optimalStrainTarget: calculateOptimalStrainTarget(currentDayRecord.recoveryScore),
+      timestamp: Date.now(),
+    };
+  }, [selectedDateIndex, liveMetrics, currentDayRecord]);
+
+  const effectiveSessions: SessionRecord[] = useMemo(() => {
+    if (selectedDateIndex === 0) {
+      return sessions.length > 0 ? sessions : currentDayRecord.sessions;
+    }
+    return currentDayRecord.sessions;
+  }, [selectedDateIndex, sessions, currentDayRecord]);
+
+  const healthMetrics: HealthMonitorMetric[] = useMemo(() => {
+    return generateHealthMonitorMetrics(
+      effectiveMetrics.currentHrv,
+      effectiveMetrics.restingHr,
+      settings
+    );
+  }, [effectiveMetrics.currentHrv, effectiveMetrics.restingHr, settings]);
+
+  const sleepData: SleepMetrics = useMemo(() => {
+    return generateSleepMetrics(effectiveMetrics.sleepPerformance);
+  }, [effectiveMetrics.sleepPerformance]);
+
   const zones = metricsEngine.getZones();
+  const maxDayIndex = Math.min(6, daysHistory.length - 1);
 
   return (
     <div className="min-h-screen bg-black text-white flex justify-center font-sans antialiased selection:bg-whoop-blue selection:text-black">
       {/* Mobile iPhone Shell Container */}
-      <div className="w-full max-w-[430px] min-h-dvh bg-black flex flex-col relative border-x border-whoop-border/30 shadow-2xl">
+      <div className="w-full max-w-[430px] min-h-dvh bg-black flex flex-col relative border-x border-[#1E232D] shadow-2xl">
         {/* Top WHOOP Bar & Home Sub-Tabs */}
         <WhoopTopBar
           metadata={metadata}
-          metrics={metrics}
+          metrics={effectiveMetrics}
+          mainTab={mainTab}
           activeSubTab={homeSubTab}
           onChangeSubTab={(tab) => {
             setMainTab('home');
             setHomeSubTab(tab);
           }}
-          isSimulator={isSimulator}
-          simulatorMode={simulatorMode}
-          onConnectBle={handleConnectBle}
-          onDisconnectBle={handleDisconnectBle}
-          onToggleSimulator={handleToggleSimulator}
-          onSelectSimulatorMode={handleSelectSimulatorMode}
-          selectedDate={dateLabels[selectedDateIndex]}
-          onPrevDate={() => setSelectedDateIndex((prev) => (prev < 3 ? prev + 1 : prev))}
+          onOpenStrapSheet={() => setIsStrapSheetOpen(true)}
+          selectedDate={currentDayRecord.label}
+          onPrevDate={() => setSelectedDateIndex((prev) => (prev < maxDayIndex ? prev + 1 : prev))}
           onNextDate={() => setSelectedDateIndex((prev) => (prev > 0 ? prev - 1 : prev))}
         />
 
@@ -354,15 +398,15 @@ export const App: React.FC = () => {
         )}
 
         {/* Main Content Area */}
-        <main className="flex-1 px-3 pt-3 overflow-y-auto">
+        <main className="flex-1 px-3.5 pt-3 overflow-y-auto">
           {/* TAB 1: HOME (Sub-tabs: Overview | Strain | Recovery | Sleep) */}
           {mainTab === 'home' && (
             <>
               {homeSubTab === 'overview' && (
                 <OverviewView
-                  metrics={metrics}
+                  metrics={effectiveMetrics}
                   healthMetrics={healthMetrics}
-                  sessions={sessions}
+                  sessions={effectiveSessions}
                   settings={settings}
                   onSelectSubTab={setHomeSubTab}
                   onStartActivity={() => handleStartWorkout('Running')}
@@ -372,7 +416,7 @@ export const App: React.FC = () => {
 
               {homeSubTab === 'strain' && (
                 <StrainView
-                  metrics={metrics}
+                  metrics={effectiveMetrics}
                   zones={zones}
                   settings={settings}
                   onStartWorkout={handleStartWorkout}
@@ -384,7 +428,7 @@ export const App: React.FC = () => {
 
               {homeSubTab === 'recovery' && (
                 <RecoveryView
-                  metrics={metrics}
+                  metrics={effectiveMetrics}
                   settings={settings}
                   onOpenRecoveryTest={() => setIsRecoveryTestOpen(true)}
                 />
@@ -392,7 +436,7 @@ export const App: React.FC = () => {
 
               {homeSubTab === 'sleep' && (
                 <SleepView
-                  metrics={metrics}
+                  metrics={effectiveMetrics}
                   sleepData={sleepData}
                   onActivateOledNightLock={() => setIsOledNightLockOpen(true)}
                 />
@@ -403,7 +447,7 @@ export const App: React.FC = () => {
           {/* TAB 2: COACHING */}
           {mainTab === 'coaching' && (
             <CoachingView
-              metrics={metrics}
+              metrics={effectiveMetrics}
               sleepData={sleepData}
               settings={settings}
               onStartActivity={() => handleStartWorkout('Running')}
@@ -411,10 +455,10 @@ export const App: React.FC = () => {
             />
           )}
 
-          {/* TAB 3: ACTIVITY LOGGER */}
+          {/* TAB 3: LIVE ACTIVITY */}
           {mainTab === 'activity' && (
             <StrainView
-              metrics={metrics}
+              metrics={effectiveMetrics}
               zones={zones}
               settings={settings}
               onStartWorkout={handleStartWorkout}
@@ -439,11 +483,11 @@ export const App: React.FC = () => {
             />
           )}
 
-          {/* TAB 5: MORE */}
+          {/* TAB 5: MORE / SETTINGS */}
           {mainTab === 'more' && (
             <MoreView
               settings={settings}
-              sessions={sessions}
+              sessions={effectiveSessions}
               onSaveSettings={handleSaveSettings}
               onResetDayCounters={handleResetDayCounters}
               onRefreshSessions={refreshSessions}
@@ -470,11 +514,38 @@ export const App: React.FC = () => {
           }}
         />
 
+        {/* WHOOP 4.0 Strap Connection Bottom Sheet Modal */}
+        <StrapConnectSheet
+          isOpen={isStrapSheetOpen}
+          onClose={() => setIsStrapSheetOpen(false)}
+          metadata={metadata}
+          isSimulator={isSimulator}
+          simulatorMode={simulatorMode}
+          onConnectBle={handleConnectBle}
+          onDisconnectBle={handleDisconnectBle}
+          onToggleSimulator={handleToggleSimulator}
+          onSelectSimulatorMode={handleSelectSimulatorMode}
+        />
+
+        {/* Full-Screen Live Workout HUD Modal */}
+        <WorkoutHudModal
+          isOpen={isWorkoutHudOpen}
+          onClose={() => setIsWorkoutHudOpen(false)}
+          sport={activeSportTitle}
+          elapsedSec={workoutElapsedSec}
+          currentHr={liveMetrics.currentHr}
+          activeCalories={liveMetrics.activeCalories}
+          metrics={liveMetrics}
+          zones={zones}
+          settings={settings}
+          onEndAndSave={handleStopWorkout}
+        />
+
         {/* 3-Minute Recovery Assessment Modal */}
         <RecoveryTestModal
           isOpen={isRecoveryTestOpen}
           onClose={() => setIsRecoveryTestOpen(false)}
-          metrics={metrics}
+          metrics={effectiveMetrics}
           settings={settings}
         />
 
@@ -482,7 +553,7 @@ export const App: React.FC = () => {
         <OledSleepOverlay
           isOpen={isOledNightLockOpen}
           onClose={() => setIsOledNightLockOpen(false)}
-          metrics={metrics}
+          metrics={effectiveMetrics}
           metadata={metadata}
         />
       </div>

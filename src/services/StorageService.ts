@@ -4,6 +4,7 @@ const DB_NAME = 'WhoopPulseLocalDB';
 const DB_VERSION = 1;
 const SETTINGS_KEY = 'whoop_user_settings';
 const BASELINES_KEY = 'whoop_7day_baselines';
+const DAYS_HISTORY_KEY = 'whoop_days_history';
 
 export interface DayBaseline {
   date: string;
@@ -11,6 +12,20 @@ export interface DayBaseline {
   hrv: number;
   recoveryScore: number;
   dayStrain: number;
+}
+
+export interface DayHistoryRecord {
+  offset: number; // 0 = TODAY, 1 = YESTERDAY, 2 = 2 DAYS AGO, etc.
+  label: string;
+  date: string;
+  dayStrain: number;
+  recoveryScore: number;
+  recoveryCategory: 'green' | 'yellow' | 'red';
+  sleepPerformance: number;
+  rhr: number;
+  hrv: number;
+  activeCalories: number;
+  sessions: SessionRecord[];
 }
 
 export const DEFAULT_SETTINGS: UserSettings = {
@@ -52,7 +67,7 @@ class StorageService {
           sessionStore.createIndex('startTime', 'startTime', { unique: false });
         }
 
-        // Live HR samples (recent buffer)
+        // Live HR samples
         if (!db.objectStoreNames.contains('hr_samples')) {
           const hrStore = db.createObjectStore('hr_samples', { keyPath: 'id', autoIncrement: true });
           hrStore.createIndex('timestamp', 'timestamp', { unique: false });
@@ -100,6 +115,195 @@ class StorageService {
     }
   }
 
+  // --- 7-Day History for Carousel Navigation ---
+  getDaysHistory(): DayHistoryRecord[] {
+    try {
+      const data = localStorage.getItem(DAYS_HISTORY_KEY);
+      if (data) {
+        return JSON.parse(data);
+      }
+    } catch (e) {
+      console.warn('Failed reading days history from localStorage', e);
+    }
+
+    // Default realistic 7 days matching WHOOP's exact patterns
+    const now = Date.now();
+    const seeded: DayHistoryRecord[] = [
+      {
+        offset: 0,
+        label: 'TODAY',
+        date: new Date(now).toISOString().slice(0, 10),
+        dayStrain: 6.8,
+        recoveryScore: 78,
+        recoveryCategory: 'green',
+        sleepPerformance: 98,
+        rhr: 52,
+        hrv: 68,
+        activeCalories: 215,
+        sessions: [
+          {
+            id: 'mock-workout-today',
+            type: 'workout',
+            title: 'Morning Interval Run',
+            sport: 'Running',
+            startTime: now - 3600000 * 3,
+            endTime: now - 3600000 * 2.3,
+            durationSec: 2520,
+            avgHr: 148,
+            maxHr: 174,
+            minHr: 110,
+            strain: 9.2,
+            calories: 340,
+            avgHrv: 62,
+            zoneDistribution: { 1: 300, 2: 720, 3: 900, 4: 480, 5: 120 },
+            dataPoints: [],
+          },
+        ],
+      },
+      {
+        offset: 1,
+        label: 'YESTERDAY',
+        date: new Date(now - 86400000).toISOString().slice(0, 10),
+        dayStrain: 14.6,
+        recoveryScore: 84,
+        recoveryCategory: 'green',
+        sleepPerformance: 92,
+        rhr: 50,
+        hrv: 72,
+        activeCalories: 560,
+        sessions: [
+          {
+            id: 'mock-workout-yest-1',
+            type: 'workout',
+            title: 'Heavy Squats & Deadlifts',
+            sport: 'Weightlifting',
+            startTime: now - 86400000 - 3600000 * 5,
+            endTime: now - 86400000 - 3600000 * 4,
+            durationSec: 3600,
+            avgHr: 138,
+            maxHr: 168,
+            minHr: 95,
+            strain: 11.8,
+            calories: 420,
+            avgHrv: 66,
+            zoneDistribution: { 1: 600, 2: 1200, 3: 1200, 4: 600, 5: 0 },
+            dataPoints: [],
+          },
+        ],
+      },
+      {
+        offset: 2,
+        label: '2 DAYS AGO',
+        date: new Date(now - 86400000 * 2).toISOString().slice(0, 10),
+        dayStrain: 8.4,
+        recoveryScore: 61,
+        recoveryCategory: 'yellow',
+        sleepPerformance: 85,
+        rhr: 53,
+        hrv: 62,
+        activeCalories: 310,
+        sessions: [],
+      },
+      {
+        offset: 3,
+        label: '3 DAYS AGO',
+        date: new Date(now - 86400000 * 3).toISOString().slice(0, 10),
+        dayStrain: 16.2,
+        recoveryScore: 54,
+        recoveryCategory: 'yellow',
+        sleepPerformance: 78,
+        rhr: 54,
+        hrv: 58,
+        activeCalories: 680,
+        sessions: [
+          {
+            id: 'mock-workout-3d',
+            type: 'workout',
+            title: 'Outdoor Road Cycling',
+            sport: 'Cycling',
+            startTime: now - 86400000 * 3 - 3600000 * 4,
+            endTime: now - 86400000 * 3 - 3600000 * 2,
+            durationSec: 7200,
+            avgHr: 142,
+            maxHr: 169,
+            minHr: 105,
+            strain: 15.1,
+            calories: 780,
+            avgHrv: 55,
+            zoneDistribution: { 1: 900, 2: 2400, 3: 2700, 4: 1200, 5: 0 },
+            dataPoints: [],
+          },
+        ],
+      },
+      {
+        offset: 4,
+        label: '4 DAYS AGO',
+        date: new Date(now - 86400000 * 4).toISOString().slice(0, 10),
+        dayStrain: 5.1,
+        recoveryScore: 31,
+        recoveryCategory: 'red',
+        sleepPerformance: 64,
+        rhr: 58,
+        hrv: 44,
+        activeCalories: 180,
+        sessions: [],
+      },
+      {
+        offset: 5,
+        label: '5 DAYS AGO',
+        date: new Date(now - 86400000 * 5).toISOString().slice(0, 10),
+        dayStrain: 12.3,
+        recoveryScore: 68,
+        recoveryCategory: 'green',
+        sleepPerformance: 89,
+        rhr: 51,
+        hrv: 69,
+        activeCalories: 450,
+        sessions: [],
+      },
+      {
+        offset: 6,
+        label: '6 DAYS AGO',
+        date: new Date(now - 86400000 * 6).toISOString().slice(0, 10),
+        dayStrain: 9.8,
+        recoveryScore: 75,
+        recoveryCategory: 'green',
+        sleepPerformance: 91,
+        rhr: 52,
+        hrv: 67,
+        activeCalories: 380,
+        sessions: [],
+      },
+    ];
+
+    this.saveDaysHistory(seeded);
+    return seeded;
+  }
+
+  saveDaysHistory(days: DayHistoryRecord[]): void {
+    try {
+      localStorage.setItem(DAYS_HISTORY_KEY, JSON.stringify(days));
+    } catch (e) {
+      console.error('Failed saving days history', e);
+    }
+  }
+
+  addWorkoutToToday(workout: SessionRecord): void {
+    const days = this.getDaysHistory();
+    const today = days[0];
+    if (today) {
+      today.sessions.unshift(workout);
+      // Increase today strain logarithmically
+      const currentTrimp = -70 * Math.log(Math.max(0.001, 1 - today.dayStrain / 21));
+      const addedTrimp = -70 * Math.log(Math.max(0.001, 1 - workout.strain / 21));
+      const newTrimp = currentTrimp + addedTrimp;
+      const newStrain = 21 * (1 - Math.exp(-newTrimp / 70));
+      today.dayStrain = Number(Math.min(21, Math.max(today.dayStrain, newStrain)).toFixed(1));
+      today.activeCalories += workout.calories;
+      this.saveDaysHistory(days);
+    }
+  }
+
   // --- 7-Day Rolling Baselines ---
   get7DayBaselines(): DayBaseline[] {
     try {
@@ -111,20 +315,17 @@ class StorageService {
       console.warn('Failed reading baselines from localStorage', e);
     }
 
-    // Seed realistic 7-day history if empty
-    const now = Date.now();
-    const seeded: DayBaseline[] = [];
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date(now - i * 86400000);
-      const dayStr = d.toISOString().split('T')[0];
-      const rhr = Math.round(50 + (Math.sin(i * 1.5) * 4) + Math.random() * 2);
-      const hrv = Math.round(62 + (Math.cos(i * 1.2) * 9) + Math.random() * 4);
-      const recovery = Math.min(100, Math.max(25, Math.round(65 + (Math.sin(i * 0.9) * 25))));
-      const strain = Number((8.5 + (Math.sin(i * 2.1) * 5.2) + Math.random() * 2).toFixed(1));
-      seeded.push({ date: dayStr, rhr, hrv, recoveryScore: recovery, dayStrain: strain });
-    }
-    this.save7DayBaselines(seeded);
-    return seeded;
+    const days = this.getDaysHistory();
+    const baselines: DayBaseline[] = days.map((d) => ({
+      date: d.date,
+      rhr: d.rhr,
+      hrv: d.hrv,
+      recoveryScore: d.recoveryScore,
+      dayStrain: d.dayStrain,
+    }));
+
+    this.save7DayBaselines(baselines);
+    return baselines;
   }
 
   save7DayBaselines(baselines: DayBaseline[]): void {
@@ -149,17 +350,28 @@ class StorageService {
         dayStrain: Number(dayStrain.toFixed(1)),
       };
     } else {
-      baselines.push({
+      baselines.unshift({
         date: todayStr,
         rhr: Math.round(rhr),
         hrv: Math.round(hrv),
         recoveryScore: Math.round(recoveryScore),
         dayStrain: Number(dayStrain.toFixed(1)),
       });
-      if (baselines.length > 14) baselines.shift(); // Keep up to 14 days
+      if (baselines.length > 14) baselines.pop();
     }
 
     this.save7DayBaselines(baselines);
+
+    // Also sync to DayHistoryRecord[0]
+    const days = this.getDaysHistory();
+    if (days[0]) {
+      days[0].rhr = Math.round(rhr);
+      days[0].hrv = Math.round(hrv);
+      days[0].recoveryScore = Math.round(recoveryScore);
+      days[0].recoveryCategory = recoveryScore >= 67 ? 'green' : recoveryScore <= 33 ? 'red' : 'yellow';
+      days[0].dayStrain = Number(dayStrain.toFixed(1));
+      this.saveDaysHistory(days);
+    }
   }
 
   // --- Sessions Store (Workouts, Sleep, Tests) ---
@@ -169,7 +381,10 @@ class StorageService {
       const tx = db.transaction('sessions', 'readwrite');
       const store = tx.objectStore('sessions');
       const req = store.put(session);
-      req.onsuccess = () => resolve();
+      req.onsuccess = () => {
+        this.addWorkoutToToday(session);
+        resolve();
+      };
       req.onerror = () => reject(req.error);
     });
   }

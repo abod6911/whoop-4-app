@@ -1,0 +1,198 @@
+import React from 'react';
+import type { LiveMetrics, HrZoneInfo, UserSettings } from '../../types/whoop';
+import {
+  Activity,
+  Flame,
+  Clock,
+  Heart,
+  Square,
+  X,
+  ChevronDown,
+} from 'lucide-react';
+
+interface WorkoutHudModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  sport: string;
+  elapsedSec: number;
+  currentHr: number;
+  activeCalories: number;
+  metrics: LiveMetrics;
+  zones: HrZoneInfo[];
+  settings: UserSettings;
+  onEndAndSave: () => void;
+}
+
+export const WorkoutHudModal: React.FC<WorkoutHudModalProps> = ({
+  isOpen,
+  onClose,
+  sport,
+  elapsedSec,
+  currentHr,
+  activeCalories,
+  metrics,
+  zones,
+  settings,
+  onEndAndSave,
+}) => {
+  if (!isOpen) return null;
+
+  const formatSec = (totalSec: number) => {
+    const hrs = Math.floor(totalSec / 3600);
+    const mins = Math.floor((totalSec % 3600) / 60);
+    const secs = totalSec % 60;
+    if (hrs > 0) {
+      return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Activity-specific strain calculation for live HUD
+  // TRIMP-based estimation for the current session
+  const hrFraction = Math.max(0, (currentHr - settings.restingHrBaseline) / (settings.maxHr - settings.restingHrBaseline));
+  const sessionTrimp = (elapsedSec / 60) * hrFraction * 0.64 * Math.exp(1.92 * hrFraction);
+  const liveSessionStrain = Number((21 * (1 - Math.exp(-sessionTrimp / 35))).toFixed(1));
+
+  // Pulse animation duration
+  const pulseDuration = currentHr > 0 ? (60 / currentHr).toFixed(2) : '1.0';
+
+  // Zone percentages
+  const totalZoneSec = Object.values(metrics.zoneSeconds).reduce((a, b) => a + b, 0);
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black flex justify-center animate-in fade-in duration-200">
+      <div className="w-full max-w-[430px] min-h-dvh flex flex-col justify-between p-5 bg-black text-white relative">
+        {/* Top Header */}
+        <div className="flex items-center justify-between border-b border-[#1E232D] pb-3">
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-whoop-blue animate-ping" />
+            <span className="text-xs font-black uppercase tracking-widest text-[#00B4D8] font-condensed">
+              LIVE ACTIVITY
+            </span>
+          </div>
+
+          <div className="text-sm font-black uppercase tracking-wider text-white font-condensed">
+            {sport}
+          </div>
+
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-full bg-[#181C23] text-zinc-400 hover:text-white"
+            title="Minimize HUD"
+          >
+            <ChevronDown className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Center Live Metrics Display */}
+        <div className="space-y-6 my-auto py-4">
+          {/* Main Activity Strain Meter */}
+          <div className="text-center space-y-1">
+            <div className="text-[11px] font-black uppercase tracking-widest text-zinc-400 font-condensed">
+              Activity Strain
+            </div>
+            <div className="text-7xl font-black font-condensed text-transparent bg-clip-text bg-gradient-to-r from-whoop-blue to-[#00B4D8] tracking-tight tabular-nums">
+              {liveSessionStrain}
+            </div>
+            <div className="text-[11px] text-zinc-500 font-mono">
+              DAY TOTAL: {(metrics.dailyStrain + liveSessionStrain * 0.4).toFixed(1)} / 21.0
+            </div>
+          </div>
+
+          {/* Key Metrics Grid: Heart Rate, Elapsed, Calories */}
+          <div className="grid grid-cols-3 gap-2 text-center">
+            {/* Heart Rate */}
+            <div className="p-3.5 rounded-2xl bg-[#101318] border border-[#1E232D] space-y-1">
+              <div className="flex items-center justify-center gap-1 text-[10px] font-black uppercase text-zinc-400 font-condensed">
+                <div
+                  style={{
+                    animation: currentHr > 0 ? `heartbeat ${pulseDuration}s ease-in-out infinite` : 'none',
+                  }}
+                >
+                  <Activity className="w-3.5 h-3.5 text-whoop-red fill-whoop-red" />
+                </div>
+                <span>Heart Rate</span>
+              </div>
+              <div className="text-3xl font-black font-condensed text-white tabular-nums">
+                {currentHr > 0 ? currentHr : '--'}
+              </div>
+              <div className="text-[10px] font-mono text-zinc-500">BPM</div>
+            </div>
+
+            {/* Elapsed Time */}
+            <div className="p-3.5 rounded-2xl bg-[#101318] border border-[#1E232D] space-y-1">
+              <div className="flex items-center justify-center gap-1 text-[10px] font-black uppercase text-zinc-400 font-condensed">
+                <Clock className="w-3.5 h-3.5 text-zinc-400" />
+                <span>Duration</span>
+              </div>
+              <div className="text-2xl font-black font-mono text-white tabular-nums pt-1">
+                {formatSec(elapsedSec)}
+              </div>
+              <div className="text-[10px] font-mono text-zinc-500">TIME</div>
+            </div>
+
+            {/* Active Calories */}
+            <div className="p-3.5 rounded-2xl bg-[#101318] border border-[#1E232D] space-y-1">
+              <div className="flex items-center justify-center gap-1 text-[10px] font-black uppercase text-zinc-400 font-condensed">
+                <Flame className="w-3.5 h-3.5 text-orange-400 fill-orange-400" />
+                <span>Calories</span>
+              </div>
+              <div className="text-3xl font-black font-condensed text-white tabular-nums">
+                {Math.round(activeCalories + (elapsedSec * 0.12))}
+              </div>
+              <div className="text-[10px] font-mono text-zinc-500">KCAL</div>
+            </div>
+          </div>
+
+          {/* Heart Rate Intensity Zone Bar */}
+          <div className="p-4 rounded-2xl bg-[#101318] border border-[#1E232D] space-y-2.5">
+            <div className="flex items-center justify-between text-xs font-condensed">
+              <span className="font-bold text-zinc-400 uppercase tracking-wider">
+                Current Intensity Zone
+              </span>
+              <span className="font-black text-whoop-blue uppercase">
+                Zone {metrics.currentZone}: {zones.find((z) => z.zone === metrics.currentZone)?.name || 'Aerobic'}
+              </span>
+            </div>
+
+            {/* Segmented Zone Progress */}
+            <div className="grid grid-cols-5 gap-1.5 h-3">
+              {zones.slice(1, 6).map((z) => {
+                const isActive = metrics.currentZone >= z.zone;
+                return (
+                  <div
+                    key={z.zone}
+                    className="rounded-full transition-all duration-300"
+                    style={{
+                      backgroundColor: isActive ? z.color : '#1C212B',
+                      opacity: isActive ? 1 : 0.35,
+                    }}
+                  />
+                );
+              })}
+            </div>
+
+            <div className="flex justify-between text-[10px] font-mono text-zinc-500 pt-1">
+              <span>50%</span>
+              <span>60%</span>
+              <span>70%</span>
+              <span>80%</span>
+              <span>90-100%</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Bottom End & Save Action */}
+        <div className="space-y-3 pt-4 border-t border-[#1E232D]">
+          <button
+            onClick={onEndAndSave}
+            className="w-full py-4 rounded-2xl bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/50 text-whoop-red font-black text-sm uppercase tracking-widest font-condensed flex items-center justify-center gap-2 transition-all active:scale-98 shadow-lg shadow-rose-950/40"
+          >
+            <Square className="w-4 h-4 fill-current" />
+            <span>End & Save Workout</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
