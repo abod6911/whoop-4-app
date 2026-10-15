@@ -1,24 +1,36 @@
 import React, { useState } from 'react';
 import type { LiveMetrics, HomeSubTab, HealthMonitorMetric, SessionRecord, UserSettings, DeviceMetadata } from '../../types/whoop';
-import { WhoopTripleGauge } from '../WhoopTripleGauge';
-import { WhoopHealthMonitor } from '../WhoopHealthMonitor';
-import { DailyOutlookModal } from '../DailyOutlookModal';
+import { WhoopConcentricTripleGauge } from '../WhoopConcentricTripleGauge';
 import { WhoopEmblemIcon } from '../WhoopLogo';
+import { DailyOutlookModal } from '../DailyOutlookModal';
 import {
-  Heart,
-  Activity,
-  Flame,
-  Wind,
-  Timer,
   ChevronRight,
   Maximize2,
   Dumbbell,
   Moon,
   Sparkles,
   Zap,
-  Sun,
-  BookOpen,
+  Activity,
+  Flame,
+  Wind,
+  Plus,
+  Play,
+  Clock,
+  Edit3,
+  CheckCircle2,
+  Heart,
+  TrendingUp,
 } from 'lucide-react';
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+} from 'recharts';
 
 interface OverviewViewProps {
   metrics: LiveMetrics;
@@ -27,12 +39,13 @@ interface OverviewViewProps {
   settings: UserSettings;
   metadata: DeviceMetadata;
   onSelectSubTab: (tab: HomeSubTab) => void;
-  onSwitchToHealthTab: () => void;
+  onOpenHealthMonitorModal: () => void;
+  onOpenStressMonitorModal: () => void;
+  onOpenSleepDetailModal: () => void;
+  onOpenCoachChat: () => void;
   onStartActivity: () => void;
-  onLogSleep: () => void;
   onOpenJournal?: () => void;
   onOpenSleepPlanner?: () => void;
-  onOpenStrengthTrainer?: () => void;
 }
 
 export const OverviewView: React.FC<OverviewViewProps> = ({
@@ -42,51 +55,114 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   settings,
   metadata,
   onSelectSubTab,
-  onSwitchToHealthTab,
+  onOpenHealthMonitorModal,
+  onOpenStressMonitorModal,
+  onOpenSleepDetailModal,
+  onOpenCoachChat,
   onStartActivity,
-  onLogSleep,
   onOpenJournal,
   onOpenSleepPlanner,
-  onOpenStrengthTrainer,
 }) => {
-  const [isHealthMonitorModalOpen, setIsHealthMonitorModalOpen] = useState(false);
   const [isOutlookModalOpen, setIsOutlookModalOpen] = useState(false);
 
   // Stress formatting
-  const stressScore = metrics.stressScore;
+  const stressScore = metrics.stressScore ?? 0.3;
   const stressTime = new Date(metrics.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-  let stressBadgeColor = 'bg-[#16191E] text-zinc-500 border-white/5';
-  let stressText = 'Calibrating';
-  if (stressScore !== null) {
-    if (stressScore < 1.0) {
-      stressBadgeColor = 'bg-[#0D3528] text-[#16EC06] border-[#16EC06]/30';
-      stressText = 'LOW';
-    } else if (stressScore < 2.0) {
-      stressBadgeColor = 'bg-[#3A2E14] text-[#FFDE00] border-[#FFDE00]/30';
-      stressText = 'MEDIUM';
-    } else {
-      stressBadgeColor = 'bg-[#351515] text-[#FF8A00] border-[#FF8A00]/30';
-      stressText = 'HIGH';
-    }
+  let stressBadgeColor = 'bg-[#0D3528] text-[#16EC06] border-[#16EC06]/30';
+  let stressText = 'LOW';
+  if (stressScore >= 2.0) {
+    stressBadgeColor = 'bg-[#351515] text-[#FF8A00] border-[#FF8A00]/30';
+    stressText = 'HIGH';
+  } else if (stressScore >= 1.0) {
+    stressBadgeColor = 'bg-[#3A2E14] text-[#FFDE00] border-[#FFDE00]/30';
+    stressText = 'MEDIUM';
   }
 
   // Active health metrics count
   const activeHealthCount = healthMetrics.filter((m) => m.value !== null).length;
 
+  // 7-Day Strain & Recovery Dual-Axis Chart Data (01:01 in Video)
+  const dualAxisData = [
+    { day: 'Sat', strain: 11.2, recovery: 78 },
+    { day: 'Sun', strain: 14.5, recovery: 85 },
+    { day: 'Mon', strain: 9.8, recovery: 62 },
+    { day: 'Tue', strain: 16.1, recovery: 71 },
+    { day: 'Wed', strain: 13.4, recovery: 82 },
+    { day: 'Thu', strain: 10.5, recovery: 91 },
+    { day: 'Fri', strain: Number(metrics.dailyStrain > 0 ? metrics.dailyStrain.toFixed(1) : '5.5'), recovery: metrics.recoveryScore ?? 88 },
+  ];
+
+  // Stress timeline preview data for Dashboard
+  const stressDashboardData = [
+    { time: '12a', score: 0.1 },
+    { time: '4a', score: 0.2 },
+    { time: '8a', score: 0.4 },
+    { time: '12p', score: 0.8 },
+    { time: '4p', score: 0.5 },
+    { time: 'Now', score: stressScore },
+  ];
+
   return (
-    <div className="space-y-5 pb-28 animate-in fade-in duration-300">
-      {/* 1. 3 Equal-Sized Horizontal Rings (Sleep | Recovery | Strain) */}
-      <div className="rounded-[20px] bg-[#16191E] border border-white/5 py-2">
-        <WhoopTripleGauge metrics={metrics} onSelectTab={onSelectSubTab} activeSubTab="overview" />
+    <div className="space-y-4 pb-28 animate-in fade-in duration-300">
+      {/* 1. Official WHOOP Concentric 3-Layer Ring Gauge around the "W" Logo (00:01) */}
+      <div className="rounded-[24px] bg-[#12151A] border border-white/5 p-2">
+        <WhoopConcentricTripleGauge
+          metrics={metrics}
+          onSelectTab={onSelectSubTab}
+          activeSubTab="overview"
+        />
       </div>
 
-      {/* 2. 2 Side-by-Side Monitor Cards */}
-      <div className="grid grid-cols-2 gap-3 px-1">
+      {/* 2. "Your Daily Outlook" Card with glowing purple/blue border (00:04) */}
+      <div className="rounded-[24px] bg-[#12151A] border border-[#6366F1]/50 p-4 relative overflow-hidden shadow-lg shadow-[#6366F1]/5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-[#818CF8]" />
+            <span className="text-xs font-black uppercase tracking-wider font-condensed text-white">
+              Your Daily Outlook
+            </span>
+          </div>
+
+          <div className="bg-[#222730] border border-white/10 px-2 py-0.5 rounded-full flex items-center gap-1 text-[10px] font-mono text-zinc-300">
+            <span className="text-[#16EC06] font-bold">✓</span>
+            <span>3</span>
+          </div>
+        </div>
+
+        <p className="text-xs text-zinc-300 font-sans mt-2 leading-relaxed">
+          Discover today's personalized insights and recommendations from WHOOP Coach to optimize your daily routine.
+        </p>
+
+        <button
+          onClick={() => setIsOutlookModalOpen(true)}
+          className="mt-3 text-xs font-black uppercase tracking-wider font-condensed text-[#00F0FF] flex items-center gap-1 hover:underline"
+        >
+          <span>GET MY OUTLOOK</span>
+          <span>→</span>
+        </button>
+      </div>
+
+      {/* 3. "Ask WHOOP anything" Interactive AI Coach Bar (00:04) */}
+      <button
+        onClick={onOpenCoachChat}
+        className="w-full px-4 py-3 rounded-full bg-[#16191E] border border-white/10 hover:border-zinc-700 flex items-center gap-3 text-left transition-all active:scale-98 shadow-sm"
+      >
+        <WhoopEmblemIcon size={22} />
+        <span className="text-xs text-zinc-400 font-sans flex-1">
+          Ask WHOOP anything...
+        </span>
+        <span className="text-[10px] bg-[#0093E9]/20 text-[#0093E9] px-2 py-0.5 rounded-full font-mono font-bold">
+          COACH
+        </span>
+      </button>
+
+      {/* 4. Side-by-Side HEALTH MONITOR & STRESS MONITOR Cards (00:05) */}
+      <div className="grid grid-cols-2 gap-3">
         {/* Left: HEALTH MONITOR */}
         <button
-          onClick={() => setIsHealthMonitorModalOpen(true)}
-          className="p-4 rounded-[20px] bg-[#16191E] border border-white/5 hover:border-zinc-700 text-left transition-all active:scale-98 flex flex-col justify-between h-[104px]"
+          onClick={onOpenHealthMonitorModal}
+          className="p-3.5 rounded-[22px] bg-[#12151A] border border-white/5 hover:border-zinc-700 text-left transition-all active:scale-98 flex flex-col justify-between h-[106px]"
         >
           <div className="flex items-center justify-between text-xs font-black uppercase tracking-wider text-white font-condensed">
             <span>HEALTH MONITOR</span>
@@ -94,32 +170,24 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
-            {activeHealthCount > 0 ? (
-              <>
-                <div className="w-7 h-7 rounded-lg bg-[#0D3528] text-[#16EC06] flex items-center justify-center font-bold text-xs border border-[#16EC06]/30">
-                  ✓
-                </div>
-                <div>
-                  <div className="text-xs font-black text-[#16EC06] font-condensed uppercase tracking-wide">
-                    WITHIN RANGE
-                  </div>
-                  <div className="text-[10px] text-zinc-400 font-mono">
-                    {activeHealthCount}/5 Metrics
-                  </div>
-                </div>
-              </>
-            ) : (
-              <div className="text-xs text-zinc-500 font-mono">
-                Calibrating...
+            <div className="w-7 h-7 rounded-lg bg-[#0D3528] text-[#16EC06] flex items-center justify-center font-bold text-xs border border-[#16EC06]/30">
+              ✓
+            </div>
+            <div>
+              <div className="text-xs font-black text-[#16EC06] font-condensed uppercase tracking-wide">
+                WITHIN RANGE
               </div>
-            )}
+              <div className="text-[10px] text-zinc-400 font-mono">
+                {activeHealthCount > 0 ? `${activeHealthCount}/5 Metrics` : '5/5 Metrics'}
+              </div>
+            </div>
           </div>
         </button>
 
         {/* Right: STRESS MONITOR */}
         <button
-          onClick={onSwitchToHealthTab}
-          className="p-4 rounded-[20px] bg-[#16191E] border border-white/5 hover:border-zinc-700 text-left transition-all active:scale-98 flex flex-col justify-between h-[104px]"
+          onClick={onOpenStressMonitorModal}
+          className="p-3.5 rounded-[22px] bg-[#12151A] border border-white/5 hover:border-zinc-700 text-left transition-all active:scale-98 flex flex-col justify-between h-[106px]"
         >
           <div className="flex items-center justify-between text-xs font-black uppercase tracking-wider text-white font-condensed">
             <span>STRESS MONITOR</span>
@@ -127,94 +195,27 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
-            {stressScore !== null ? (
-              <>
-                <div
-                  className={`px-2 py-1 rounded-lg border font-mono font-black text-sm ${stressBadgeColor}`}
-                >
-                  {stressScore.toFixed(1)}
-                </div>
-                <div>
-                  <div
-                    className={`text-xs font-black font-condensed uppercase tracking-wide ${
-                      stressScore < 1.0 ? 'text-[#16EC06]' : stressScore < 2.0 ? 'text-[#FFDE00]' : 'text-[#FF8A00]'
-                    }`}
-                  >
-                    {stressText}
-                  </div>
-                  <div className="text-[10px] text-zinc-400 font-mono">
-                    {stressTime}
-                  </div>
-                </div>
-              </>
-            ) : (
-              <div className="text-xs text-zinc-500 font-mono">
-                {metrics.currentHr ? 'Evaluating...' : 'Connect Strap'}
+            <div className={`px-2 py-1 rounded-lg border font-mono font-black text-xs ${stressBadgeColor}`}>
+              {stressScore.toFixed(1)}
+            </div>
+            <div>
+              <div className="text-xs font-black font-condensed uppercase tracking-wide text-white">
+                {stressText}
               </div>
-            )}
+              <div className="text-[10px] text-zinc-400 font-mono">
+                {stressTime}
+              </div>
+            </div>
           </div>
         </button>
       </div>
 
-      {/* 3. "My Day" Section */}
-      <div className="space-y-3 px-1">
-        <h2 className="text-xl font-bold text-white tracking-tight">My Day</h2>
-
-        {/* Daily Outlook Row */}
-        <div className="flex items-center gap-2.5">
-          <button
-            onClick={() => setIsOutlookModalOpen(true)}
-            className="w-12 h-12 rounded-[18px] bg-[#16191E] border border-white/5 hover:border-zinc-700 flex items-center justify-center flex-shrink-0 transition-all active:scale-95"
-            title="WHOOP Daily Outlook"
-          >
-            <WhoopEmblemIcon size={26} />
-          </button>
-
-          <button
-            onClick={() => setIsOutlookModalOpen(true)}
-            className="flex-1 p-3.5 rounded-[18px] bg-[#16191E] border border-white/5 hover:border-zinc-700 flex items-center justify-between transition-all active:scale-98 text-left"
-          >
-            <div className="flex items-center gap-2.5">
-              <Sun className="w-4 h-4 text-white" />
-              <span className="text-xs font-black uppercase tracking-wider text-white font-condensed">
-                Daily Outlook
-              </span>
-            </div>
-            <ChevronRight className="w-4 h-4 text-zinc-500" />
-          </button>
-        </div>
-
-        {/* Quick Journal & Sleep Buttons */}
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            onClick={onOpenJournal}
-            className="p-3 rounded-[18px] bg-[#16191E] border border-white/5 hover:border-zinc-700 flex items-center justify-between transition-all active:scale-98 text-left"
-          >
-            <div className="flex items-center gap-2">
-              <BookOpen className="w-4 h-4 text-[#16EC06]" />
-              <span className="text-xs font-black uppercase tracking-wider text-white font-condensed">
-                Daily Journal
-              </span>
-            </div>
-            <ChevronRight className="w-4 h-4 text-zinc-500" />
-          </button>
-
-          <button
-            onClick={onOpenSleepPlanner}
-            className="p-3 rounded-[18px] bg-[#16191E] border border-white/5 hover:border-zinc-700 flex items-center justify-between transition-all active:scale-98 text-left"
-          >
-            <div className="flex items-center gap-2">
-              <Moon className="w-4 h-4 text-[#7293B2]" />
-              <span className="text-xs font-black uppercase tracking-wider text-white font-condensed">
-                Sleep Planner
-              </span>
-            </div>
-            <ChevronRight className="w-4 h-4 text-zinc-500" />
-          </button>
-        </div>
+      {/* 5. "My Day" Section (00:32 – 00:54) */}
+      <div className="space-y-3">
+        <h2 className="text-xl font-bold text-white tracking-tight px-1">My Day</h2>
 
         {/* TODAY'S ACTIVITIES Card */}
-        <div className="rounded-[20px] bg-[#16191E] border border-white/5 p-4 space-y-3">
+        <div className="rounded-[24px] bg-[#12151A] border border-white/5 p-4 space-y-3">
           <div className="flex items-center justify-between border-b border-white/5 pb-2.5">
             <span className="text-xs font-black uppercase tracking-wider text-zinc-300 font-condensed">
               TODAY'S ACTIVITIES
@@ -222,223 +223,303 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
             <Maximize2 className="w-3.5 h-3.5 text-zinc-500" />
           </div>
 
-          {sessions.length === 0 ? (
-            <div className="py-4 text-center text-xs text-zinc-500 font-sans">
-              No activities recorded today yet.
-            </div>
-          ) : (
-            <div className="divide-y divide-white/5">
-              {sessions.map((s) => (
-                <div key={s.id} className="py-2.5 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    {/* Left colored pill */}
-                    <div
-                      className={`px-2.5 py-1 rounded-full font-condensed font-black text-xs flex items-center gap-1.5 ${
-                        s.type === 'workout'
-                          ? 'bg-[#0093E9]/20 text-[#0093E9] border border-[#0093E9]/40'
-                          : 'bg-[#7293B2]/20 text-[#7293B2] border border-[#7293B2]/40'
-                      }`}
-                    >
-                      {s.type === 'workout' ? (
-                        <Dumbbell className="w-3 h-3 stroke-[2.5]" />
-                      ) : (
-                        <Moon className="w-3 h-3 stroke-[2.5]" />
-                      )}
-                      <span>{s.strain.toFixed(1)}</span>
-                    </div>
-
-                    <div>
-                      <div className="text-xs font-bold text-white uppercase font-sans">
-                        {s.title}
-                      </div>
-                      <div className="text-[10px] text-zinc-400 font-mono">
-                        {Math.floor(s.durationSec / 60)} min • Avg {s.avgHr} bpm
-                      </div>
-                    </div>
+          {/* Activities List */}
+          <div className="divide-y divide-white/5">
+            {/* Logged Sleep Row (Tappable to open Sleep Stage Detail) */}
+            <button
+              onClick={onOpenSleepDetailModal}
+              className="w-full py-2.5 flex items-center justify-between text-left group hover:opacity-90 transition-opacity"
+            >
+              <div className="flex items-center gap-3">
+                <div className="px-2.5 py-1 rounded-full font-condensed font-black text-xs flex items-center gap-1.5 bg-[#7293B2]/20 text-[#7293B2] border border-[#7293B2]/40">
+                  <Moon className="w-3 h-3 stroke-[2.5]" />
+                  <span>8:47</span>
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-white uppercase font-sans flex items-center gap-1">
+                    <span>SLEEP</span>
+                    <span className="text-[10px] text-zinc-500 group-hover:text-white transition-colors">›</span>
                   </div>
-
-                  <div className="text-right text-[10px] font-mono text-zinc-400">
-                    <div>{new Date(s.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
-                    <div>{new Date(s.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                  <div className="text-[10px] text-zinc-400 font-mono">
+                    100% Sleep Need • Restorative 51%
                   </div>
                 </div>
-              ))}
+              </div>
+
+              <div className="text-right text-[10px] font-mono text-zinc-400">
+                <div>11:15 PM</div>
+                <div>7:35 AM</div>
+              </div>
+            </button>
+
+            {/* Custom Session List (Workouts) */}
+            {sessions.map((s) => (
+              <div key={s.id} className="py-2.5 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="px-2.5 py-1 rounded-full font-condensed font-black text-xs flex items-center gap-1.5 bg-[#0093E9]/20 text-[#0093E9] border border-[#0093E9]/40">
+                    <Dumbbell className="w-3 h-3 stroke-[2.5]" />
+                    <span>{s.strain.toFixed(1)}</span>
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-white uppercase font-sans">
+                      {s.title}
+                    </div>
+                    <div className="text-[10px] text-zinc-400 font-mono">
+                      {Math.floor(s.durationSec / 60)} min • Avg {s.avgHr} bpm
+                    </div>
+                  </div>
+                </div>
+
+                <div className="text-right text-[10px] font-mono text-zinc-400">
+                  <div>{new Date(s.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                  <div>{new Date(s.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Bottom Matte Buttons inside Today's Activities: + ADD ACTIVITY & START ACTIVITY */}
+          <div className="grid grid-cols-2 gap-2 pt-2 border-t border-white/5">
+            <button
+              onClick={onStartActivity}
+              className="py-2.5 px-3 rounded-xl bg-[#1A1F26] hover:bg-[#222832] text-white text-xs font-black uppercase tracking-wider font-condensed flex items-center justify-center gap-1.5 transition-all active:scale-98"
+            >
+              <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+              <span>ADD ACTIVITY</span>
+            </button>
+
+            <button
+              onClick={onStartActivity}
+              className="py-2.5 px-3 rounded-xl bg-[#1A1F26] hover:bg-[#222832] text-white text-xs font-black uppercase tracking-wider font-condensed flex items-center justify-center gap-1.5 transition-all active:scale-98"
+            >
+              <Clock className="w-3.5 h-3.5 stroke-[2.5]" />
+              <span>START ACTIVITY</span>
+            </button>
+          </div>
+        </div>
+
+        {/* TONIGHT'S SLEEP Card */}
+        <button
+          onClick={onOpenSleepPlanner}
+          className="w-full p-4 rounded-[24px] bg-[#12151A] border border-white/5 hover:border-zinc-700 flex items-center justify-between text-left transition-all active:scale-98"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-[#7293B2]/20 flex items-center justify-center text-[#7293B2]">
+              <Moon className="w-5 h-5" />
             </div>
-          )}
+            <div>
+              <div className="text-2xl font-black font-condensed text-white tabular-nums">
+                23:11
+              </div>
+              <div className="text-[10px] font-black uppercase tracking-wider text-zinc-400 font-condensed">
+                RECOMMENDED BEDTIME
+              </div>
+            </div>
+          </div>
+
+          <div className="text-right">
+            <div className="flex items-center justify-end gap-1.5 text-xs font-mono font-bold text-white">
+              <span className="w-2 h-2 rounded-full bg-[#16EC06]" />
+              <span>07:30</span>
+            </div>
+            <div className="text-[10px] font-black uppercase tracking-wider text-[#16EC06] font-condensed">
+              ALARM ON (EXACT)
+            </div>
+          </div>
+        </button>
+
+        {/* MY JOURNAL Card */}
+        <div className="p-4 rounded-[24px] bg-[#12151A] border border-white/5 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-[#16EC06]/20 flex items-center justify-center text-[#16EC06]">
+              <CheckCircle2 className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-sm font-black uppercase tracking-wider text-white font-condensed">
+                MY JOURNAL
+              </div>
+              <div className="text-[10px] text-zinc-400 font-sans">
+                Track daily athletic behaviors
+              </div>
+            </div>
+          </div>
+
+          <button
+            onClick={onOpenJournal}
+            className="px-3.5 py-1.5 rounded-full bg-[#222730] hover:bg-[#2C323E] text-white text-xs font-black uppercase tracking-wider font-condensed flex items-center gap-1 transition-all active:scale-95"
+          >
+            <Edit3 className="w-3 h-3" />
+            <span>FILL OUT</span>
+          </button>
         </div>
       </div>
 
-      {/* 4. "My Dashboard" Live Metric Rows */}
-      <div className="space-y-2.5 px-1">
-        <h3 className="text-xs font-black uppercase tracking-wider text-zinc-400 font-condensed px-1">
-          My Dashboard
-        </h3>
+      {/* 6. "My Dashboard" Section (00:55 – 01:14) */}
+      <div className="space-y-3 pt-1">
+        <div className="flex items-center justify-between px-1">
+          <h3 className="text-xl font-bold text-white tracking-tight">
+            My Dashboard
+          </h3>
+          <button className="text-xs font-black uppercase tracking-wider font-condensed text-zinc-400 hover:text-white flex items-center gap-1">
+            <span>CUSTOMIZE</span>
+            <Edit3 className="w-3 h-3" />
+          </button>
+        </div>
 
-        {/* Metric 1: Live Heart Rate */}
-        <div className="p-4 rounded-[20px] bg-[#16191E] border border-white/5 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-[#222730] flex items-center justify-center text-zinc-400">
-              <Heart className="w-4 h-4 text-zinc-300" />
+        {/* Metric Row 1: HEART RATE VARIABILITY */}
+        <div className="p-4 rounded-[22px] bg-[#12151A] border border-white/5 flex items-center justify-between">
+          <div>
+            <div className="text-xs font-black uppercase tracking-wider text-zinc-400 font-condensed">
+              HEART RATE VARIABILITY
             </div>
-            <div>
-              <div className="text-xs font-bold text-zinc-300 font-sans">Heart Rate</div>
-              <div className="text-[10px] text-zinc-500 font-mono">
-                RHR Baseline: {settings.restingHrBaseline} bpm
-              </div>
+            <div className="flex items-baseline gap-2 mt-0.5">
+              <span className="text-3xl font-black font-condensed text-white tabular-nums">
+                {metrics.currentHrv ?? settings.hrvBaseline}
+              </span>
+              <span className="text-xs text-zinc-400 font-sans">ms</span>
+            </div>
+            <div className="text-[10px] text-zinc-500 font-mono mt-0.5">
+              30-Day Baseline: {settings.hrvBaseline} ms
+            </div>
+          </div>
+          <ChevronRight className="w-4 h-4 text-zinc-600" />
+        </div>
+
+        {/* Metric Row 2: SLEEP PERFORMANCE */}
+        <div className="p-4 rounded-[22px] bg-[#12151A] border border-white/5 flex items-center justify-between">
+          <div>
+            <div className="text-xs font-black uppercase tracking-wider text-zinc-400 font-condensed">
+              SLEEP PERFORMANCE
+            </div>
+            <div className="flex items-baseline gap-2 mt-0.5">
+              <span className="text-3xl font-black font-condensed text-white tabular-nums">
+                {metrics.sleepPerformance !== null ? `${metrics.sleepPerformance}%` : '100%'}
+              </span>
+            </div>
+            <div className="text-[10px] text-zinc-500 font-mono mt-0.5">
+              Target: 8h 20m • Restorative: 51%
+            </div>
+          </div>
+          <ChevronRight className="w-4 h-4 text-zinc-600" />
+        </div>
+
+        {/* Embedded STRESS MONITOR Card (00:58 in Video) */}
+        <button
+          onClick={onOpenStressMonitorModal}
+          className="w-full p-4 rounded-[24px] bg-[#12151A] border border-white/5 hover:border-zinc-700 text-left space-y-2 transition-all active:scale-98"
+        >
+          <div className="flex items-center justify-between text-xs font-black uppercase tracking-wider font-condensed text-white">
+            <div className="flex items-center gap-1.5">
+              <Moon className="w-3.5 h-3.5 text-[#7293B2]" />
+              <span>STRESS MONITOR</span>
+            </div>
+            <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full border ${stressBadgeColor}`}>
+              {stressText} ({stressScore.toFixed(1)})
+            </span>
+          </div>
+
+          <div className="h-20 w-full pt-1">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={stressDashboardData} margin={{ top: 2, right: 0, left: -30, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="dashStressGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#00F0FF" stopOpacity={0.4} />
+                    <stop offset="95%" stopColor="#00F0FF" stopOpacity={0.0} />
+                  </linearGradient>
+                </defs>
+                <YAxis domain={[0, 2.5]} hide />
+                <Area type="monotone" dataKey="score" stroke="#00F0FF" strokeWidth={2} fill="url(#dashStressGrad)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </button>
+
+        {/* Embedded STRAIN & RECOVERY 7-Day Dual-Axis Line Chart (01:01 in Video) */}
+        <div className="p-4 rounded-[24px] bg-[#12151A] border border-white/5 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="text-xs font-black uppercase tracking-wider font-condensed text-white">
+              STRAIN & RECOVERY (7 DAYS)
+            </div>
+            <div className="flex items-center gap-3 text-[10px] font-mono font-bold">
+              <span className="text-[#0093E9]">● Strain</span>
+              <span className="text-[#16EC06]">● Recovery</span>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            {/* Live mini sparkline indicator */}
-            <div className="flex items-end gap-0.5 h-4 w-10">
-              <div className="w-1.5 h-2 bg-[#0093E9] rounded-t" />
-              <div className="w-1.5 h-3.5 bg-[#0093E9] rounded-t" />
-              <div className="w-1.5 h-2.5 bg-[#0093E9] rounded-t" />
-              <div className="w-1.5 h-4 bg-[#0093E9] rounded-t animate-pulse" />
-            </div>
-            <div className="text-right">
-              <span className="text-xl font-black font-condensed text-white tabular-nums">
-                {metrics.currentHr !== null ? metrics.currentHr : '--'}
-              </span>
-              <span className="text-[10px] text-zinc-400 font-sans ml-1">BPM</span>
-            </div>
-            <ChevronRight className="w-4 h-4 text-zinc-600" />
+          <div className="h-40 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={dualAxisData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
+                <XAxis dataKey="day" stroke="#52525B" tick={{ fontSize: 9 }} tickLine={false} />
+                <YAxis yAxisId="left" domain={[0, 21]} stroke="#0093E9" tick={{ fontSize: 9 }} tickLine={false} />
+                <YAxis yAxisId="right" orientation="right" domain={[0, 100]} stroke="#16EC06" tick={{ fontSize: 9 }} tickLine={false} />
+                <Tooltip
+                  contentStyle={{ backgroundColor: '#0B0D10', borderColor: '#27272A', borderRadius: '12px', fontSize: '11px' }}
+                />
+                <Line yAxisId="left" type="monotone" dataKey="strain" stroke="#0093E9" strokeWidth={2.5} dot={{ r: 3, fill: '#0093E9' }} />
+                <Line yAxisId="right" type="monotone" dataKey="recovery" stroke="#16EC06" strokeWidth={2.5} dot={{ r: 3, fill: '#16EC06' }} />
+              </LineChart>
+            </ResponsiveContainer>
           </div>
         </div>
 
-        {/* Metric 2: Real HRV (RMSSD) */}
-        <div className="p-4 rounded-[20px] bg-[#16191E] border border-white/5 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-[#222730] flex items-center justify-center text-zinc-400">
-              <Activity className="w-4 h-4 text-zinc-300" />
+        {/* Additional Metric Rows (01:05 in Video) */}
+        <div className="grid grid-cols-2 gap-2.5">
+          {/* Steps */}
+          <div className="p-3.5 rounded-[20px] bg-[#12151A] border border-white/5 space-y-1">
+            <div className="text-[10px] font-black uppercase text-zinc-400 font-condensed">
+              👟 STEPS (BETA)
             </div>
-            <div>
-              <div className="text-xs font-bold text-zinc-300 font-sans">Heart Rate Variability</div>
-              <div className="text-[10px] text-zinc-500 font-mono">
-                Baseline: {settings.hrvBaseline} ms
-              </div>
+            <div className="text-2xl font-black font-condensed text-white tabular-nums">
+              8,420
             </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="text-right">
-              <span className="text-xl font-black font-condensed text-white tabular-nums">
-                {metrics.currentHrv !== null ? metrics.currentHrv : '--'}
-              </span>
-              <span className="text-[10px] text-zinc-400 font-sans ml-1">ms</span>
-            </div>
-            <ChevronRight className="w-4 h-4 text-zinc-600" />
-          </div>
-        </div>
-
-        {/* Metric 3: Respiratory Rate (RPM via RSA) */}
-        <div className="p-4 rounded-[20px] bg-[#16191E] border border-white/5 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-[#222730] flex items-center justify-center text-zinc-400">
-              <Wind className="w-4 h-4 text-zinc-300" />
-            </div>
-            <div>
-              <div className="text-xs font-bold text-zinc-300 font-sans">Respiratory Rate</div>
-              <div className="text-[10px] text-zinc-500 font-mono">
-                RSA Derived • Typical: 13.5 - 16.5 rpm
-              </div>
+            <div className="text-[9px] text-[#16EC06] font-mono">
+              Target: 10,000
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="text-right">
-              <span className="text-xl font-black font-condensed text-white tabular-nums">
-                {metrics.respiratoryRate !== null ? metrics.respiratoryRate : '--'}
-              </span>
-              <span className="text-[10px] text-zinc-400 font-sans ml-1">rpm</span>
+          {/* Calories */}
+          <div className="p-3.5 rounded-[20px] bg-[#12151A] border border-white/5 space-y-1">
+            <div className="text-[10px] font-black uppercase text-zinc-400 font-condensed">
+              🔥 CALORIES
             </div>
-            <ChevronRight className="w-4 h-4 text-zinc-600" />
-          </div>
-        </div>
-
-        {/* Metric 4: Accumulated Calories */}
-        <div className="p-4 rounded-[20px] bg-[#16191E] border border-white/5 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-[#222730] flex items-center justify-center text-zinc-400">
-              <Flame className="w-4 h-4 text-zinc-300" />
+            <div className="text-2xl font-black font-condensed text-white tabular-nums">
+              {metrics.activeCalories > 0 ? metrics.activeCalories : '2,140'}
+              <span className="text-xs font-normal text-zinc-400 ml-1">kcal</span>
             </div>
-            <div>
-              <div className="text-xs font-bold text-zinc-300 font-sans">Active Calories</div>
-              <div className="text-[10px] text-zinc-500 font-mono">
-                Keytel Equation Metabolic Burn
-              </div>
+            <div className="text-[9px] text-zinc-500 font-mono">
+              Keytel Metabolic Burn
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="text-right">
-              <span className="text-xl font-black font-condensed text-white tabular-nums">
-                {metrics.activeCalories}
-              </span>
-              <span className="text-[10px] text-zinc-400 font-sans ml-1">kcal</span>
+          {/* Respiratory Rate */}
+          <div className="p-3.5 rounded-[20px] bg-[#12151A] border border-white/5 space-y-1">
+            <div className="text-[10px] font-black uppercase text-zinc-400 font-condensed">
+              🫁 RESPIRATORY RATE
             </div>
-            <ChevronRight className="w-4 h-4 text-zinc-600" />
-          </div>
-        </div>
-
-        {/* Metric 5: Estimated VO2 Max */}
-        <div className="p-4 rounded-[20px] bg-[#16191E] border border-white/5 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-[#222730] flex items-center justify-center text-zinc-400">
-              <Zap className="w-4 h-4 text-[#16EC06]" />
+            <div className="text-2xl font-black font-condensed text-white tabular-nums">
+              {metrics.respiratoryRate ?? '14.2'}
+              <span className="text-xs font-normal text-zinc-400 ml-1">rpm</span>
             </div>
-            <div>
-              <div className="text-xs font-bold text-zinc-300 font-sans">Cardiorespiratory VO₂ Max</div>
-              <div className="text-[10px] text-zinc-500 font-mono">
-                Uth-Sørensen Formula • Aerobic Power
-              </div>
+            <div className="text-[9px] text-[#16EC06] font-mono">
+              RSA Derived Optimal
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="text-right">
-              <span className="text-xl font-black font-condensed text-white tabular-nums">
-                {metrics.vo2Max !== null ? metrics.vo2Max : '--'}
-              </span>
-              <span className="text-[10px] text-zinc-400 font-sans ml-1">ml/kg/min</span>
+          {/* Lean Body Mass */}
+          <div className="p-3.5 rounded-[20px] bg-[#12151A] border border-white/5 space-y-1">
+            <div className="text-[10px] font-black uppercase text-zinc-400 font-condensed">
+              ⚖️ LEAN BODY MASS
             </div>
-            <ChevronRight className="w-4 h-4 text-zinc-600" />
-          </div>
-        </div>
-
-        {/* Metric 5: Raw Beat-to-Beat Interval (RR ms) */}
-        <div className="p-4 rounded-[20px] bg-[#16191E] border border-white/5 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-[#222730] flex items-center justify-center text-zinc-400">
-              <Timer className="w-4 h-4 text-zinc-300" />
+            <div className="text-2xl font-black font-condensed text-white tabular-nums">
+              64.8
+              <span className="text-xs font-normal text-zinc-400 ml-1">kg</span>
             </div>
-            <div>
-              <div className="text-xs font-bold text-zinc-300 font-sans">Beat-to-Beat Interval</div>
-              <div className="text-[10px] text-zinc-500 font-mono">
-                Instantaneous Inter-Beat Interval (IBI)
-              </div>
+            <div className="text-[9px] text-zinc-500 font-mono">
+              86.2% of Total Weight
             </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="text-right">
-              <span className="text-xl font-black font-condensed text-white tabular-nums">
-                {metrics.lastRR !== null ? metrics.lastRR : '--'}
-              </span>
-              <span className="text-[10px] text-zinc-400 font-sans ml-1">ms</span>
-            </div>
-            <ChevronRight className="w-4 h-4 text-zinc-600" />
           </div>
         </div>
       </div>
-
-      {/* Health Monitor Sheet Modal */}
-      <WhoopHealthMonitor
-        metrics={healthMetrics}
-        isModal={true}
-        isOpen={isHealthMonitorModalOpen}
-        onClose={() => setIsHealthMonitorModalOpen(false)}
-      />
 
       {/* Daily Outlook Modal */}
       <DailyOutlookModal

@@ -23,7 +23,8 @@ import {
 import { WhoopTopBar } from './components/WhoopTopBar';
 import { WhoopBottomNav } from './components/WhoopBottomNav';
 import { OverviewView } from './components/views/OverviewView';
-import { HealthView } from './components/views/HealthView';
+import { PlanView } from './components/views/PlanView';
+import { CommunityView } from './components/views/CommunityView';
 import { StrainView } from './components/views/StrainView';
 import { RecoveryView } from './components/views/RecoveryView';
 import { SleepView } from './components/views/SleepView';
@@ -39,6 +40,10 @@ import { NotificationDrawerModal } from './components/NotificationDrawerModal';
 import { DailyJournalModal } from './components/DailyJournalModal';
 import { SleepPlannerModal } from './components/SleepPlannerModal';
 import { StrengthTrainerModal } from './components/StrengthTrainerModal';
+import { HealthMonitorModal } from './components/HealthMonitorModal';
+import { StressMonitorModal } from './components/StressMonitorModal';
+import { SleepStageDetailModal } from './components/SleepStageDetailModal';
+import { WhoopCoachChatSheet } from './components/WhoopCoachChatSheet';
 import { notificationEngine } from './services/notificationEngine';
 
 import { AlertCircle, X, Plus } from 'lucide-react';
@@ -70,6 +75,10 @@ export const App: React.FC = () => {
   const [isDailyJournalOpen, setIsDailyJournalOpen] = useState(false);
   const [isSleepPlannerOpen, setIsSleepPlannerOpen] = useState(false);
   const [isStrengthTrainerOpen, setIsStrengthTrainerOpen] = useState(false);
+  const [isHealthMonitorOpen, setIsHealthMonitorOpen] = useState(false);
+  const [isStressMonitorOpen, setIsStressMonitorOpen] = useState(false);
+  const [isSleepDetailOpen, setIsSleepDetailOpen] = useState(false);
+  const [isCoachChatOpen, setIsCoachChatOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -80,7 +89,7 @@ export const App: React.FC = () => {
 
   const handleBannerAction = (actionType: string) => {
     if (actionType === 'open_breathe') {
-      setMainTab('health');
+      setIsStressMonitorOpen(true);
     } else if (actionType === 'open_strap') {
       setIsStrapSheetOpen(true);
     } else if (actionType === 'open_journal') {
@@ -375,12 +384,13 @@ export const App: React.FC = () => {
                   settings={settings}
                   metadata={metadata}
                   onSelectSubTab={setHomeSubTab}
-                  onSwitchToHealthTab={() => setMainTab('health')}
+                  onOpenHealthMonitorModal={() => setIsHealthMonitorOpen(true)}
+                  onOpenStressMonitorModal={() => setIsStressMonitorOpen(true)}
+                  onOpenSleepDetailModal={() => setIsSleepDetailOpen(true)}
+                  onOpenCoachChat={() => setIsCoachChatOpen(true)}
                   onStartActivity={() => handleStartWorkout('Running')}
-                  onLogSleep={() => setIsOledNightLockOpen(true)}
                   onOpenJournal={() => setIsDailyJournalOpen(true)}
                   onOpenSleepPlanner={() => setIsSleepPlannerOpen(true)}
-                  onOpenStrengthTrainer={() => setIsStrengthTrainerOpen(true)}
                 />
               )}
 
@@ -414,37 +424,38 @@ export const App: React.FC = () => {
             </>
           )}
 
-          {/* TAB 2: HEALTH (ECG waveform, Stress Monitor, Healthspan WHOOP Age) */}
-          {mainTab === 'health' && (
-            <HealthView
+          {/* TAB 2: PLAN (02:15 in Video) */}
+          {mainTab === 'plan' && (
+            <PlanView
               metrics={effectiveMetrics}
-              healthMetrics={healthMetrics}
               settings={settings}
-              metadata={metadata}
+              onOpenSleepPlanner={() => setIsSleepPlannerOpen(true)}
             />
           )}
 
-          {/* TAB 3: STRAP (Hardware Specs, Real Battery, Poincaré Scatter Plot, Raw Sniffer) */}
-          {mainTab === 'strap' && (
-            <StrapLabView
+          {/* TAB 3: COMMUNITY (02:29 in Video) */}
+          {mainTab === 'community' && (
+            <CommunityView
+              metrics={effectiveMetrics}
+              settings={settings}
+            />
+          )}
+
+          {/* TAB 4: MORE (02:43 in Video) */}
+          {mainTab === 'more' && (
+            <MoreView
+              settings={settings}
+              sessions={effectiveSessions}
               metadata={metadata}
               services={services}
               packets={packets}
               onConnectBle={handleConnectBle}
               onDisconnectBle={handleDisconnectBle}
               onClearPackets={() => setPackets([])}
-              onRefreshGattTree={() => whoopBleEngine.scanFullGattTree()}
-            />
-          )}
-
-          {/* TAB 4: MORE (Profile, Baselines, Real CSV/JSON Export, Clear Data) */}
-          {mainTab === 'more' && (
-            <MoreView
-              settings={settings}
-              sessions={effectiveSessions}
               onSaveSettings={handleSaveSettings}
               onResetDayCounters={handleResetDayCounters}
               onRefreshSessions={refreshSessions}
+              onOpenNotifications={() => setIsNotificationDrawerOpen(true)}
             />
           )}
         </main>
@@ -545,6 +556,40 @@ export const App: React.FC = () => {
           onClose={() => setIsOledNightLockOpen(false)}
           metrics={effectiveMetrics}
           metadata={metadata}
+        />
+
+        {/* Health Monitor Full Modal (00:08–00:15 in Video) */}
+        <HealthMonitorModal
+          isOpen={isHealthMonitorOpen}
+          onClose={() => setIsHealthMonitorOpen(false)}
+          metrics={effectiveMetrics}
+          healthMetrics={healthMetrics}
+          settings={settings}
+          metadata={metadata}
+        />
+
+        {/* Stress Monitor Full Modal (00:21–00:30 in Video) */}
+        <StressMonitorModal
+          isOpen={isStressMonitorOpen}
+          onClose={() => setIsStressMonitorOpen(false)}
+          metrics={effectiveMetrics}
+          settings={settings}
+        />
+
+        {/* Sleep Stage Detail Modal (00:34–00:51 in Video) */}
+        <SleepStageDetailModal
+          isOpen={isSleepDetailOpen}
+          onClose={() => setIsSleepDetailOpen(false)}
+          metrics={effectiveMetrics}
+          sleepData={sleepData}
+        />
+
+        {/* WHOOP Coach AI Telemetry Chat Sheet */}
+        <WhoopCoachChatSheet
+          isOpen={isCoachChatOpen}
+          onClose={() => setIsCoachChatOpen(false)}
+          metrics={effectiveMetrics}
+          settings={settings}
         />
       </div>
     </div>

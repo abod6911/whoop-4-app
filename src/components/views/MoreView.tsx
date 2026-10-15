@@ -1,38 +1,59 @@
 import React, { useState } from 'react';
-import type { UserSettings, SessionRecord } from '../../types/whoop';
+import type { UserSettings, SessionRecord, DeviceMetadata, GattServiceInfo, RawBlePacket } from '../../types/whoop';
 import { storageService } from '../../services/StorageService';
+import { StrapLabView } from './StrapLabView';
 import {
-  Sliders,
-  Calendar,
-  Save,
-  RotateCcw,
-  Trash2,
-  Download,
-  FileCode,
-  FileSpreadsheet,
-  ShieldCheck,
+  ChevronRight,
+  ChevronLeft,
+  Smartphone,
   User,
+  Sliders,
+  ShieldCheck,
+  HelpCircle,
   Info,
+  Download,
+  Upload,
+  RotateCcw,
+  Save,
+  Bell,
+  CheckCircle2,
 } from 'lucide-react';
+import { whoopBleEngine } from '../../services/whoopBleEngine';
 
 interface MoreViewProps {
   settings: UserSettings;
   sessions: SessionRecord[];
+  metadata: DeviceMetadata;
+  services: GattServiceInfo[];
+  packets: RawBlePacket[];
+  onConnectBle: () => void;
+  onDisconnectBle: () => void;
+  onClearPackets: () => void;
   onSaveSettings: (settings: UserSettings) => void;
   onResetDayCounters: () => void;
   onRefreshSessions: () => void;
+  onOpenNotifications?: () => void;
 }
+
+type SubScreen = 'menu' | 'device' | 'account' | 'app_settings' | 'privacy' | 'tutorials' | 'about';
 
 export const MoreView: React.FC<MoreViewProps> = ({
   settings,
   sessions,
+  metadata,
+  services,
+  packets,
+  onConnectBle,
+  onDisconnectBle,
+  onClearPackets,
   onSaveSettings,
   onResetDayCounters,
   onRefreshSessions,
+  onOpenNotifications,
 }) => {
+  const [subScreen, setSubScreen] = useState<SubScreen>('menu');
   const [form, setForm] = useState<UserSettings>({ ...settings });
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
-
   const [importStatus, setImportStatus] = useState<string | null>(null);
 
   const handleTanaka = () => {
@@ -98,302 +119,491 @@ export const MoreView: React.FC<MoreViewProps> = ({
               if (d.date) {
                 storageService.saveRealDayState(d.date, {
                   dayStrain: d.dayStrain || 0,
-                  activeCalories: d.activeCalories || 0,
-                  rhr: d.rhr || null,
-                  hrv: d.hrv || null,
                   recoveryScore: d.recoveryScore || null,
                   recoveryCategory: d.recoveryCategory || 'calibrating',
-                  zoneSeconds: { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+                  rhr: d.rhr || null,
+                  hrv: d.hrv || null,
+                  activeCalories: d.activeCalories || 0,
+                  zoneSeconds: d.zoneSeconds || { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
                 });
               }
             });
-            setImportStatus(`Successfully restored ${parsed.daysHistory.length} historical records!`);
-            onRefreshSessions();
           }
-        } else {
-          // Parse official WHOOP physiological_cycles.csv or generic CSV
-          const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
-          if (lines.length < 2) throw new Error('CSV is empty');
-          const header = lines[0].split(',').map((h) => h.trim().toLowerCase());
-
-          // Find column indices
-          const dateIdx = header.findIndex((h) => h.includes('cycle start') || h.includes('date'));
-          const recoveryIdx = header.findIndex((h) => h.includes('recovery score') || h.includes('recovery'));
-          const rhrIdx = header.findIndex((h) => h.includes('resting heart rate') || h.includes('rhr'));
-          const hrvIdx = header.findIndex((h) => h.includes('heart rate variability') || h.includes('hrv'));
-          const strainIdx = header.findIndex((h) => h.includes('day strain') || h.includes('strain'));
-          const calIdx = header.findIndex((h) => h.includes('energy burned') || h.includes('calories') || h.includes('cal'));
-
+          if (parsed.settings) {
+            onSaveSettings(parsed.settings);
+            setForm(parsed.settings);
+          }
+          setImportStatus('JSON backup successfully imported!');
+          onRefreshSessions();
+        } else if (file.name.endsWith('.csv')) {
+          const lines = text.split('\n');
           let importedCount = 0;
-          for (let i = 1; i < lines.length; i++) {
-            const cols = lines[i].split(',').map((c) => c.trim().replace(/"/g, ''));
-            if (cols.length < 2) continue;
+          lines.slice(1).forEach((line) => {
+            const cols = line.split(',');
+            if (cols.length >= 7 && cols[0]) {
+              const date = cols[0].trim();
+              const dayStrain = parseFloat(cols[2]) || 0;
+              const recoveryScore = parseInt(cols[3], 10) || null;
+              const rhr = parseInt(cols[5], 10) || null;
+              const hrv = parseInt(cols[6], 10) || null;
+              const cal = parseInt(cols[7], 10) || 0;
 
-            let dateStr = cols[dateIdx >= 0 ? dateIdx : 0];
-            if (dateStr.includes('T')) dateStr = dateStr.split('T')[0];
-            else if (dateStr.includes(' ')) dateStr = dateStr.split(' ')[0];
+              let cat: any = 'calibrating';
+              if (recoveryScore !== null) {
+                cat = recoveryScore >= 67 ? 'green' : recoveryScore >= 34 ? 'yellow' : 'red';
+              }
 
-            if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) continue;
-
-            const recVal = recoveryIdx >= 0 ? Number(cols[recoveryIdx]) : null;
-            const rhrVal = rhrIdx >= 0 ? Number(cols[rhrIdx]) : null;
-            const hrvVal = hrvIdx >= 0 ? Number(cols[hrvIdx]) : null;
-            const strainVal = strainIdx >= 0 ? Number(cols[strainIdx]) : 0;
-            const calVal = calIdx >= 0 ? Number(cols[calIdx]) : 0;
-
-            const recCat = recVal !== null ? (recVal >= 67 ? 'green' : recVal <= 33 ? 'red' : 'yellow') : 'calibrating';
-
-            storageService.saveRealDayState(dateStr, {
-              dayStrain: isNaN(strainVal) ? 0 : strainVal,
-              activeCalories: isNaN(calVal) ? 0 : calVal,
-              rhr: isNaN(rhrVal as number) ? null : rhrVal,
-              hrv: isNaN(hrvVal as number) ? null : hrvVal,
-              recoveryScore: isNaN(recVal as number) ? null : recVal,
-              recoveryCategory: recCat,
-              zoneSeconds: { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
-            });
-            importedCount++;
-          }
-
-          setImportStatus(`Imported ${importedCount} days from WHOOP CSV export!`);
+              storageService.saveRealDayState(date, {
+                dayStrain,
+                recoveryScore,
+                recoveryCategory: cat,
+                rhr,
+                hrv,
+                activeCalories: cal,
+                zoneSeconds: { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+              });
+              importedCount++;
+            }
+          });
+          setImportStatus(`Successfully parsed ${importedCount} days from WHOOP CSV!`);
           onRefreshSessions();
         }
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : String(err);
-        setImportStatus(`Import failed: ${msg}`);
+      } catch (err) {
+        setImportStatus('Error parsing file: ' + String(err));
       }
+      setTimeout(() => setImportStatus(null), 4000);
     };
     reader.readAsText(file);
   };
 
-  const handleWipeData = async () => {
-    if (confirm('Warning: This will clear all recorded telemetry sessions and raw packets from IndexedDB. Proceed?')) {
-      await storageService.clearRawPackets();
-      onResetDayCounters();
-      onRefreshSessions();
-      alert('Local storage cleared.');
-    }
-  };
-
   return (
     <div className="space-y-4 pb-28 animate-in fade-in duration-300">
-      {/* 1. Athlete Biometrics Form Card */}
-      <div className="p-5 rounded-[20px] bg-[#16191E] border border-white/5 space-y-4">
-        <div className="flex items-center justify-between border-b border-white/5 pb-2.5">
-          <div className="flex items-center gap-2">
-            <User className="w-4 h-4 text-[#0093E9]" />
-            <h3 className="text-xs font-black uppercase tracking-wider text-white font-condensed">
-              Athlete Profile & Biometrics
-            </h3>
+      {/* SubScreen Back Navigation */}
+      {subScreen !== 'menu' && (
+        <button
+          onClick={() => setSubScreen('menu')}
+          className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wider font-condensed text-zinc-400 hover:text-white transition-colors pt-1"
+        >
+          <ChevronLeft className="w-4 h-4" />
+          <span>BACK TO MORE MENU</span>
+        </button>
+      )}
+
+      {/* 1. MAIN MENU SCREEN (02:43 in Video) */}
+      {subScreen === 'menu' && (
+        <div className="space-y-4">
+          <div className="p-4 rounded-[24px] bg-[#12151A] border border-white/5 space-y-1">
+            <h2 className="text-xl font-bold text-white tracking-tight">More</h2>
+            <p className="text-xs text-zinc-400 font-sans">
+              Manage WHOOP 4.0 hardware, biometric baselines, and data.
+            </p>
           </div>
-          <span className="text-[10px] font-mono text-zinc-500">
-            LOCAL ENGINE
-          </span>
+
+          <div className="rounded-[24px] bg-[#12151A] border border-white/5 divide-y divide-white/5 overflow-hidden">
+            {/* DEVICE SETTINGS */}
+            <button
+              onClick={() => setSubScreen('device')}
+              className="w-full p-4 flex items-center justify-between text-left hover:bg-[#161C24] transition-colors group"
+            >
+              <div className="flex items-center gap-3.5">
+                <div className="w-10 h-10 rounded-2xl bg-[#0B0D10] border border-white/5 flex items-center justify-center text-white">
+                  <Smartphone className="w-5 h-5 text-[#0093E9]" />
+                </div>
+                <div>
+                  <div className="text-sm font-bold text-white font-sans">
+                    DEVICE SETTINGS
+                  </div>
+                  <div className="text-[11px] text-zinc-400 font-mono">
+                    {metadata.connected ? `${metadata.name} (Connected • ${metadata.batteryLevel ?? '--'}%)` : 'Strap Disconnected'}
+                  </div>
+                </div>
+              </div>
+              <ChevronRight className="w-4 h-4 text-zinc-500 group-hover:text-white transition-colors" />
+            </button>
+
+            {/* MY ACCOUNT */}
+            <button
+              onClick={() => setSubScreen('account')}
+              className="w-full p-4 flex items-center justify-between text-left hover:bg-[#161C24] transition-colors group"
+            >
+              <div className="flex items-center gap-3.5">
+                <div className="w-10 h-10 rounded-2xl bg-[#0B0D10] border border-white/5 flex items-center justify-center text-white">
+                  <User className="w-5 h-5 text-[#16EC06]" />
+                </div>
+                <div>
+                  <div className="text-sm font-bold text-white font-sans">
+                    MY ACCOUNT
+                  </div>
+                  <div className="text-[11px] text-zinc-400 font-mono">
+                    {settings.name || 'Athlete'} • Baselines & Physiology
+                  </div>
+                </div>
+              </div>
+              <ChevronRight className="w-4 h-4 text-zinc-500 group-hover:text-white transition-colors" />
+            </button>
+
+            {/* APP SETTINGS */}
+            <button
+              onClick={() => setSubScreen('app_settings')}
+              className="w-full p-4 flex items-center justify-between text-left hover:bg-[#161C24] transition-colors group"
+            >
+              <div className="flex items-center gap-3.5">
+                <div className="w-10 h-10 rounded-2xl bg-[#0B0D10] border border-white/5 flex items-center justify-center text-white">
+                  <Sliders className="w-5 h-5 text-[#7293B2]" />
+                </div>
+                <div>
+                  <div className="text-sm font-bold text-white font-sans">
+                    APP SETTINGS
+                  </div>
+                  <div className="text-[11px] text-zinc-400 font-mono">
+                    Notifications, Data Vault & Reset
+                  </div>
+                </div>
+              </div>
+              <ChevronRight className="w-4 h-4 text-zinc-500 group-hover:text-white transition-colors" />
+            </button>
+
+            {/* PRIVACY SETTINGS */}
+            <button
+              onClick={() => setSubScreen('privacy')}
+              className="w-full p-4 flex items-center justify-between text-left hover:bg-[#161C24] transition-colors group"
+            >
+              <div className="flex items-center gap-3.5">
+                <div className="w-10 h-10 rounded-2xl bg-[#0B0D10] border border-white/5 flex items-center justify-center text-white">
+                  <ShieldCheck className="w-5 h-5 text-[#FFDE00]" />
+                </div>
+                <div>
+                  <div className="text-sm font-bold text-white font-sans">
+                    PRIVACY SETTINGS
+                  </div>
+                  <div className="text-[11px] text-zinc-400 font-mono">
+                    100% Offline Local BLE Storage
+                  </div>
+                </div>
+              </div>
+              <ChevronRight className="w-4 h-4 text-zinc-500 group-hover:text-white transition-colors" />
+            </button>
+
+            {/* TUTORIALS */}
+            <button
+              onClick={() => setSubScreen('tutorials')}
+              className="w-full p-4 flex items-center justify-between text-left hover:bg-[#161C24] transition-colors group"
+            >
+              <div className="flex items-center gap-3.5">
+                <div className="w-10 h-10 rounded-2xl bg-[#0B0D10] border border-white/5 flex items-center justify-center text-white">
+                  <HelpCircle className="w-5 h-5 text-[#00F0FF]" />
+                </div>
+                <div>
+                  <div className="text-sm font-bold text-white font-sans">
+                    TUTORIALS
+                  </div>
+                  <div className="text-[11px] text-zinc-400 font-mono">
+                    Sensor Placement, HRV & Charging
+                  </div>
+                </div>
+              </div>
+              <ChevronRight className="w-4 h-4 text-zinc-500 group-hover:text-white transition-colors" />
+            </button>
+
+            {/* ABOUT */}
+            <button
+              onClick={() => setSubScreen('about')}
+              className="w-full p-4 flex items-center justify-between text-left hover:bg-[#161C24] transition-colors group"
+            >
+              <div className="flex items-center gap-3.5">
+                <div className="w-10 h-10 rounded-2xl bg-[#0B0D10] border border-white/5 flex items-center justify-center text-white">
+                  <Info className="w-5 h-5 text-zinc-300" />
+                </div>
+                <div>
+                  <div className="text-sm font-bold text-white font-sans">
+                    ABOUT
+                  </div>
+                  <div className="text-[11px] text-zinc-400 font-mono">
+                    WHOOP 4.0 Local Web Bluetooth
+                  </div>
+                </div>
+              </div>
+              <ChevronRight className="w-4 h-4 text-zinc-500 group-hover:text-white transition-colors" />
+            </button>
+          </div>
+
+          {/* Official App Version Footer */}
+          <div className="text-center py-4 space-y-1">
+            <div className="text-xs font-mono font-bold text-zinc-500">
+              APP VERSION: 4.6.312 (BUILD 340289)
+            </div>
+            <div className="text-[10px] text-zinc-600 font-mono">
+              WHOOP // REVERSE-ENGINEERED BLE ENGINE
+            </div>
+          </div>
         </div>
+      )}
 
-        <form onSubmit={handleSubmit} className="space-y-3 font-condensed">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-[11px] font-bold uppercase text-zinc-400 mb-1">
-                Name
-              </label>
-              <input
-                type="text"
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                className="w-full px-3 py-2 rounded-xl bg-[#0B0D10] border border-white/5 text-xs text-white focus:outline-none focus:border-[#0093E9]"
-              />
-            </div>
+      {/* 2. DEVICE SETTINGS SUB-SCREEN */}
+      {subScreen === 'device' && (
+        <StrapLabView
+          metadata={metadata}
+          services={services}
+          packets={packets}
+          onConnectBle={onConnectBle}
+          onDisconnectBle={onDisconnectBle}
+          onClearPackets={onClearPackets}
+          onRefreshGattTree={() => whoopBleEngine.scanFullGattTree()}
+        />
+      )}
 
-            <div>
-              <label className="block text-[11px] font-bold uppercase text-zinc-400 mb-1">
-                Gender
-              </label>
-              <select
-                value={form.gender}
-                onChange={(e) => setForm({ ...form, gender: e.target.value as 'male' | 'female' })}
-                className="w-full px-3 py-2 rounded-xl bg-[#0B0D10] border border-white/5 text-xs text-white focus:outline-none focus:border-[#0093E9]"
-              >
-                <option value="male">Male</option>
-                <option value="female">Female</option>
-              </select>
-            </div>
+      {/* 3. MY ACCOUNT SUB-SCREEN (Biometrics Form) */}
+      {subScreen === 'account' && (
+        <div className="p-5 rounded-[24px] bg-[#12151A] border border-white/5 space-y-4">
+          <div className="border-b border-white/5 pb-2">
+            <h3 className="text-sm font-black uppercase tracking-wider text-white font-condensed">
+              Biometric Profile & Physiology
+            </h3>
+            <p className="text-xs text-zinc-400 font-sans mt-0.5">
+              These baselines calibrate your daily Strain brackets and normal CDF Recovery.
+            </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-[11px] font-bold uppercase text-zinc-400 mb-1">
-                Age ({form.age} yrs)
-              </label>
-              <input
-                type="number"
-                min={12}
-                max={100}
-                value={form.age}
-                onChange={(e) => setForm({ ...form, age: Number(e.target.value) })}
-                className="w-full px-3 py-2 rounded-xl bg-[#0B0D10] border border-white/5 text-xs text-white font-mono focus:outline-none focus:border-[#0093E9]"
-              />
-            </div>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-[11px] font-black uppercase text-zinc-400 font-condensed block mb-1">
+                  Athlete Name
+                </label>
+                <input
+                  type="text"
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  className="w-full bg-[#0B0D10] border border-white/10 rounded-xl px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-[#0093E9]"
+                />
+              </div>
 
-            <div>
-              <label className="block text-[11px] font-bold uppercase text-zinc-400 mb-1">
-                Weight ({form.weightKg} kg)
-              </label>
-              <input
-                type="number"
-                min={30}
-                max={250}
-                value={form.weightKg}
-                onChange={(e) => setForm({ ...form, weightKg: Number(e.target.value) })}
-                className="w-full px-3 py-2 rounded-xl bg-[#0B0D10] border border-white/5 text-xs text-white font-mono focus:outline-none focus:border-[#0093E9]"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-[11px] font-bold uppercase text-zinc-400 mb-1">
-                Resting HR Baseline
-              </label>
-              <input
-                type="number"
-                min={30}
-                max={100}
-                value={form.restingHrBaseline}
-                onChange={(e) => setForm({ ...form, restingHrBaseline: Number(e.target.value) })}
-                className="w-full px-3 py-2 rounded-xl bg-[#0B0D10] border border-white/5 text-xs text-white font-mono focus:outline-none focus:border-[#0093E9]"
-              />
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-bold uppercase text-zinc-400 mb-1">
-                HRV Baseline (RMSSD ms)
-              </label>
-              <input
-                type="number"
-                min={10}
-                max={250}
-                value={form.hrvBaseline}
-                onChange={(e) => setForm({ ...form, hrvBaseline: Number(e.target.value) })}
-                className="w-full px-3 py-2 rounded-xl bg-[#0B0D10] border border-white/5 text-xs text-white font-mono focus:outline-none focus:border-[#0093E9]"
-              />
-            </div>
-          </div>
-
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="text-[11px] font-bold uppercase text-zinc-400">
-                Max Heart Rate ({form.maxHr} BPM)
-              </label>
-              <div className="flex gap-2 text-[10px]">
-                <button type="button" onClick={handleFox} className="text-[#0093E9] hover:underline">
-                  Fox (220-age)
-                </button>
-                <button type="button" onClick={handleTanaka} className="text-[#0093E9] hover:underline">
-                  Tanaka
-                </button>
+              <div>
+                <label className="text-[11px] font-black uppercase text-zinc-400 font-condensed block mb-1">
+                  Age (Years)
+                </label>
+                <input
+                  type="number"
+                  value={form.age}
+                  onChange={(e) => setForm({ ...form, age: parseInt(e.target.value) || 25 })}
+                  className="w-full bg-[#0B0D10] border border-white/10 rounded-xl px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-[#0093E9]"
+                />
               </div>
             </div>
-            <input
-              type="number"
-              min={120}
-              max={230}
-              value={form.maxHr}
-              onChange={(e) => setForm({ ...form, maxHr: Number(e.target.value) })}
-              className="w-full px-3 py-2 rounded-xl bg-[#0B0D10] border border-white/5 text-xs text-white font-mono focus:outline-none focus:border-[#0093E9]"
-            />
-          </div>
 
-          <button
-            type="submit"
-            className="w-full py-3 rounded-xl bg-[#0093E9] hover:bg-[#00B4D8] text-black font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all active:scale-98 shadow-md"
-          >
-            <Save className="w-4 h-4" />
-            <span>Save Profile & Baselines</span>
-          </button>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-[11px] font-black uppercase text-zinc-400 font-condensed block mb-1">
+                  Resting HR Baseline
+                </label>
+                <input
+                  type="number"
+                  value={form.restingHrBaseline}
+                  onChange={(e) => setForm({ ...form, restingHrBaseline: parseInt(e.target.value) || 52 })}
+                  className="w-full bg-[#0B0D10] border border-white/10 rounded-xl px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-[#0093E9]"
+                />
+              </div>
 
-          {saveStatus && (
-            <div className="text-center text-xs font-bold text-[#16EC06] animate-pulse">
-              {saveStatus}
+              <div>
+                <label className="text-[11px] font-black uppercase text-zinc-400 font-condensed block mb-1">
+                  HRV Baseline (ms)
+                </label>
+                <input
+                  type="number"
+                  value={form.hrvBaseline}
+                  onChange={(e) => setForm({ ...form, hrvBaseline: parseInt(e.target.value) || 65 })}
+                  className="w-full bg-[#0B0D10] border border-white/10 rounded-xl px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-[#0093E9]"
+                />
+              </div>
             </div>
-          )}
-        </form>
-      </div>
 
-      {/* 2. Data Management & Export Card */}
-      <div className="p-5 rounded-[20px] bg-[#16191E] border border-white/5 space-y-3 font-condensed">
-        <h3 className="text-xs font-black uppercase tracking-wider text-white">
-          Data Import / Export & Storage Vault
-        </h3>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-[11px] font-black uppercase text-zinc-400 font-condensed">
+                  Max HR (BPM): {form.maxHr}
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={handleTanaka}
+                    className="text-[9px] bg-[#222730] text-zinc-300 px-2 py-0.5 rounded font-mono hover:text-white"
+                  >
+                    Tanaka (208 - 0.7*Age)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleFox}
+                    className="text-[9px] bg-[#222730] text-zinc-300 px-2 py-0.5 rounded font-mono hover:text-white"
+                  >
+                    Fox (220 - Age)
+                  </button>
+                </div>
+              </div>
+              <input
+                type="number"
+                value={form.maxHr}
+                onChange={(e) => setForm({ ...form, maxHr: parseInt(e.target.value) || 190 })}
+                className="w-full bg-[#0B0D10] border border-white/10 rounded-xl px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-[#0093E9]"
+              />
+            </div>
 
-        {/* Import Official WHOOP CSV/JSON */}
-        <div className="p-3.5 rounded-xl bg-[#0B0D10] border border-white/5 space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-white flex items-center gap-1.5 uppercase">
-              <FileSpreadsheet className="w-4 h-4 text-[#16EC06]" />
-              Import Official WHOOP Data
-            </span>
-            <span className="text-[10px] text-zinc-500 font-mono">.CSV / .JSON</span>
+            <button
+              type="submit"
+              className="w-full py-3 rounded-xl bg-white hover:bg-zinc-200 text-black font-condensed font-black uppercase tracking-wider text-xs flex items-center justify-center gap-2 shadow-lg transition-colors"
+            >
+              <Save className="w-4 h-4" />
+              <span>Save Biometrics</span>
+            </button>
+
+            {saveStatus && (
+              <div className="p-2.5 rounded-xl bg-[#0D2E1C] border border-[#16EC06]/30 text-xs text-[#16EC06] text-center font-mono font-bold">
+                {saveStatus}
+              </div>
+            )}
+          </form>
+        </div>
+      )}
+
+      {/* 4. APP SETTINGS & DATA VAULT SUB-SCREEN */}
+      {subScreen === 'app_settings' && (
+        <div className="space-y-4">
+          {/* Notifications Quick Link */}
+          <div className="p-4 rounded-[24px] bg-[#12151A] border border-white/5 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-[#222730] flex items-center justify-center text-[#0093E9]">
+                <Bell className="w-4 h-4" />
+              </div>
+              <div>
+                <div className="text-xs font-bold text-white uppercase font-sans">Notification Center</div>
+                <div className="text-[10px] text-zinc-400 font-sans">Test chimes, haptics and push alerts</div>
+              </div>
+            </div>
+            <button
+              onClick={onOpenNotifications}
+              className="px-3 py-1.5 rounded-full bg-white text-black font-condensed font-black text-xs uppercase"
+            >
+              Open
+            </button>
           </div>
-          <p className="text-[11px] text-zinc-400 font-sans leading-relaxed">
-            Upload your official WHOOP export file (e.g. <code className="text-white">physiological_cycles.csv</code>) to restore your previous historical Recovery & Strain scores without cloud servers.
+
+          {/* Official WHOOP CSV & JSON Vault */}
+          <div className="p-4 rounded-[24px] bg-[#12151A] border border-white/5 space-y-3">
+            <div className="border-b border-white/5 pb-2">
+              <h3 className="text-xs font-black uppercase tracking-wider text-white font-condensed">
+                Data Vault & Official Import / Export
+              </h3>
+              <p className="text-[11px] text-zinc-400 font-sans mt-0.5">
+                Ingest historical official WHOOP export archives or export local telemetry.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={exportDaysToCSV}
+                className="p-3 rounded-xl bg-[#1A1F26] hover:bg-[#222832] border border-white/5 text-left text-xs font-condensed font-black uppercase text-white flex items-center gap-2"
+              >
+                <Download className="w-3.5 h-3.5 text-[#0093E9]" />
+                <span>Export CSV</span>
+              </button>
+
+              <button
+                onClick={exportAllData}
+                className="p-3 rounded-xl bg-[#1A1F26] hover:bg-[#222832] border border-white/5 text-left text-xs font-condensed font-black uppercase text-white flex items-center gap-2"
+              >
+                <Download className="w-3.5 h-3.5 text-[#16EC06]" />
+                <span>Backup JSON</span>
+              </button>
+            </div>
+
+            <div className="pt-2">
+              <label className="w-full p-3 rounded-xl bg-[#0B0D10] border border-dashed border-white/20 hover:border-[#0093E9] text-center cursor-pointer block transition-colors">
+                <Upload className="w-4 h-4 text-zinc-400 mx-auto mb-1" />
+                <span className="text-xs font-black uppercase tracking-wider text-zinc-300 font-condensed block">
+                  Import WHOOP (.CSV or .JSON)
+                </span>
+                <span className="text-[10px] text-zinc-500 font-mono block mt-0.5">
+                  Click or drag official export file
+                </span>
+                <input
+                  type="file"
+                  accept=".csv,.json"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                />
+              </label>
+            </div>
+
+            {importStatus && (
+              <div className="p-2.5 rounded-xl bg-[#0D2E1C] border border-[#16EC06]/30 text-xs text-[#16EC06] text-center font-mono font-bold">
+                {importStatus}
+              </div>
+            )}
+          </div>
+
+          {/* Reset Day Counters */}
+          <div className="p-4 rounded-[24px] bg-[#12151A] border border-white/5 flex items-center justify-between">
+            <div>
+              <div className="text-xs font-bold text-white font-sans uppercase">Reset Today's Strain</div>
+              <div className="text-[10px] text-zinc-500 font-sans">Clear daily TRIMP accumulator</div>
+            </div>
+            <button
+              onClick={onResetDayCounters}
+              className="px-3 py-1.5 rounded-full bg-[#FF0026]/20 border border-[#FF0026]/40 text-[#FF0026] text-xs font-condensed font-black uppercase hover:bg-[#FF0026]/30"
+            >
+              Reset
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 5. PRIVACY SUB-SCREEN */}
+      {subScreen === 'privacy' && (
+        <div className="p-5 rounded-[24px] bg-[#12151A] border border-white/5 space-y-3">
+          <div className="flex items-center gap-2 text-sm font-black uppercase tracking-wider text-white font-condensed">
+            <ShieldCheck className="w-5 h-5 text-[#16EC06]" />
+            <span>Privacy & Local Storage</span>
+          </div>
+          <p className="text-xs text-zinc-300 font-sans leading-relaxed">
+            This WHOOP 4.0 application is 100% offline-first. All optical photoplethysmography (PPG) samples, beat-to-beat RR intervals, and sleep records are processed on your device CPU and stored inside browser IndexedDB/LocalStorage. No health data ever leaves your computer.
           </p>
-
-          <label className="w-full py-2.5 rounded-xl bg-[#16191E] border border-dashed border-white/10 hover:border-zinc-500 text-xs font-bold uppercase tracking-wider text-center text-white cursor-pointer flex items-center justify-center gap-2 transition-all">
-            <Download className="w-3.5 h-3.5 text-[#16EC06] rotate-180" />
-            <span>Select .CSV or .JSON File</span>
-            <input
-              type="file"
-              accept=".csv,.json"
-              onChange={handleFileUpload}
-              className="hidden"
-            />
-          </label>
-
-          {importStatus && (
-            <div className="text-center text-xs font-bold text-[#16EC06] bg-[#16EC06]/10 border border-[#16EC06]/20 p-2 rounded-lg animate-in fade-in">
-              {importStatus}
-            </div>
-          )}
         </div>
+      )}
 
-        {/* Export Buttons */}
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            onClick={exportDaysToCSV}
-            className="py-2.5 rounded-xl bg-[#0B0D10] hover:bg-[#12151A] border border-white/5 text-white text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all"
-          >
-            <FileSpreadsheet className="w-3.5 h-3.5 text-[#16EC06]" />
-            <span>Export CSV</span>
-          </button>
-
-          <button
-            onClick={exportAllData}
-            className="py-2.5 rounded-xl bg-[#0B0D10] hover:bg-[#12151A] border border-white/5 text-white text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all"
-          >
-            <FileCode className="w-3.5 h-3.5 text-[#0093E9]" />
-            <span>Export JSON</span>
-          </button>
+      {/* 6. TUTORIALS SUB-SCREEN */}
+      {subScreen === 'tutorials' && (
+        <div className="space-y-3">
+          <div className="p-4 rounded-2xl bg-[#12151A] border border-white/5 space-y-1.5">
+            <h4 className="text-xs font-bold text-white font-sans uppercase">1. Proper Strap Placement</h4>
+            <p className="text-xs text-zinc-400 font-sans leading-relaxed">
+              Wear the WHOOP 4.0 one inch above your wrist bone. Keep the band snug so green/infrared optical LEDs remain firmly against skin during heavy movement.
+            </p>
+          </div>
+          <div className="p-4 rounded-2xl bg-[#12151A] border border-white/5 space-y-1.5">
+            <h4 className="text-xs font-bold text-white font-sans uppercase">2. Understanding HRV vs. RHR</h4>
+            <p className="text-xs text-zinc-400 font-sans leading-relaxed">
+              HRV reflects autonomic resilience. When resting heart rate drops and HRV rises, your body is ready for peak training exertion.
+            </p>
+          </div>
         </div>
+      )}
 
-        <div className="space-y-2 pt-2 border-t border-white/5">
-          <button
-            onClick={onResetDayCounters}
-            className="w-full py-2.5 rounded-xl bg-[#0B0D10] hover:bg-[#12151A] border border-white/5 text-zinc-300 text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all"
-          >
-            <RotateCcw className="w-3.5 h-3.5 text-[#FFDE00]" />
-            <span>Reset Today's Strain & Counters</span>
-          </button>
-
-          <button
-            onClick={handleWipeData}
-            className="w-full py-2.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-[#FF0026] border border-rose-500/30 text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-            <span>Wipe Local IndexedDB Telemetry</span>
-          </button>
+      {/* 7. ABOUT SUB-SCREEN */}
+      {subScreen === 'about' && (
+        <div className="p-5 rounded-[24px] bg-[#12151A] border border-white/5 space-y-3 text-center">
+          <div className="w-12 h-12 rounded-full bg-[#161C24] mx-auto flex items-center justify-center text-white font-black font-condensed text-xl">
+            W
+          </div>
+          <h3 className="text-sm font-bold text-white font-sans uppercase">
+            WHOOP 4.0 Local Web Bluetooth
+          </h3>
+          <p className="text-xs text-zinc-400 font-sans leading-relaxed">
+            An independent, 100% local, subscription-free web platform designed to extract and visualize clinical telemetry directly from your physical WHOOP 4.0 strap.
+          </p>
+          <div className="pt-2 text-[10px] text-zinc-500 font-mono">
+            APP VERSION: 4.6.312 (BUILD 340289)
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };

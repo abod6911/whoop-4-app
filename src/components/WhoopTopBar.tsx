@@ -1,3 +1,4 @@
+import React from 'react';
 import type { DeviceMetadata, LiveMetrics, HomeSubTab, MainTabType } from '../types/whoop';
 import { ChevronLeft, ChevronRight, Bell } from 'lucide-react';
 
@@ -15,12 +16,29 @@ interface WhoopTopBarProps {
   onNextDate: () => void;
 }
 
+export const SignalBarsIcon: React.FC<{ isConnected: boolean; className?: string }> = ({
+  isConnected,
+  className = '',
+}) => (
+  <svg
+    width="13"
+    height="11"
+    viewBox="0 0 13 11"
+    fill="currentColor"
+    className={`${isConnected ? 'text-[#16EC06]' : 'text-zinc-600'} ${className}`}
+  >
+    <rect x="0.5" y="7.5" width="2.5" height="3.5" rx="0.5" />
+    <rect x="4.5" y="4.5" width="2.5" height="6.5" rx="0.5" opacity={isConnected ? 1 : 0.4} />
+    <rect x="8.5" y="1" width="2.5" height="10" rx="0.5" opacity={isConnected ? 1 : 0.2} />
+  </svg>
+);
+
 export const VerticalWhoopStrapIcon: React.FC<{ isConnected: boolean; className?: string }> = ({
   isConnected,
-  className,
+  className = '',
 }) => (
-  <div className={`relative inline-flex items-center justify-center ${className || ''}`}>
-    <svg width="18" height="24" viewBox="0 0 18 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <div className={`relative inline-flex items-center justify-center ${className}`}>
+    <svg width="17" height="23" viewBox="0 0 18 24" fill="none" xmlns="http://www.w3.org/2000/svg">
       {/* Top band loop */}
       <rect x="5" y="0.5" width="8" height="3" rx="1.5" fill="#3A404D" />
       {/* Sensor pod body */}
@@ -42,28 +60,27 @@ export const VerticalWhoopStrapIcon: React.FC<{ isConnected: boolean; className?
 
 export const WhoopTopBar: React.FC<WhoopTopBarProps> = ({
   metadata,
-  metrics,
   mainTab,
   activeSubTab,
   onChangeSubTab,
   onOpenStrapSheet,
   onOpenNotifications,
-  unreadNotificationsCount,
+  unreadNotificationsCount = 0,
   selectedDate,
   onPrevDate,
   onNextDate,
 }) => {
   const isBatteryLow = metadata.batteryLevel !== null && metadata.batteryLevel < 15;
-  const batteryColor = isBatteryLow ? 'text-[#FF0026]' : 'text-[#8A94A6]';
+  const batteryColor = isBatteryLow ? 'text-[#FF0026]' : 'text-white';
 
   const getMainTabTitle = () => {
     switch (mainTab) {
-      case 'health':
-        return 'HEALTH MONITOR & STRESS';
-      case 'strap':
-        return 'WHOOP 4.0 STRAP & HARDWARE';
+      case 'plan':
+        return 'WEEKLY PLAN & PROTOCOLS';
+      case 'community':
+        return 'COMMUNITY & LEADERBOARDS';
       case 'more':
-        return 'MORE & SETTINGS';
+        return 'SETTINGS & HARDWARE';
       default:
         return 'HOME';
     }
@@ -71,25 +88,38 @@ export const WhoopTopBar: React.FC<WhoopTopBarProps> = ({
 
   return (
     <div className="sticky top-0 z-40 bg-[#0B0D10]/95 backdrop-blur-md border-b border-white/5">
-      {/* Row 1: Top Bar */}
-      <div className="px-4 pt-3 pb-1 flex items-center justify-between gap-2 max-w-[430px] mx-auto">
-        {/* Left: User Avatar (34px) + Streak badge */}
+      {/* Row 1: Top Bar (00:00 in Video) */}
+      <div className="px-4 pt-3 pb-2 flex items-center justify-between gap-2 max-w-[430px] mx-auto">
+        {/* Left: Neutral User Avatar Circle (AB) + Notification Bell Badge */}
         <div className="flex items-center gap-2">
-          <div className="w-[34px] h-[34px] rounded-full bg-gradient-to-tr from-[#0093E9] via-[#00F0FF] to-[#16EC06] p-[1.5px] flex items-center justify-center">
-            <div className="w-full h-full bg-[#0B0D10] rounded-full flex items-center justify-center text-xs font-black text-white font-condensed">
-              W
+          <button
+            onClick={onOpenNotifications}
+            className="relative flex items-center justify-center group active:scale-95 transition-transform"
+            title="Notification Center"
+          >
+            {/* Neutral Athlete Initials Circle */}
+            <div className="w-[34px] h-[34px] rounded-full bg-gradient-to-tr from-[#1E2530] to-[#2B3545] p-[1.5px] flex items-center justify-center border border-white/10">
+              <span className="text-xs font-black font-condensed tracking-wider text-white">
+                AB
+              </span>
             </div>
-          </div>
-          <div className="flex items-center gap-1 bg-[#16191E] border border-white/5 px-2 py-0.5 rounded-full">
-            <span className="text-xs">🔥</span>
-            <span className="text-[11px] font-black text-white font-condensed tracking-wide">
-              1
-            </span>
-          </div>
+
+            {/* Notification Bell Badge on Avatar */}
+            <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-[#16191E] border border-white/20 flex items-center justify-center text-zinc-300">
+              <Bell className="w-2.5 h-2.5" />
+            </div>
+
+            {/* Unread Counter Dot */}
+            {unreadNotificationsCount > 0 && (
+              <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-[#0093E9] text-[9px] font-black font-condensed flex items-center justify-center text-white ring-2 ring-black">
+                {unreadNotificationsCount > 9 ? '9+' : unreadNotificationsCount}
+              </span>
+            )}
+          </button>
         </div>
 
-        {/* Center: Pill selector < TODAY > */}
-        <div className="flex items-center gap-0.5 bg-[#222730] px-2 py-1 rounded-full">
+        {/* Center: Date Selector < TODAY > with Chevrons */}
+        <div className="flex items-center gap-0.5 bg-[#1C212B] px-2 py-1 rounded-full border border-white/5">
           <button
             onClick={onPrevDate}
             className="p-0.5 text-zinc-400 hover:text-white transition-colors"
@@ -97,7 +127,7 @@ export const WhoopTopBar: React.FC<WhoopTopBarProps> = ({
           >
             <ChevronLeft className="w-3.5 h-3.5" />
           </button>
-          <span className="text-[11px] font-black uppercase text-white font-condensed tracking-widest px-2">
+          <span className="text-[11px] font-black uppercase text-white font-condensed tracking-widest px-2.5">
             {selectedDate}
           </span>
           <button
@@ -109,42 +139,21 @@ export const WhoopTopBar: React.FC<WhoopTopBarProps> = ({
           </button>
         </div>
 
-        {/* Right cluster: Notification Bell + Battery/Strap Pill */}
-        <div className="flex items-center gap-1.5">
-          <button
-            onClick={onOpenNotifications}
-            className="relative p-1.5 rounded-full bg-[#16191E] border border-white/5 hover:border-zinc-700 text-zinc-300 hover:text-white transition-all active:scale-95"
-            title="Notification Center"
-          >
-            <Bell className="w-3.5 h-3.5" />
-            {unreadNotificationsCount !== undefined && unreadNotificationsCount > 0 && (
-              <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-[#0093E9] text-[9px] font-black font-condensed flex items-center justify-center text-white ring-2 ring-black">
-                {unreadNotificationsCount > 9 ? '9+' : unreadNotificationsCount}
-              </span>
-            )}
-          </button>
-
-          <button
-            onClick={onOpenStrapSheet}
-            className="flex items-center gap-2 bg-[#16191E] border border-white/5 hover:border-zinc-700 px-2.5 py-1 rounded-full transition-all active:scale-95"
-            title="WHOOP 4.0 Strap & Battery Status"
-          >
-            <span className={`text-xs font-bold font-condensed tabular-nums tracking-wide ${batteryColor}`}>
-              {metadata.batteryLevel !== null ? `${metadata.batteryLevel}%` : '--'}
-            </span>
-            <VerticalWhoopStrapIcon isConnected={metadata.connected} />
-          </button>
-        </div>
+        {/* Right: Real Battery % + Vertical Strap Icon + Signal Bars Icon */}
+        <button
+          onClick={onOpenStrapSheet}
+          className="flex items-center gap-2 bg-[#16191E] border border-white/5 hover:border-zinc-700 px-2.5 py-1 rounded-full transition-all active:scale-95"
+          title="WHOOP 4.0 Strap & Battery Status"
+        >
+          <span className={`text-xs font-bold font-condensed tabular-nums tracking-wide ${batteryColor}`}>
+            {metadata.batteryLevel !== null ? `${metadata.batteryLevel}%` : '--'}
+          </span>
+          <VerticalWhoopStrapIcon isConnected={metadata.connected} />
+          <SignalBarsIcon isConnected={metadata.connected} />
+        </button>
       </div>
 
-      {/* Row 2: Centered stylized WHOOP geometric wordmark */}
-      <div className="text-center my-1.5">
-        <span className="font-black uppercase font-condensed tracking-[0.28em] text-sm text-white/95 select-none">
-          WHOOP
-        </span>
-      </div>
-
-      {/* Row 3: Sub-tabs (Visible ONLY on Home tab) */}
+      {/* Row 2: 4 Sub-Tabs (OVERVIEW | SLEEP | RECOVERY | STRAIN) on Home Tab (00:00 in Video) */}
       {mainTab === 'home' ? (
         <div className="flex items-center justify-between max-w-[430px] mx-auto px-4 border-t border-white/5">
           {(['overview', 'sleep', 'recovery', 'strain'] as HomeSubTab[]).map((tab) => {

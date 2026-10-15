@@ -1,4 +1,4 @@
-export type MainTabType = 'home' | 'health' | 'strap' | 'more';
+export type MainTabType = 'home' | 'plan' | 'community' | 'more' | 'health' | 'strap';
 export type HomeSubTab = 'overview' | 'sleep' | 'recovery' | 'strain';
 
 export interface HeartRateMeasurement {
