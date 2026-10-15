@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { DeviceMetadata, GattServiceInfo, RawBlePacket } from '../../types/whoop';
 import { biometricEngine } from '../../utils/biometricEngine';
+import { whoopBleEngine } from '../../services/whoopBleEngine';
+import { notificationEngine } from '../../services/notificationEngine';
 import { GattExplorer } from '../GattExplorer';
 import { WhoopLogo } from '../WhoopLogo';
 import {
@@ -11,6 +13,10 @@ import {
   Layers,
   CheckCircle2,
   AlertTriangle,
+  Radio,
+  Vibrate,
+  Database,
+  Terminal,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -40,8 +46,24 @@ export const StrapLabView: React.FC<StrapLabViewProps> = ({
   onClearPackets,
   onRefreshGattTree,
 }) => {
+  const [commandFeedback, setCommandFeedback] = useState<string | null>(null);
   const isBatteryLow = metadata.batteryLevel !== null && metadata.batteryLevel < 15;
   const poincarePoints = biometricEngine.getPoincarePoints();
+  const { sd1, sd2 } = biometricEngine.calculateSD1AndSD2();
+  const baevsky = biometricEngine.calculateBaevskyStressIndex();
+
+  const handleCommand = async (name: string, fn: () => Promise<void>) => {
+    try {
+      setCommandFeedback(`Executing ${name}...`);
+      await fn();
+      setCommandFeedback(`✓ ${name} dispatched successfully`);
+      setTimeout(() => setCommandFeedback(null), 3000);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setCommandFeedback(`✕ ${msg}`);
+      setTimeout(() => setCommandFeedback(null), 4000);
+    }
+  };
 
   return (
     <div className="space-y-4 pb-28 animate-in fade-in duration-300">
@@ -153,6 +175,69 @@ export const StrapLabView: React.FC<StrapLabViewProps> = ({
             </button>
           )}
         </div>
+
+        {/* Proprietary Framed WHOOP 4.0 Commands */}
+        {metadata.connected && (
+          <div className="pt-3 border-t border-white/5 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-black uppercase font-condensed tracking-wider text-zinc-400 flex items-center gap-1.5">
+                <Terminal className="w-3 h-3 text-[#0093E9]" />
+                Proprietary Command Triggers (Gen4 Framed)
+              </span>
+              {commandFeedback && (
+                <span className="text-[10px] font-condensed font-bold text-[#16EC06] animate-pulse">
+                  {commandFeedback}
+                </span>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => handleCommand('Realtime Stream (0x11)', () => whoopBleEngine.sendToggleRealtimeHr(true))}
+                className="p-2 rounded-xl bg-[#0B0D10] border border-white/5 hover:border-zinc-700 active:scale-95 text-left transition-all"
+              >
+                <div className="flex items-center gap-1.5 text-xs font-bold text-white font-condensed">
+                  <Radio className="w-3.5 h-3.5 text-[#00F0FF]" />
+                  <span>Realtime Stream</span>
+                </div>
+                <span className="text-[9px] text-zinc-500 font-mono block">Opcode 0x11</span>
+              </button>
+
+              <button
+                onClick={() => handleCommand('Haptic Vibration (0x25)', () => whoopBleEngine.sendTriggerHapticAlarm())}
+                className="p-2 rounded-xl bg-[#0B0D10] border border-white/5 hover:border-zinc-700 active:scale-95 text-left transition-all"
+              >
+                <div className="flex items-center gap-1.5 text-xs font-bold text-white font-condensed">
+                  <Vibrate className="w-3.5 h-3.5 text-[#FFDE00]" />
+                  <span>Trigger Haptic</span>
+                </div>
+                <span className="text-[9px] text-zinc-500 font-mono block">Opcode 0x25</span>
+              </button>
+
+              <button
+                onClick={() => handleCommand('Battery & Fuel Gauge (0x14)', () => whoopBleEngine.sendRequestBatteryTemp())}
+                className="p-2 rounded-xl bg-[#0B0D10] border border-white/5 hover:border-zinc-700 active:scale-95 text-left transition-all"
+              >
+                <div className="flex items-center gap-1.5 text-xs font-bold text-white font-condensed">
+                  <Battery className="w-3.5 h-3.5 text-[#16EC06]" />
+                  <span>Poll Battery/Temp</span>
+                </div>
+                <span className="text-[9px] text-zinc-500 font-mono block">Opcode 0x14</span>
+              </button>
+
+              <button
+                onClick={() => handleCommand('Sync Flash Buffer (0x08)', () => whoopBleEngine.sendSyncHistoryBuffer())}
+                className="p-2 rounded-xl bg-[#0B0D10] border border-white/5 hover:border-zinc-700 active:scale-95 text-left transition-all"
+              >
+                <div className="flex items-center gap-1.5 text-xs font-bold text-white font-condensed">
+                  <Database className="w-3.5 h-3.5 text-[#0093E9]" />
+                  <span>Sync Flash Chunks</span>
+                </div>
+                <span className="text-[9px] text-zinc-500 font-mono block">Opcode 0x08</span>
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 2. Live RR-Interval Poincaré Scatter Plot */}
@@ -167,6 +252,22 @@ export const StrapLabView: React.FC<StrapLabViewProps> = ({
           <span className="text-[10px] font-mono text-zinc-500">
             {poincarePoints.length} BEATS
           </span>
+        </div>
+
+        {/* SD1, SD2, and Baevsky Metrics */}
+        <div className="grid grid-cols-3 gap-2 pt-1 text-center font-condensed">
+          <div className="p-2 bg-[#0B0D10] rounded-xl border border-white/5">
+            <span className="text-[10px] text-zinc-400 block uppercase">SD1 (Vagal)</span>
+            <span className="text-sm font-black text-[#16EC06]">{sd1 !== null ? `${sd1} ms` : '--'}</span>
+          </div>
+          <div className="p-2 bg-[#0B0D10] rounded-xl border border-white/5">
+            <span className="text-[10px] text-zinc-400 block uppercase">SD2 (Sympathetic)</span>
+            <span className="text-sm font-black text-[#0093E9]">{sd2 !== null ? `${sd2} ms` : '--'}</span>
+          </div>
+          <div className="p-2 bg-[#0B0D10] rounded-xl border border-white/5">
+            <span className="text-[10px] text-zinc-400 block uppercase">Baevsky Stress</span>
+            <span className="text-sm font-black text-[#FFDE00]">{baevsky !== null ? `${baevsky}` : '--'}</span>
+          </div>
         </div>
 
         <p className="text-[11px] text-zinc-400 font-sans leading-relaxed">

@@ -14,6 +14,7 @@ import {
   Dumbbell,
   Moon,
   Sparkles,
+  Zap,
 } from 'lucide-react';
 
 interface OverviewViewProps {
@@ -26,6 +27,9 @@ interface OverviewViewProps {
   onSwitchToHealthTab: () => void;
   onStartActivity: () => void;
   onLogSleep: () => void;
+  onOpenJournal?: () => void;
+  onOpenSleepPlanner?: () => void;
+  onOpenStrengthTrainer?: () => void;
 }
 
 export const OverviewView: React.FC<OverviewViewProps> = ({
@@ -38,6 +42,9 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   onSwitchToHealthTab,
   onStartActivity,
   onLogSleep,
+  onOpenJournal,
+  onOpenSleepPlanner,
+  onOpenStrengthTrainer,
 }) => {
   const [isHealthMonitorModalOpen, setIsHealthMonitorModalOpen] = useState(false);
   const [isOutlookModalOpen, setIsOutlookModalOpen] = useState(false);
@@ -170,6 +177,35 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
               <span className="text-base">🌅</span>
               <span className="text-xs font-black uppercase tracking-wider text-white font-condensed">
                 Daily Outlook
+              </span>
+            </div>
+            <ChevronRight className="w-4 h-4 text-zinc-500" />
+          </button>
+        </div>
+
+        {/* Quick Journal & Sleep Buttons */}
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={onOpenJournal}
+            className="p-3 rounded-[18px] bg-[#16191E] border border-white/5 hover:border-zinc-700 flex items-center justify-between transition-all active:scale-98 text-left"
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-base">📖</span>
+              <span className="text-xs font-black uppercase tracking-wider text-white font-condensed">
+                Daily Journal
+              </span>
+            </div>
+            <ChevronRight className="w-4 h-4 text-zinc-500" />
+          </button>
+
+          <button
+            onClick={onOpenSleepPlanner}
+            className="p-3 rounded-[18px] bg-[#16191E] border border-white/5 hover:border-zinc-700 flex items-center justify-between transition-all active:scale-98 text-left"
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-base">🌙</span>
+              <span className="text-xs font-black uppercase tracking-wider text-white font-condensed">
+                Sleep Planner
               </span>
             </div>
             <ChevronRight className="w-4 h-4 text-zinc-500" />
@@ -335,6 +371,31 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                 {metrics.activeCalories}
               </span>
               <span className="text-[10px] text-zinc-400 font-sans ml-1">kcal</span>
+            </div>
+            <ChevronRight className="w-4 h-4 text-zinc-600" />
+          </div>
+        </div>
+
+        {/* Metric 5: Estimated VO2 Max */}
+        <div className="p-4 rounded-[20px] bg-[#16191E] border border-white/5 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-[#222730] flex items-center justify-center text-zinc-400">
+              <Zap className="w-4 h-4 text-[#16EC06]" />
+            </div>
+            <div>
+              <div className="text-xs font-bold text-zinc-300 font-sans">Cardiorespiratory VO₂ Max</div>
+              <div className="text-[10px] text-zinc-500 font-mono">
+                Uth-Sørensen Formula • Aerobic Power
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="text-right">
+              <span className="text-xl font-black font-condensed text-white tabular-nums">
+                {metrics.vo2Max !== null ? metrics.vo2Max : '--'}
+              </span>
+              <span className="text-[10px] text-zinc-400 font-sans ml-1">ml/kg/min</span>
             </div>
             <ChevronRight className="w-4 h-4 text-zinc-600" />
           </div>

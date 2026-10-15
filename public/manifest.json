@@ -1,0 +1,18 @@
+{
+  "name": "WHOOP 4.0",
+  "short_name": "WHOOP",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "orientation": "portrait",
+  "description": "Official WHOOP 4.0 Local Web Bluetooth App for Day Strain, Recovery, and Health Telemetry.",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

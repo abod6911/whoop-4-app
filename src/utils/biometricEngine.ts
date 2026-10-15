@@ -8,6 +8,7 @@ import type {
   SessionRecord,
 } from '../types/whoop';
 import { storageService } from '../services/StorageService';
+import { notificationEngine } from '../services/notificationEngine';
 
 export class BiometricEngine {
   private userSettings: UserSettings;
@@ -233,6 +234,51 @@ export class BiometricEngine {
     return [...this.poincarePoints];
   }
 
+  // --- Poincaré SD1 (Parasympathetic) and SD2 (Sympathetic) ---
+  public calculateSD1AndSD2(): { sd1: number | null; sd2: number | null } {
+    const rmssd = this.calculateRMSSD();
+    const sdnn = this.calculateSDNN();
+    if (rmssd === null || sdnn === null) return { sd1: null, sd2: null };
+
+    // SD1 = RMSSD / sqrt(2)
+    const sd1 = Math.round(rmssd / Math.SQRT2);
+    // SD2 = sqrt(2 * SDNN^2 - 0.5 * RMSSD^2)
+    const sd2 = Math.round(Math.sqrt(Math.max(0, 2 * sdnn * sdnn - 0.5 * rmssd * rmssd)));
+    return { sd1, sd2 };
+  }
+
+  // --- Baevsky Stress Index (SI = AMo / (2 * Mo * MxDMn)) ---
+  public calculateBaevskyStressIndex(): number | null {
+    if (this.rrBuffer.length < 20) return null;
+    const sorted = [...this.rrBuffer].sort((a, b) => a - b);
+    const minRR = sorted[0] / 1000.0;
+    const maxRR = sorted[sorted.length - 1] / 1000.0;
+    const mxDMn = maxRR - minRR; // Range in seconds
+    if (mxDMn <= 0.05) return null;
+
+    // Bin into 50ms bins
+    const bins: Record<number, number> = {};
+    sorted.forEach((rr) => {
+      const bin = Math.round(rr / 50) * 50;
+      bins[bin] = (bins[bin] || 0) + 1;
+    });
+
+    let maxBinCount = 0;
+    let modeRR = 800;
+    for (const [binStr, count] of Object.entries(bins)) {
+      if (count > maxBinCount) {
+        maxBinCount = count;
+        modeRR = Number(binStr);
+      }
+    }
+
+    const Mo = modeRR / 1000.0; // Mode in seconds
+    const AMo = (maxBinCount / sorted.length) * 100; // Amplitude of mode in %
+
+    const si = AMo / (2 * Mo * mxDMn);
+    return Math.round(si);
+  }
+
   // --- Real Respiratory Rate via Respiratory Sinus Arrhythmia (RSA) ---
   public calculateRespiratoryRate(): number | null {
     const n = this.rsaBuffer.length;
@@ -325,10 +371,12 @@ export class BiometricEngine {
     return this.realRhrObserved;
   }
 
-  // --- Real Recovery % (0 - 100%) ---
+  // --- Real Recovery % (1 - 100% via standard normal CDF) ---
   public calculateRecovery(
     currentHrv: number | null,
-    currentRhr: number | null
+    currentRhr: number | null,
+    currentResp: number | null = null,
+    sleepPerformance: number | null = null
   ): { score: number | null; category: 'green' | 'yellow' | 'red' | 'calibrating' } {
     if (currentHrv === null || currentRhr === null) {
       return { score: null, category: 'calibrating' };
@@ -337,11 +385,16 @@ export class BiometricEngine {
     const avgHrvBase = this.userSettings.hrvBaseline;
     const avgRhrBase = this.userSettings.restingHrBaseline;
 
-    const hrvDiffRatio = (currentHrv - avgHrvBase) / Math.max(20, avgHrvBase);
-    const rhrDiffRatio = (avgRhrBase - currentRhr) / Math.max(30, avgRhrBase);
+    // Standardized z-scores
+    const zHrv = (currentHrv - avgHrvBase) / Math.max(15, avgHrvBase * 0.25);
+    const zRhr = (currentRhr - avgRhrBase) / 5.0;
+    const zResp = currentResp !== null ? (currentResp - 14.5) / 1.8 : 0;
+    const zSleep = sleepPerformance !== null ? (sleepPerformance - 85.0) / 12.0 : 0;
 
-    const zComposite = hrvDiffRatio * 0.7 + rhrDiffRatio * 0.3;
-    let score = Math.round(60 + zComposite * 80);
+    // Official WHOOP linear combination
+    const compositeZ = (0.55 * zHrv) - (0.20 * zRhr) - (0.10 * zResp) + (0.15 * zSleep);
+    const cdf = 0.5 * (1 + this.approxErf(compositeZ / Math.SQRT2));
+    let score = Math.round(cdf * 100);
     score = Math.min(99, Math.max(1, score));
 
     let category: 'green' | 'yellow' | 'red' = 'yellow';
@@ -352,6 +405,39 @@ export class BiometricEngine {
     }
 
     return { score, category };
+  }
+
+  private approxErf(x: number): number {
+    const sign = x >= 0 ? 1 : -1;
+    const a1 = 0.254829592;
+    const a2 = -0.284496736;
+    const a3 = 1.421413741;
+    const a4 = -1.453152027;
+    const a5 = 1.061405429;
+    const p = 0.3275911;
+
+    const absX = Math.abs(x);
+    const t = 1.0 / (1.0 + p * absX);
+    const y = 1.0 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-absX * absX);
+    return sign * y;
+  }
+
+  // --- VO2 Max (Uth-Sørensen-Overgaard-Pedersen Formula) ---
+  public calculateVo2Max(): number | null {
+    const rhr = this.getRestingHeartRate() || this.userSettings.restingHrBaseline;
+    const maxHr = this.userSettings.maxHr || (220 - this.userSettings.age);
+    if (!rhr || rhr <= 0) return null;
+    const baseVo2 = 15.3 * (maxHr / rhr);
+    const volumeBonus = Math.min(4.0, (this.dailyStrain / 21.0) * 3.5);
+    return Number((baseVo2 + volumeBonus).toFixed(1));
+  }
+
+  // --- Add Muscular Load from Strength Trainer ---
+  public addMuscularLoad(muscularLoad: number): void {
+    if (muscularLoad <= 0) return;
+    this.trimpAccumulator += muscularLoad * 0.15;
+    this.dailyStrain = this.calculateStrainFromTrimp(this.trimpAccumulator);
+    this.persistTodayRealState();
   }
 
   // --- Real Biological Healthspan (WHOOP Age & Pace of Aging) ---
@@ -428,7 +514,7 @@ export class BiometricEngine {
     const lastRR = this.getLastRR();
     const respiratoryRate = this.calculateRespiratoryRate();
     const rhr = this.getRestingHeartRate();
-    const recovery = this.calculateRecovery(currentHrv, rhr);
+    const recovery = this.calculateRecovery(currentHrv, rhr, respiratoryRate);
 
     // 4. Compute Stress Score every 5 seconds
     if (timestamp - this.lastStressTick >= 5000) {
@@ -444,6 +530,9 @@ export class BiometricEngine {
           category: stressResult.category,
         });
         if (this.stressPoints.length > 200) this.stressPoints.shift();
+
+        // Check for resting stress alert
+        notificationEngine.checkHighStress(this.currentStressScore, false);
       }
     }
 
@@ -456,6 +545,9 @@ export class BiometricEngine {
       ? Number((4.0 + (recovery.score / 100) * 10.0).toFixed(1))
       : 8.0;
     const optimalTargetMax = Number(Math.min(20.5, optimalTargetMin + 3.2).toFixed(1));
+
+    // Check if daily strain reached optimal target range
+    notificationEngine.checkStrainTarget(this.dailyStrain, optimalTargetMin);
 
     let stressCat: 'low' | 'medium' | 'high' | null = null;
     if (this.currentStressScore !== null) {
@@ -483,6 +575,10 @@ export class BiometricEngine {
       respiratoryRate,
       stressScore: this.currentStressScore,
       stressCategory: stressCat,
+      vo2Max: this.calculateVo2Max(),
+      sd1: this.calculateSD1AndSD2().sd1,
+      sd2: this.calculateSD1AndSD2().sd2,
+      baevskyIndex: this.calculateBaevskyStressIndex(),
       onWrist,
       timestamp,
     };
@@ -514,6 +610,10 @@ export class BiometricEngine {
       respiratoryRate: null,
       stressScore: null,
       stressCategory: null,
+      vo2Max: this.calculateVo2Max(),
+      sd1: null,
+      sd2: null,
+      baevskyIndex: null,
       onWrist: null,
       timestamp: Date.now(),
     };

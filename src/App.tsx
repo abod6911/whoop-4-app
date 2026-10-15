@@ -34,6 +34,12 @@ import { RecoveryTestModal } from './components/RecoveryTestModal';
 import { QuickActionModal } from './components/QuickActionModal';
 import { StrapConnectSheet } from './components/StrapConnectSheet';
 import { WorkoutHudModal } from './components/views/WorkoutHudModal';
+import { DynamicIslandBanner } from './components/DynamicIslandBanner';
+import { NotificationDrawerModal } from './components/NotificationDrawerModal';
+import { DailyJournalModal } from './components/DailyJournalModal';
+import { SleepPlannerModal } from './components/SleepPlannerModal';
+import { StrengthTrainerModal } from './components/StrengthTrainerModal';
+import { notificationEngine } from './services/notificationEngine';
 
 import { AlertCircle, X, Plus } from 'lucide-react';
 
@@ -57,7 +63,33 @@ export const App: React.FC = () => {
   const [isRecoveryTestOpen, setIsRecoveryTestOpen] = useState(false);
   const [isOledNightLockOpen, setIsOledNightLockOpen] = useState(false);
   const [isQuickActionOpen, setIsQuickActionOpen] = useState(false);
+  const [isNotificationDrawerOpen, setIsNotificationDrawerOpen] = useState(false);
+  const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(() =>
+    notificationEngine.getUnreadCount()
+  );
+  const [isDailyJournalOpen, setIsDailyJournalOpen] = useState(false);
+  const [isSleepPlannerOpen, setIsSleepPlannerOpen] = useState(false);
+  const [isStrengthTrainerOpen, setIsStrengthTrainerOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    return notificationEngine.subscribe(() => {
+      setUnreadNotificationsCount(notificationEngine.getUnreadCount());
+    });
+  }, []);
+
+  const handleBannerAction = (actionType: string) => {
+    if (actionType === 'open_breathe') {
+      setMainTab('health');
+    } else if (actionType === 'open_strap') {
+      setIsStrapSheetOpen(true);
+    } else if (actionType === 'open_journal') {
+      setIsDailyJournalOpen(true);
+    } else if (actionType === 'open_recovery') {
+      setMainTab('home');
+      setHomeSubTab('recovery');
+    }
+  };
 
   // --- Real BLE Hardware State (100% Real Sensor Data Only) ---
   const [metadata, setMetadata] = useState<DeviceMetadata>(() => whoopBleEngine.getMetadata());
@@ -262,6 +294,7 @@ export const App: React.FC = () => {
       respiratoryRate: null,
       stressScore: null,
       stressCategory: null,
+      vo2Max: null,
       onWrist: null,
       timestamp: Date.now(),
     };
@@ -295,6 +328,9 @@ export const App: React.FC = () => {
     <div className="min-h-screen bg-[#0B0D10] text-white flex justify-center font-sans antialiased selection:bg-[#0093E9] selection:text-black">
       {/* Mobile Shell Container with subtle top atmospheric gradient */}
       <div className="w-full max-w-[430px] min-h-dvh bg-gradient-to-b from-[#161B22] via-[#0B0D10] to-[#000000] flex flex-col relative border-x border-white/5 shadow-2xl">
+        {/* Dynamic Island Floating Athletic Banner */}
+        <DynamicIslandBanner onAction={handleBannerAction} />
+
         {/* Top WHOOP Bar & Home Sub-Tabs */}
         <WhoopTopBar
           metadata={metadata}
@@ -306,6 +342,8 @@ export const App: React.FC = () => {
             setHomeSubTab(tab);
           }}
           onOpenStrapSheet={() => setIsStrapSheetOpen(true)}
+          onOpenNotifications={() => setIsNotificationDrawerOpen(true)}
+          unreadNotificationsCount={unreadNotificationsCount}
           selectedDate={currentDayRecord.label}
           onPrevDate={() => setSelectedDateIndex((prev) => (prev < maxDayIndex ? prev + 1 : prev))}
           onNextDate={() => setSelectedDateIndex((prev) => (prev > 0 ? prev - 1 : prev))}
@@ -340,6 +378,9 @@ export const App: React.FC = () => {
                   onSwitchToHealthTab={() => setMainTab('health')}
                   onStartActivity={() => handleStartWorkout('Running')}
                   onLogSleep={() => setIsOledNightLockOpen(true)}
+                  onOpenJournal={() => setIsDailyJournalOpen(true)}
+                  onOpenSleepPlanner={() => setIsSleepPlannerOpen(true)}
+                  onOpenStrengthTrainer={() => setIsStrengthTrainerOpen(true)}
                 />
               )}
 
@@ -429,10 +470,42 @@ export const App: React.FC = () => {
           isOpen={isQuickActionOpen}
           onClose={() => setIsQuickActionOpen(false)}
           onSelectAction={(action) => {
+            if (action === 'strength') setIsStrengthTrainerOpen(true);
             if (action === 'activity') handleStartWorkout('Running');
+            if (action === 'journal') setIsDailyJournalOpen(true);
+            if (action === 'sleep_planner') setIsSleepPlannerOpen(true);
             if (action === 'sleep') setIsOledNightLockOpen(true);
             if (action === 'recovery_test') setIsRecoveryTestOpen(true);
           }}
+        />
+
+        {/* Real-Time Notification Center Drawer Modal */}
+        <NotificationDrawerModal
+          isOpen={isNotificationDrawerOpen}
+          onClose={() => setIsNotificationDrawerOpen(false)}
+          onOpenAction={handleBannerAction}
+        />
+
+        {/* WHOOP Daily Journal Modal */}
+        <DailyJournalModal
+          isOpen={isDailyJournalOpen}
+          onClose={() => setIsDailyJournalOpen(false)}
+          metrics={effectiveMetrics}
+        />
+
+        {/* WHOOP Sleep Planner & Smart Alarm Modal */}
+        <SleepPlannerModal
+          isOpen={isSleepPlannerOpen}
+          onClose={() => setIsSleepPlannerOpen(false)}
+          metrics={effectiveMetrics}
+          onLaunchOledNightLock={() => setIsOledNightLockOpen(true)}
+        />
+
+        {/* WHOOP Strength Trainer Modal */}
+        <StrengthTrainerModal
+          isOpen={isStrengthTrainerOpen}
+          onClose={() => setIsStrengthTrainerOpen(false)}
+          metrics={effectiveMetrics}
         />
 
         {/* Real WHOOP 4.0 Strap Connection Bottom Sheet Modal */}

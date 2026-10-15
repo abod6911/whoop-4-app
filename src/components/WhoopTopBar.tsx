@@ -1,6 +1,5 @@
-import React from 'react';
 import type { DeviceMetadata, LiveMetrics, HomeSubTab, MainTabType } from '../types/whoop';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Bell } from 'lucide-react';
 
 interface WhoopTopBarProps {
   metadata: DeviceMetadata;
@@ -9,6 +8,8 @@ interface WhoopTopBarProps {
   activeSubTab: HomeSubTab;
   onChangeSubTab: (tab: HomeSubTab) => void;
   onOpenStrapSheet: () => void;
+  onOpenNotifications?: () => void;
+  unreadNotificationsCount?: number;
   selectedDate: string;
   onPrevDate: () => void;
   onNextDate: () => void;
@@ -46,6 +47,8 @@ export const WhoopTopBar: React.FC<WhoopTopBarProps> = ({
   activeSubTab,
   onChangeSubTab,
   onOpenStrapSheet,
+  onOpenNotifications,
+  unreadNotificationsCount,
   selectedDate,
   onPrevDate,
   onNextDate,
@@ -106,17 +109,32 @@ export const WhoopTopBar: React.FC<WhoopTopBarProps> = ({
           </button>
         </div>
 
-        {/* Right: Real Battery % + SVG Vertical WHOOP Strap Icon */}
-        <button
-          onClick={onOpenStrapSheet}
-          className="flex items-center gap-2 bg-[#16191E] border border-white/5 hover:border-zinc-700 px-2.5 py-1 rounded-full transition-all active:scale-95"
-          title="WHOOP 4.0 Strap & Battery Status"
-        >
-          <span className={`text-xs font-bold font-condensed tabular-nums tracking-wide ${batteryColor}`}>
-            {metadata.batteryLevel !== null ? `${metadata.batteryLevel}%` : '--'}
-          </span>
-          <VerticalWhoopStrapIcon isConnected={metadata.connected} />
-        </button>
+        {/* Right cluster: Notification Bell + Battery/Strap Pill */}
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={onOpenNotifications}
+            className="relative p-1.5 rounded-full bg-[#16191E] border border-white/5 hover:border-zinc-700 text-zinc-300 hover:text-white transition-all active:scale-95"
+            title="Notification Center"
+          >
+            <Bell className="w-3.5 h-3.5" />
+            {unreadNotificationsCount !== undefined && unreadNotificationsCount > 0 && (
+              <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-[#0093E9] text-[9px] font-black font-condensed flex items-center justify-center text-white ring-2 ring-black">
+                {unreadNotificationsCount > 9 ? '9+' : unreadNotificationsCount}
+              </span>
+            )}
+          </button>
+
+          <button
+            onClick={onOpenStrapSheet}
+            className="flex items-center gap-2 bg-[#16191E] border border-white/5 hover:border-zinc-700 px-2.5 py-1 rounded-full transition-all active:scale-95"
+            title="WHOOP 4.0 Strap & Battery Status"
+          >
+            <span className={`text-xs font-bold font-condensed tabular-nums tracking-wide ${batteryColor}`}>
+              {metadata.batteryLevel !== null ? `${metadata.batteryLevel}%` : '--'}
+            </span>
+            <VerticalWhoopStrapIcon isConnected={metadata.connected} />
+          </button>
+        </div>
       </div>
 
       {/* Row 2: Centered stylized WHOOP geometric wordmark */}

@@ -21,6 +21,7 @@ import {
   Tooltip,
   ReferenceLine,
 } from 'recharts';
+import { HrvBreathePacer } from '../HrvBreathePacer';
 
 interface HealthViewProps {
   metrics: LiveMetrics;
@@ -268,6 +269,9 @@ export const HealthView: React.FC<HealthViewProps> = ({
           )}
         </div>
       </div>
+
+      {/* 2.5 Interactive HRV Biofeedback Breathe Pacer */}
+      <HrvBreathePacer metrics={metrics} />
 
       {/* 3. Healthspan / Biological Age (WHOOP Age & Pace of Aging) */}
       <div className="rounded-[20px] bg-[#16191E] border border-white/5 p-5 space-y-4">

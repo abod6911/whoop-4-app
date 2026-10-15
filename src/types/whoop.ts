@@ -93,6 +93,10 @@ export interface LiveMetrics {
   respiratoryRate: number | null; // breaths/min from RSA
   stressScore: number | null; // 0.0 - 3.0
   stressCategory: 'low' | 'medium' | 'high' | null;
+  vo2Max: number | null;
+  sd1?: number | null;
+  sd2?: number | null;
+  baevskyIndex?: number | null;
   onWrist: boolean | null;
   timestamp: number;
 }

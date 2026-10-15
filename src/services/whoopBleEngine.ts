@@ -7,6 +7,7 @@ import type {
   RawBlePacket,
 } from '../types/whoop';
 import { storageService } from './StorageService';
+import { notificationEngine } from './notificationEngine';
 
 // Standard 16-bit UUIDs normalized to 128-bit
 export const UUID_HEART_RATE_SERVICE = '0000180d-0000-1000-8000-00805f9b34fb';
@@ -53,6 +54,67 @@ export type MetadataCallback = (meta: DeviceMetadata) => void;
 export type PacketCallback = (packet: RawBlePacket) => void;
 export type GattTreeCallback = (services: GattServiceInfo[]) => void;
 export type ErrorCallback = (error: string) => void;
+
+// --- WHOOP 4.0 CRC & Binary Framing Protocol (Polynomial 0x04C11DB7) ---
+export function crc32Whoop(data: Uint8Array): number {
+  let crc = 0xffffffff;
+  for (let i = 0; i < data.length; i++) {
+    crc ^= data[i] << 24;
+    for (let j = 0; j < 8; j++) {
+      if ((crc & 0x80000000) !== 0) {
+        crc = ((crc << 1) ^ 0x04c11db7) >>> 0;
+      } else {
+        crc = (crc << 1) >>> 0;
+      }
+    }
+  }
+  return crc >>> 0;
+}
+
+export function crc8Whoop(data: Uint8Array): number {
+  let crc = 0x00;
+  for (let i = 0; i < data.length; i++) {
+    crc ^= data[i];
+    for (let j = 0; j < 8; j++) {
+      if ((crc & 0x80) !== 0) {
+        crc = ((crc << 1) ^ 0x07) & 0xff;
+      } else {
+        crc = (crc << 1) & 0xff;
+      }
+    }
+  }
+  return crc;
+}
+
+export function encodeWhoopFrame(payload: Uint8Array): Uint8Array {
+  const len = payload.length;
+  const header = new Uint8Array([0xaa, len & 0xff, (len >> 8) & 0xff]);
+  const c8 = crc8Whoop(header);
+  const frameWithoutCrc32 = new Uint8Array(1 + 2 + 1 + len);
+  frameWithoutCrc32[0] = 0xaa;
+  frameWithoutCrc32[1] = len & 0xff;
+  frameWithoutCrc32[2] = (len >> 8) & 0xff;
+  frameWithoutCrc32[3] = c8;
+  frameWithoutCrc32.set(payload, 4);
+
+  const c32 = crc32Whoop(frameWithoutCrc32);
+  const fullFrame = new Uint8Array(frameWithoutCrc32.length + 4);
+  fullFrame.set(frameWithoutCrc32, 0);
+  fullFrame[fullFrame.length - 4] = c32 & 0xff;
+  fullFrame[fullFrame.length - 3] = (c32 >> 8) & 0xff;
+  fullFrame[fullFrame.length - 2] = (c32 >> 16) & 0xff;
+  fullFrame[fullFrame.length - 1] = (c32 >> 24) & 0xff;
+  return fullFrame;
+}
+
+export function decodeWhoopFrame(data: Uint8Array): { valid: boolean; payload: Uint8Array | null } {
+  if (data.length < 8) return { valid: false, payload: null };
+  if (data[0] !== 0xaa) return { valid: false, payload: null };
+  const len = data[1] | (data[2] << 8);
+  if (data.length < 4 + len + 4) return { valid: false, payload: null };
+  const payload = data.slice(4, 4 + len);
+  return { valid: true, payload };
+}
 
 export class WhoopBleEngine {
   private device: BluetoothDevice | null = null;
@@ -137,6 +199,10 @@ export class WhoopBleEngine {
   private emitMetadata(): void {
     const meta = this.getMetadata();
     this.onMetadataCallbacks.forEach((cb) => cb(meta));
+    notificationEngine.checkBleState(meta.connected, meta.onWrist);
+    if (meta.batteryLevel !== null) {
+      notificationEngine.checkBattery(meta.batteryLevel);
+    }
   }
 
   private emitError(msg: string): void {
@@ -534,14 +600,18 @@ export class WhoopBleEngine {
 
   // --- Command Dispatcher for WHOOP 4.0 CMD_TO_STRAP ---
   public async sendCommand(hexString: string): Promise<void> {
+    const cleanHex = hexString.replace(/\s+/g, '');
+    if (cleanHex.length % 2 !== 0) throw new Error('Invalid Hex string length');
+    const buffer = new Uint8Array(cleanHex.match(/.{1,2}/g)!.map((byte) => parseInt(byte, 16)));
+    await this.sendRawBuffer(buffer);
+  }
+
+  public async sendRawBuffer(buffer: Uint8Array): Promise<void> {
     const char = this.activeCharacteristics.get(WHOOP_CMD_TO_STRAP_UUID);
     if (!char) {
       throw new Error('WHOOP CMD_TO_STRAP characteristic not discovered or connected');
     }
 
-    const cleanHex = hexString.replace(/\s+/g, '');
-    if (cleanHex.length % 2 !== 0) throw new Error('Invalid Hex string length');
-    const buffer = new Uint8Array(cleanHex.match(/.{1,2}/g)!.map((byte) => parseInt(byte, 16)));
     const payload = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength) as ArrayBuffer;
 
     if (char.properties.write) {
@@ -551,6 +621,31 @@ export class WhoopBleEngine {
     } else {
       throw new Error('Characteristic does not support WRITE');
     }
+  }
+
+  // --- Proprietary WHOOP 4.0 Framed Interactive Command Triggers ---
+  public async sendToggleRealtimeHr(enable: boolean): Promise<void> {
+    const payload = new Uint8Array([0x11, enable ? 0x01 : 0x00]);
+    const frame = encodeWhoopFrame(payload);
+    await this.sendRawBuffer(frame);
+  }
+
+  public async sendRequestBatteryTemp(): Promise<void> {
+    const payload = new Uint8Array([0x14, 0x01]);
+    const frame = encodeWhoopFrame(payload);
+    await this.sendRawBuffer(frame);
+  }
+
+  public async sendTriggerHapticAlarm(): Promise<void> {
+    const payload = new Uint8Array([0x25, 0x03, 0x02]); // Haptic 3 pulses
+    const frame = encodeWhoopFrame(payload);
+    await this.sendRawBuffer(frame);
+  }
+
+  public async sendSyncHistoryBuffer(): Promise<void> {
+    const payload = new Uint8Array([0x08, 0x00, 0x01]);
+    const frame = encodeWhoopFrame(payload);
+    await this.sendRawBuffer(frame);
   }
 
   // --- GATT Tree Scanner for Hardware Inspector ---

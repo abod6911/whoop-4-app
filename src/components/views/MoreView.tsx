@@ -33,6 +33,8 @@ export const MoreView: React.FC<MoreViewProps> = ({
   const [form, setForm] = useState<UserSettings>({ ...settings });
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
 
+  const [importStatus, setImportStatus] = useState<string | null>(null);
+
   const handleTanaka = () => {
     const max = Math.round(208 - 0.7 * form.age);
     setForm((prev) => ({ ...prev, maxHr: max }));
@@ -64,6 +66,104 @@ export const MoreView: React.FC<MoreViewProps> = ({
     a.download = `whoop-real-telemetry-backup-${Date.now()}.json`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const exportDaysToCSV = () => {
+    const days = storageService.getDaysHistory();
+    let csv = 'Date,Label,DayStrain,RecoveryScore,RecoveryCategory,RHR_BPM,HRV_RMSSD_ms,Calories\n';
+    days.forEach((d) => {
+      csv += `${d.date},${d.label},${d.dayStrain},${d.recoveryScore || ''},${d.recoveryCategory},${d.rhr || ''},${d.hrv || ''},${d.activeCalories}\n`;
+    });
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `whoop-history-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const text = evt.target?.result as string;
+        if (file.name.endsWith('.json')) {
+          const parsed = JSON.parse(text);
+          if (parsed.daysHistory && Array.isArray(parsed.daysHistory)) {
+            parsed.daysHistory.forEach((d: any) => {
+              if (d.date) {
+                storageService.saveRealDayState(d.date, {
+                  dayStrain: d.dayStrain || 0,
+                  activeCalories: d.activeCalories || 0,
+                  rhr: d.rhr || null,
+                  hrv: d.hrv || null,
+                  recoveryScore: d.recoveryScore || null,
+                  recoveryCategory: d.recoveryCategory || 'calibrating',
+                  zoneSeconds: { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+                });
+              }
+            });
+            setImportStatus(`Successfully restored ${parsed.daysHistory.length} historical records!`);
+            onRefreshSessions();
+          }
+        } else {
+          // Parse official WHOOP physiological_cycles.csv or generic CSV
+          const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
+          if (lines.length < 2) throw new Error('CSV is empty');
+          const header = lines[0].split(',').map((h) => h.trim().toLowerCase());
+
+          // Find column indices
+          const dateIdx = header.findIndex((h) => h.includes('cycle start') || h.includes('date'));
+          const recoveryIdx = header.findIndex((h) => h.includes('recovery score') || h.includes('recovery'));
+          const rhrIdx = header.findIndex((h) => h.includes('resting heart rate') || h.includes('rhr'));
+          const hrvIdx = header.findIndex((h) => h.includes('heart rate variability') || h.includes('hrv'));
+          const strainIdx = header.findIndex((h) => h.includes('day strain') || h.includes('strain'));
+          const calIdx = header.findIndex((h) => h.includes('energy burned') || h.includes('calories') || h.includes('cal'));
+
+          let importedCount = 0;
+          for (let i = 1; i < lines.length; i++) {
+            const cols = lines[i].split(',').map((c) => c.trim().replace(/"/g, ''));
+            if (cols.length < 2) continue;
+
+            let dateStr = cols[dateIdx >= 0 ? dateIdx : 0];
+            if (dateStr.includes('T')) dateStr = dateStr.split('T')[0];
+            else if (dateStr.includes(' ')) dateStr = dateStr.split(' ')[0];
+
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) continue;
+
+            const recVal = recoveryIdx >= 0 ? Number(cols[recoveryIdx]) : null;
+            const rhrVal = rhrIdx >= 0 ? Number(cols[rhrIdx]) : null;
+            const hrvVal = hrvIdx >= 0 ? Number(cols[hrvIdx]) : null;
+            const strainVal = strainIdx >= 0 ? Number(cols[strainIdx]) : 0;
+            const calVal = calIdx >= 0 ? Number(cols[calIdx]) : 0;
+
+            const recCat = recVal !== null ? (recVal >= 67 ? 'green' : recVal <= 33 ? 'red' : 'yellow') : 'calibrating';
+
+            storageService.saveRealDayState(dateStr, {
+              dayStrain: isNaN(strainVal) ? 0 : strainVal,
+              activeCalories: isNaN(calVal) ? 0 : calVal,
+              rhr: isNaN(rhrVal as number) ? null : rhrVal,
+              hrv: isNaN(hrvVal as number) ? null : hrvVal,
+              recoveryScore: isNaN(recVal as number) ? null : recVal,
+              recoveryCategory: recCat,
+              zoneSeconds: { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+            });
+            importedCount++;
+          }
+
+          setImportStatus(`Imported ${importedCount} days from WHOOP CSV export!`);
+          onRefreshSessions();
+        }
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        setImportStatus(`Import failed: ${msg}`);
+      }
+    };
+    reader.readAsText(file);
   };
 
   const handleWipeData = async () => {
@@ -223,31 +323,73 @@ export const MoreView: React.FC<MoreViewProps> = ({
       {/* 2. Data Management & Export Card */}
       <div className="p-5 rounded-[20px] bg-[#16191E] border border-white/5 space-y-3 font-condensed">
         <h3 className="text-xs font-black uppercase tracking-wider text-white">
-          Data Export & Storage Management
+          Data Import / Export & Storage Vault
         </h3>
 
-        <div className="space-y-2">
+        {/* Import Official WHOOP CSV/JSON */}
+        <div className="p-3.5 rounded-xl bg-[#0B0D10] border border-white/5 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-white flex items-center gap-1.5 uppercase">
+              <FileSpreadsheet className="w-4 h-4 text-[#16EC06]" />
+              Import Official WHOOP Data
+            </span>
+            <span className="text-[10px] text-zinc-500 font-mono">.CSV / .JSON</span>
+          </div>
+          <p className="text-[11px] text-zinc-400 font-sans leading-relaxed">
+            Upload your official WHOOP export file (e.g. <code className="text-white">physiological_cycles.csv</code>) to restore your previous historical Recovery & Strain scores without cloud servers.
+          </p>
+
+          <label className="w-full py-2.5 rounded-xl bg-[#16191E] border border-dashed border-white/10 hover:border-zinc-500 text-xs font-bold uppercase tracking-wider text-center text-white cursor-pointer flex items-center justify-center gap-2 transition-all">
+            <Download className="w-3.5 h-3.5 text-[#16EC06] rotate-180" />
+            <span>Select .CSV or .JSON File</span>
+            <input
+              type="file"
+              accept=".csv,.json"
+              onChange={handleFileUpload}
+              className="hidden"
+            />
+          </label>
+
+          {importStatus && (
+            <div className="text-center text-xs font-bold text-[#16EC06] bg-[#16EC06]/10 border border-[#16EC06]/20 p-2 rounded-lg animate-in fade-in">
+              {importStatus}
+            </div>
+          )}
+        </div>
+
+        {/* Export Buttons */}
+        <div className="grid grid-cols-2 gap-2">
           <button
-            onClick={exportAllData}
-            className="w-full py-3 rounded-xl bg-[#0B0D10] hover:bg-[#12151A] border border-white/5 text-white text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all"
+            onClick={exportDaysToCSV}
+            className="py-2.5 rounded-xl bg-[#0B0D10] hover:bg-[#12151A] border border-white/5 text-white text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all"
           >
-            <Download className="w-4 h-4 text-[#0093E9]" />
-            <span>Export Real Sensor Data (JSON)</span>
+            <FileSpreadsheet className="w-3.5 h-3.5 text-[#16EC06]" />
+            <span>Export CSV</span>
           </button>
 
           <button
-            onClick={onResetDayCounters}
-            className="w-full py-3 rounded-xl bg-[#0B0D10] hover:bg-[#12151A] border border-white/5 text-zinc-300 text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all"
+            onClick={exportAllData}
+            className="py-2.5 rounded-xl bg-[#0B0D10] hover:bg-[#12151A] border border-white/5 text-white text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all"
           >
-            <RotateCcw className="w-4 h-4 text-[#FFDE00]" />
-            <span>Reset Today's Day Strain & Counters</span>
+            <FileCode className="w-3.5 h-3.5 text-[#0093E9]" />
+            <span>Export JSON</span>
+          </button>
+        </div>
+
+        <div className="space-y-2 pt-2 border-t border-white/5">
+          <button
+            onClick={onResetDayCounters}
+            className="w-full py-2.5 rounded-xl bg-[#0B0D10] hover:bg-[#12151A] border border-white/5 text-zinc-300 text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all"
+          >
+            <RotateCcw className="w-3.5 h-3.5 text-[#FFDE00]" />
+            <span>Reset Today's Strain & Counters</span>
           </button>
 
           <button
             onClick={handleWipeData}
-            className="w-full py-3 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-[#FF0026] border border-rose-500/30 text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all"
+            className="w-full py-2.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-[#FF0026] border border-rose-500/30 text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all"
           >
-            <Trash2 className="w-4 h-4" />
+            <Trash2 className="w-3.5 h-3.5" />
             <span>Wipe Local IndexedDB Telemetry</span>
           </button>
         </div>
