@@ -364,8 +364,8 @@ class NotificationEngine {
     if (stressScore === null || isWorkoutActive) return;
     const now = Date.now();
 
-    // Trigger only if score > 2.2 and at least 15 minutes since last alert
-    if (stressScore >= 2.2 && now - this.lastStressAlertTime > 900000) {
+    // Trigger only if score >= 2.0 (High Stress range) and at least 15 minutes since last alert
+    if (stressScore >= 2.0 && now - this.lastStressAlertTime > 900000) {
       this.lastStressAlertTime = now;
       this.dispatch({
         type: 'stress',

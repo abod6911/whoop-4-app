@@ -114,7 +114,7 @@ export function initializeAppIcons(): void {
           name: 'WHOOP 4.0',
           short_name: 'WHOOP',
           description: 'Official WHOOP 4.0 Local Web Bluetooth App with real biometric telemetry.',
-          start_url: '/',
+          start_url: window.location.pathname || './',
           display: 'standalone',
           background_color: '#000000',
           theme_color: '#000000',

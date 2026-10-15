@@ -138,8 +138,8 @@ export const WhoopTopBar: React.FC<WhoopTopBarProps> = ({
       </div>
 
       {/* Row 2: Centered stylized WHOOP geometric wordmark */}
-      <div className="text-center my-2">
-        <span className="tracking-[0.28em] text-sm font-light text-white/90 select-none">
+      <div className="text-center my-1.5">
+        <span className="font-black uppercase font-condensed tracking-[0.28em] text-sm text-white/95 select-none">
           WHOOP
         </span>
       </div>

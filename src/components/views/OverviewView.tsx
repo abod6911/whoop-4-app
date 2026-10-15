@@ -3,6 +3,7 @@ import type { LiveMetrics, HomeSubTab, HealthMonitorMetric, SessionRecord, UserS
 import { WhoopTripleGauge } from '../WhoopTripleGauge';
 import { WhoopHealthMonitor } from '../WhoopHealthMonitor';
 import { DailyOutlookModal } from '../DailyOutlookModal';
+import { WhoopEmblemIcon } from '../WhoopLogo';
 import {
   Heart,
   Activity,
@@ -15,6 +16,8 @@ import {
   Moon,
   Sparkles,
   Zap,
+  Sun,
+  BookOpen,
 } from 'lucide-react';
 
 interface OverviewViewProps {
@@ -164,17 +167,15 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
             className="w-12 h-12 rounded-[18px] bg-[#16191E] border border-white/5 hover:border-zinc-700 flex items-center justify-center flex-shrink-0 transition-all active:scale-95"
             title="WHOOP Daily Outlook"
           >
-            <div className="w-7 h-7 rounded-full bg-white text-black font-black font-condensed flex items-center justify-center text-xs">
-              W
-            </div>
+            <WhoopEmblemIcon size={26} />
           </button>
 
           <button
             onClick={() => setIsOutlookModalOpen(true)}
             className="flex-1 p-3.5 rounded-[18px] bg-[#16191E] border border-white/5 hover:border-zinc-700 flex items-center justify-between transition-all active:scale-98 text-left"
           >
-            <div className="flex items-center gap-2">
-              <span className="text-base">🌅</span>
+            <div className="flex items-center gap-2.5">
+              <Sun className="w-4 h-4 text-white" />
               <span className="text-xs font-black uppercase tracking-wider text-white font-condensed">
                 Daily Outlook
               </span>
@@ -190,7 +191,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
             className="p-3 rounded-[18px] bg-[#16191E] border border-white/5 hover:border-zinc-700 flex items-center justify-between transition-all active:scale-98 text-left"
           >
             <div className="flex items-center gap-2">
-              <span className="text-base">📖</span>
+              <BookOpen className="w-4 h-4 text-[#16EC06]" />
               <span className="text-xs font-black uppercase tracking-wider text-white font-condensed">
                 Daily Journal
               </span>
@@ -203,7 +204,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
             className="p-3 rounded-[18px] bg-[#16191E] border border-white/5 hover:border-zinc-700 flex items-center justify-between transition-all active:scale-98 text-left"
           >
             <div className="flex items-center gap-2">
-              <span className="text-base">🌙</span>
+              <Moon className="w-4 h-4 text-[#7293B2]" />
               <span className="text-xs font-black uppercase tracking-wider text-white font-condensed">
                 Sleep Planner
               </span>
@@ -232,13 +233,17 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                   <div className="flex items-center gap-3">
                     {/* Left colored pill */}
                     <div
-                      className={`px-2.5 py-1 rounded-full font-condensed font-black text-xs flex items-center gap-1 ${
+                      className={`px-2.5 py-1 rounded-full font-condensed font-black text-xs flex items-center gap-1.5 ${
                         s.type === 'workout'
                           ? 'bg-[#0093E9]/20 text-[#0093E9] border border-[#0093E9]/40'
                           : 'bg-[#7293B2]/20 text-[#7293B2] border border-[#7293B2]/40'
                       }`}
                     >
-                      <span>{s.type === 'workout' ? '🏋️' : '🌙'}</span>
+                      {s.type === 'workout' ? (
+                        <Dumbbell className="w-3 h-3 stroke-[2.5]" />
+                      ) : (
+                        <Moon className="w-3 h-3 stroke-[2.5]" />
+                      )}
                       <span>{s.strain.toFixed(1)}</span>
                     </div>
 
