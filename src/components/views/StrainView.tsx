@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import type { LiveMetrics, HrZoneInfo, UserSettings } from '../../types/whoop';
+import { storageService } from '../../services/StorageService';
 import {
   Flame,
   Dumbbell,
@@ -69,29 +70,25 @@ export const StrainView: React.FC<StrainViewProps> = ({
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // 7-day strain trend data
-  const trendData = [
-    { day: 'FRI', date: 'Oct 10', strain: 9.8 },
-    { day: 'SAT', date: 'Oct 11', strain: 12.3 },
-    { day: 'SUN', date: 'Oct 12', strain: 5.1 },
-    { day: 'MON', date: 'Oct 13', strain: 16.2 },
-    { day: 'TUE', date: 'Oct 14', strain: 8.4 },
-    { day: 'WED', date: 'Oct 15', strain: 14.6 },
-    { day: 'TODAY', date: 'Oct 16', strain: Number(metrics.dailyStrain.toFixed(1)) },
-  ];
+  // Real 7-day strain trend from storage
+  const daysHistory = storageService.getDaysHistory();
+  const trendData = daysHistory.map((d) => ({
+    day: d.label === 'TODAY' ? 'TODAY' : d.label.slice(0, 3),
+    date: d.date,
+    strain: d.label === 'TODAY' ? Number(metrics.dailyStrain.toFixed(1)) : Number(d.dayStrain.toFixed(1)),
+  })).reverse();
 
   return (
-    <div className="space-y-4 pb-24 animate-in fade-in duration-300">
+    <div className="space-y-4 pb-28 animate-in fade-in duration-300">
       {/* 1. Large Day Strain Gauge with Target Bracket */}
-      <div className="p-6 rounded-2xl bg-[#101318] border border-[#1E232D] flex flex-col items-center justify-center text-center">
+      <div className="p-6 rounded-[20px] bg-[#16191E] border border-white/5 flex flex-col items-center justify-center text-center">
         <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
           <svg width={size} height={size} className="transform -rotate-90">
-            {/* Background ring */}
             <circle
               cx={size / 2}
               cy={size / 2}
               r={radius}
-              stroke="#1C212B"
+              stroke="#222730"
               strokeWidth={stroke}
               fill="transparent"
             />
@@ -112,7 +109,7 @@ export const StrainView: React.FC<StrainViewProps> = ({
               cx={size / 2}
               cy={size / 2}
               r={radius}
-              stroke="url(#strainGradLarge)"
+              stroke="#0093E9"
               strokeWidth={stroke}
               fill="transparent"
               strokeDasharray={circ}
@@ -120,19 +117,13 @@ export const StrainView: React.FC<StrainViewProps> = ({
               strokeLinecap="round"
               className="transition-all duration-700 ease-out"
             />
-            <defs>
-              <linearGradient id="strainGradLarge" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stopColor="#0093E9" />
-                <stop offset="100%" stopColor="#00B4D8" />
-              </linearGradient>
-            </defs>
           </svg>
 
           <div className="absolute inset-0 flex flex-col items-center justify-center">
             <span className="text-5xl font-black font-condensed text-white tracking-tight tabular-nums">
               {metrics.dailyStrain.toFixed(1)}
             </span>
-            <span className="text-[11px] font-black uppercase tracking-widest text-[#00B4D8] font-condensed mt-0.5">
+            <span className="text-[11px] font-black uppercase tracking-widest text-[#0093E9] font-condensed mt-0.5">
               Day Strain
             </span>
             <span className="text-[10px] font-bold text-zinc-400 font-condensed">
@@ -142,15 +133,21 @@ export const StrainView: React.FC<StrainViewProps> = ({
         </div>
 
         {/* Coach Summary */}
-        <div className="mt-4 pt-3 border-t border-[#1E232D] w-full text-xs text-zinc-400 font-sans leading-relaxed">
-          Based on your <b className="text-whoop-green">{metrics.recoveryScore}% Recovery</b>, you are primed to absorb up to{' '}
-          <b className="text-[#00B4D8]">{metrics.optimalStrainTarget.max} Strain</b> today without accumulating systemic overtraining fatigue.
+        <div className="mt-4 pt-3 border-t border-white/5 w-full text-xs text-zinc-400 font-sans leading-relaxed">
+          {metrics.recoveryScore !== null ? (
+            <>
+              Based on your <b className="text-[#16EC06]">{metrics.recoveryScore}% Recovery</b>, you are primed to absorb up to{' '}
+              <b className="text-[#0093E9]">{metrics.optimalStrainTarget.max} Strain</b> today without systemic overtraining fatigue.
+            </>
+          ) : (
+            'Accumulating cardiovascular load from your real heart rate stream. Every second in Zone 1-5 builds your true Day Strain.'
+          )}
         </div>
       </div>
 
       {/* 2. Interactive Recharts 7-Day Strain Trend */}
-      <div className="p-4 rounded-2xl bg-[#101318] border border-[#1E232D] space-y-3">
-        <div className="flex items-center justify-between border-b border-[#1E232D] pb-2">
+      <div className="p-4 rounded-[20px] bg-[#16191E] border border-white/5 space-y-3">
+        <div className="flex items-center justify-between border-b border-white/5 pb-2">
           <div className="flex items-center gap-2">
             <TrendingUp className="w-4 h-4 text-zinc-400" />
             <h3 className="text-xs font-black uppercase tracking-wider text-white font-condensed">
@@ -181,39 +178,33 @@ export const StrainView: React.FC<StrainViewProps> = ({
               />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: '#12151A',
+                  backgroundColor: '#101318',
                   borderColor: '#262B35',
                   borderRadius: '8px',
                   fontSize: '11px',
                   color: '#fff',
-                  fontFamily: "'Barlow Condensed', sans-serif",
                 }}
                 formatter={(val: unknown) => [`${val}`, 'Day Strain']}
               />
-              <ReferenceLine
-                y={metrics.optimalStrainTarget.max}
-                stroke="#00B4D8"
-                strokeDasharray="3 3"
-                label={{ value: `TARGET ${metrics.optimalStrainTarget.max}`, fill: '#00B4D8', fontSize: 9, position: 'right' }}
-              />
+              <ReferenceLine y={metrics.optimalStrainTarget.max} stroke="#0093E9" strokeDasharray="3 3" />
               <Bar dataKey="strain" fill="#0093E9" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
       </div>
 
-      {/* 3. Live Workout Coach / Tracker */}
-      <div className="p-4 rounded-2xl bg-[#101318] border border-[#1E232D] space-y-3">
-        <div className="flex items-center justify-between border-b border-[#1E232D] pb-2">
+      {/* 3. Live Activity Coach / Tracker */}
+      <div className="p-4 rounded-[20px] bg-[#16191E] border border-white/5 space-y-3">
+        <div className="flex items-center justify-between border-b border-white/5 pb-2">
           <div className="flex items-center gap-2">
             <Dumbbell className="w-4 h-4 text-zinc-400" />
             <h3 className="text-xs font-black uppercase tracking-wider text-white font-condensed">
-              Live Strain Coach & Activity Tracker
+              Activity Strain Coach
             </h3>
           </div>
           {isWorkoutActive && (
-            <span className="flex items-center gap-1.5 text-[10px] font-bold text-whoop-blue font-condensed uppercase">
-              <span className="w-2 h-2 rounded-full bg-whoop-blue animate-ping" />
+            <span className="flex items-center gap-1.5 text-[10px] font-bold text-[#0093E9] font-condensed uppercase">
+              <span className="w-2 h-2 rounded-full bg-[#0093E9] animate-ping" />
               RECORDING LIVE
             </span>
           )}
@@ -221,7 +212,6 @@ export const StrainView: React.FC<StrainViewProps> = ({
 
         {!isWorkoutActive ? (
           <div className="space-y-3">
-            {/* Sport selector */}
             <div>
               <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-400 font-condensed mb-1.5">
                 Select Activity
@@ -234,7 +224,7 @@ export const StrainView: React.FC<StrainViewProps> = ({
                     className={`py-2 px-2.5 rounded-xl text-xs font-bold font-condensed truncate transition-all ${
                       selectedSport === sport
                         ? 'bg-white text-black shadow-md'
-                        : 'bg-[#12151A] text-zinc-400 border border-[#262B35] hover:text-white'
+                        : 'bg-[#0B0D10] text-zinc-400 border border-white/5 hover:text-white'
                     }`}
                   >
                     {sport}
@@ -245,29 +235,28 @@ export const StrainView: React.FC<StrainViewProps> = ({
 
             <button
               onClick={() => onStartWorkout(selectedSport)}
-              className="w-full py-3 rounded-xl bg-[#12151A] hover:bg-[#181C23] border border-[#2A303C] text-white font-black text-xs uppercase tracking-wider font-condensed flex items-center justify-center gap-2 transition-all active:scale-98"
+              className="w-full py-3.5 rounded-xl bg-[#0093E9] hover:bg-[#00B4D8] text-black font-black text-xs uppercase tracking-wider font-condensed flex items-center justify-center gap-2 transition-all active:scale-98 shadow-lg shadow-cyan-500/20"
             >
-              <Play className="w-4 h-4 fill-white" />
+              <Play className="w-4 h-4 fill-black" />
               <span>Start {selectedSport} Session</span>
             </button>
           </div>
         ) : (
           <div className="space-y-3">
-            {/* Live Stats Strip */}
             <div className="grid grid-cols-3 gap-2 text-center">
-              <div className="p-2.5 rounded-xl bg-[#12151A] border border-[#262B35]">
+              <div className="p-2.5 rounded-xl bg-[#0B0D10] border border-white/5">
                 <div className="text-[10px] font-bold uppercase text-zinc-400 font-condensed">Timer</div>
                 <div className="text-xl font-black font-mono text-white mt-0.5">
                   {formatSec(workoutElapsedSec)}
                 </div>
               </div>
-              <div className="p-2.5 rounded-xl bg-[#12151A] border border-[#262B35]">
+              <div className="p-2.5 rounded-xl bg-[#0B0D10] border border-white/5">
                 <div className="text-[10px] font-bold uppercase text-zinc-400 font-condensed">Heart Rate</div>
-                <div className="text-xl font-black font-mono text-whoop-blue mt-0.5">
-                  {metrics.currentHr} <span className="text-[10px] text-zinc-500">BPM</span>
+                <div className="text-xl font-black font-mono text-[#0093E9] mt-0.5">
+                  {metrics.currentHr !== null ? metrics.currentHr : '--'} <span className="text-[10px] text-zinc-500">BPM</span>
                 </div>
               </div>
-              <div className="p-2.5 rounded-xl bg-[#12151A] border border-[#262B35]">
+              <div className="p-2.5 rounded-xl bg-[#0B0D10] border border-white/5">
                 <div className="text-[10px] font-bold uppercase text-zinc-400 font-condensed">Active Cals</div>
                 <div className="text-xl font-black font-mono text-white mt-0.5">
                   {metrics.activeCalories} <span className="text-[10px] text-zinc-500">kcal</span>
@@ -277,7 +266,7 @@ export const StrainView: React.FC<StrainViewProps> = ({
 
             <button
               onClick={onStopWorkout}
-              className="w-full py-3 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 text-whoop-red font-black text-xs uppercase tracking-wider font-condensed flex items-center justify-center gap-2 transition-all active:scale-98"
+              className="w-full py-3 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 text-[#FF0026] font-black text-xs uppercase tracking-wider font-condensed flex items-center justify-center gap-2 transition-all active:scale-98"
             >
               <Square className="w-4 h-4 fill-current" />
               <span>Stop & Save Activity</span>
@@ -287,8 +276,8 @@ export const StrainView: React.FC<StrainViewProps> = ({
       </div>
 
       {/* 4. Real-Time Rest + Zones 1 to 5 Distribution */}
-      <div className="p-4 rounded-2xl bg-[#101318] border border-[#1E232D] space-y-3">
-        <div className="flex items-center justify-between border-b border-[#1E232D] pb-2">
+      <div className="p-4 rounded-[20px] bg-[#16191E] border border-white/5 space-y-3">
+        <div className="flex items-center justify-between border-b border-white/5 pb-2">
           <h3 className="text-xs font-black uppercase tracking-wider text-white font-condensed">
             Heart Rate Intensity Zones
           </h3>
@@ -310,7 +299,7 @@ export const StrainView: React.FC<StrainViewProps> = ({
                     <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: zone.color }} />
                     {zone.name}
                     {isCurrent && (
-                      <span className="text-[9px] uppercase font-black bg-zinc-800 px-1.5 py-0.2 rounded text-whoop-blue">
+                      <span className="text-[9px] uppercase font-black bg-zinc-800 px-1.5 py-0.2 rounded text-[#0093E9]">
                         Active
                       </span>
                     )}
@@ -321,7 +310,7 @@ export const StrainView: React.FC<StrainViewProps> = ({
                   </div>
                 </div>
 
-                <div className="h-1.5 w-full bg-[#181C23] rounded-full overflow-hidden">
+                <div className="h-1.5 w-full bg-[#0B0D10] rounded-full overflow-hidden">
                   <div
                     className="h-full rounded-full transition-all duration-500"
                     style={{

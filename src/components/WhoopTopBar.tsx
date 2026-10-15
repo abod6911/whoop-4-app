@@ -1,12 +1,6 @@
 import React from 'react';
 import type { DeviceMetadata, LiveMetrics, HomeSubTab, MainTabType } from '../types/whoop';
-import {
-  Activity,
-  Battery,
-  ChevronLeft,
-  ChevronRight,
-  Flame,
-} from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface WhoopTopBarProps {
   metadata: DeviceMetadata;
@@ -20,6 +14,31 @@ interface WhoopTopBarProps {
   onNextDate: () => void;
 }
 
+export const VerticalWhoopStrapIcon: React.FC<{ isConnected: boolean; className?: string }> = ({
+  isConnected,
+  className,
+}) => (
+  <div className={`relative inline-flex items-center justify-center ${className || ''}`}>
+    <svg width="18" height="24" viewBox="0 0 18 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      {/* Top band loop */}
+      <rect x="5" y="0.5" width="8" height="3" rx="1.5" fill="#3A404D" />
+      {/* Sensor pod body */}
+      <rect x="2" y="3.5" width="14" height="17" rx="3.5" fill="#16191E" stroke="#2C323D" strokeWidth="1" />
+      {/* Sensor optical window */}
+      <circle cx="9" cy="12" r="3.5" fill="#0B0D10" stroke="#2C323D" strokeWidth="0.8" />
+      <circle cx="9" cy="12" r="1.5" fill={isConnected ? '#16EC06' : '#52525B'} />
+      {/* Bottom band loop */}
+      <rect x="5" y="20.5" width="8" height="3" rx="1.5" fill="#3A404D" />
+    </svg>
+    {/* Real-time status dot */}
+    <span
+      className={`absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full ring-2 ring-black ${
+        isConnected ? 'bg-[#16EC06]' : 'bg-[#52525B]'
+      }`}
+    />
+  </div>
+);
+
 export const WhoopTopBar: React.FC<WhoopTopBarProps> = ({
   metadata,
   metrics,
@@ -31,103 +50,86 @@ export const WhoopTopBar: React.FC<WhoopTopBarProps> = ({
   onPrevDate,
   onNextDate,
 }) => {
-  const pulseDuration = metrics.currentHr > 0 ? (60 / metrics.currentHr).toFixed(2) : '1.0';
+  const isBatteryLow = metadata.batteryLevel !== null && metadata.batteryLevel < 15;
+  const batteryColor = isBatteryLow ? 'text-[#FF0026]' : 'text-[#8A94A6]';
 
   const getMainTabTitle = () => {
     switch (mainTab) {
-      case 'coaching':
-        return 'COACHING';
-      case 'activity':
-        return 'LIVE ACTIVITY';
+      case 'health':
+        return 'HEALTH MONITOR & STRESS';
       case 'strap':
-        return 'WHOOP 4.0 STRAP & BLE LAB';
+        return 'WHOOP 4.0 STRAP & HARDWARE';
       case 'more':
-        return 'SETTINGS & BASelines';
+        return 'MORE & SETTINGS';
       default:
         return 'HOME';
     }
   };
 
   return (
-    <div className="sticky top-0 z-40 bg-black/95 backdrop-blur-md border-b border-[#1E232D]">
-      {/* Upper Status Bar */}
-      <div className="px-3.5 pt-3 pb-2 flex items-center justify-between gap-2 max-w-[430px] mx-auto">
-        {/* Left: User Avatar & Streak */}
+    <div className="sticky top-0 z-40 bg-[#0B0D10]/95 backdrop-blur-md border-b border-white/5">
+      {/* Row 1: Top Bar */}
+      <div className="px-4 pt-3 pb-1 flex items-center justify-between gap-2 max-w-[430px] mx-auto">
+        {/* Left: User Avatar (34px) + Streak badge */}
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-whoop-blue via-whoop-cyan to-whoop-green p-[1.5px] flex items-center justify-center">
-            <div className="w-full h-full bg-black rounded-full flex items-center justify-center text-xs font-black text-white font-condensed">
-              AP
+          <div className="w-[34px] h-[34px] rounded-full bg-gradient-to-tr from-[#0093E9] via-[#00F0FF] to-[#16EC06] p-[1.5px] flex items-center justify-center">
+            <div className="w-full h-full bg-[#0B0D10] rounded-full flex items-center justify-center text-xs font-black text-white font-condensed">
+              W
             </div>
           </div>
-          <div className="flex items-center gap-1 bg-[#12151A] border border-[#262B35] px-2 py-0.5 rounded-full">
-            <Flame className="w-3 h-3 text-orange-400 fill-orange-400" />
+          <div className="flex items-center gap-1 bg-[#16191E] border border-white/5 px-2 py-0.5 rounded-full">
+            <span className="text-xs">🔥</span>
             <span className="text-[11px] font-black text-white font-condensed tracking-wide">
-              14 D
+              1
             </span>
           </div>
         </div>
 
-        {/* Center: Date Selector Carousel Pill */}
-        <div className="flex items-center gap-1 bg-[#12151A] border border-[#262B35] px-1.5 py-0.5 rounded-full">
+        {/* Center: Pill selector < TODAY > */}
+        <div className="flex items-center gap-0.5 bg-[#222730] px-2 py-1 rounded-full">
           <button
             onClick={onPrevDate}
-            className="p-1 rounded-full hover:bg-[#1E232D] text-zinc-400 hover:text-white transition-colors"
+            className="p-0.5 text-zinc-400 hover:text-white transition-colors"
             title="Previous Day"
           >
             <ChevronLeft className="w-3.5 h-3.5" />
           </button>
-          <span className="text-[11px] font-black uppercase text-white font-condensed tracking-widest px-1.5">
+          <span className="text-[11px] font-black uppercase text-white font-condensed tracking-widest px-2">
             {selectedDate}
           </span>
           <button
             onClick={onNextDate}
-            className="p-1 rounded-full hover:bg-[#1E232D] text-zinc-400 hover:text-white transition-colors"
+            className="p-0.5 text-zinc-400 hover:text-white transition-colors"
             title="Next Day"
           >
             <ChevronRight className="w-3.5 h-3.5" />
           </button>
         </div>
 
-        {/* Right: WHOOP 4.0 Strap Status Pill (Opens Bottom Sheet Modal) */}
+        {/* Right: Real Battery % + SVG Vertical WHOOP Strap Icon */}
         <button
           onClick={onOpenStrapSheet}
-          className="flex items-center gap-1.5 bg-[#12151A] border border-[#262B35] hover:border-zinc-500 px-2.5 py-1 rounded-full transition-all active:scale-95"
+          className="flex items-center gap-2 bg-[#16191E] border border-white/5 hover:border-zinc-700 px-2.5 py-1 rounded-full transition-all active:scale-95"
           title="WHOOP 4.0 Strap & Battery Status"
         >
-          {/* Beating Heart Icon */}
-          <div
-            className="text-whoop-red flex items-center justify-center"
-            style={{
-              animation: metrics.currentHr > 0 ? `heartbeat ${pulseDuration}s ease-in-out infinite` : 'none',
-            }}
-          >
-            <Activity className="w-3.5 h-3.5 text-whoop-red fill-whoop-red" />
-          </div>
-
-          <span className="text-xs font-black font-condensed text-white tabular-nums tracking-wide">
-            {metrics.currentHr > 0 ? metrics.currentHr : '--'}
+          <span className={`text-xs font-bold font-condensed tabular-nums tracking-wide ${batteryColor}`}>
+            {metadata.batteryLevel !== null ? `${metadata.batteryLevel}%` : '--'}
           </span>
-
-          {/* Battery Icon */}
-          <div className="flex items-center gap-0.5 text-[10px] font-mono text-zinc-400 pl-1 border-l border-[#262B35]">
-            <Battery
-              className={`w-3.5 h-3.5 ${
-                (metadata.batteryLevel ?? 80) < 20
-                  ? 'text-whoop-red'
-                  : (metadata.batteryLevel ?? 80) < 50
-                  ? 'text-whoop-yellow'
-                  : 'text-whoop-green'
-              }`}
-            />
-            <span>{metadata.batteryLevel ?? 88}%</span>
-          </div>
+          <VerticalWhoopStrapIcon isConnected={metadata.connected} />
         </button>
       </div>
 
-      {/* Conditional Sub-Tabs: ONLY VISIBLE WHEN mainTab === 'home' */}
+      {/* Row 2: Centered stylized WHOOP geometric wordmark */}
+      <div className="text-center my-2">
+        <span className="tracking-[0.28em] text-sm font-light text-white/90 select-none">
+          WHOOP
+        </span>
+      </div>
+
+      {/* Row 3: Sub-tabs (Visible ONLY on Home tab) */}
       {mainTab === 'home' ? (
-        <div className="flex items-center justify-between max-w-[430px] mx-auto px-4 border-t border-[#1E232D]">
-          {(['overview', 'strain', 'recovery', 'sleep'] as HomeSubTab[]).map((tab) => {
+        <div className="flex items-center justify-between max-w-[430px] mx-auto px-4 border-t border-white/5">
+          {(['overview', 'sleep', 'recovery', 'strain'] as HomeSubTab[]).map((tab) => {
             const isActive = activeSubTab === tab;
             return (
               <button
@@ -146,8 +148,8 @@ export const WhoopTopBar: React.FC<WhoopTopBarProps> = ({
           })}
         </div>
       ) : (
-        <div className="py-2 px-4 max-w-[430px] mx-auto border-t border-[#1E232D] text-left">
-          <span className="text-xs font-black uppercase tracking-wider font-condensed text-white">
+        <div className="py-2 px-4 max-w-[430px] mx-auto border-t border-white/5 text-left">
+          <span className="text-xs font-black uppercase tracking-wider font-condensed text-zinc-300">
             {getMainTabTitle()}
           </span>
         </div>

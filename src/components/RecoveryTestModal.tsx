@@ -10,8 +10,7 @@ import {
   RotateCcw,
 } from 'lucide-react';
 import type { LiveMetrics, UserSettings } from '../types/whoop';
-import { metricsEngine } from '../services/MetricsEngine';
-import { storageService } from '../services/StorageService';
+import { biometricEngine } from '../utils/biometricEngine';
 
 interface RecoveryTestModalProps {
   isOpen: boolean;
@@ -36,8 +35,8 @@ export const RecoveryTestModal: React.FC<RecoveryTestModalProps> = ({
   const [result, setResult] = useState<{
     rhr: number;
     hrv: number;
-    score: number;
-    category: 'green' | 'yellow' | 'red';
+    score: number | null;
+    category: 'green' | 'yellow' | 'red' | 'calibrating';
   } | null>(null);
 
   useEffect(() => {
@@ -64,8 +63,11 @@ export const RecoveryTestModal: React.FC<RecoveryTestModalProps> = ({
   }, [isRunning, elapsedSec]);
 
   useEffect(() => {
-    if (isRunning && metrics.currentHr > 0) {
-      setTestSamples((prev) => [...prev, { hr: metrics.currentHr, hrv: metrics.currentHrv }]);
+    if (isRunning && metrics.currentHr && metrics.currentHr > 0) {
+      setTestSamples((prev) => [
+        ...prev,
+        { hr: metrics.currentHr as number, hrv: metrics.currentHrv || settings.hrvBaseline },
+      ]);
     }
   }, [metrics.timestamp, isRunning]);
 
@@ -90,7 +92,7 @@ export const RecoveryTestModal: React.FC<RecoveryTestModalProps> = ({
     const avgRhr = Math.round(hrSum / testSamples.length);
     const avgHrv = Math.round(hrvSum / testSamples.length);
 
-    const recovery = metricsEngine.calculateRecovery(avgHrv, avgRhr);
+    const recovery = biometricEngine.calculateRecovery(avgHrv, avgRhr);
 
     const res = {
       rhr: avgRhr,
@@ -100,15 +102,13 @@ export const RecoveryTestModal: React.FC<RecoveryTestModalProps> = ({
     };
     setResult(res);
 
-    storageService.updateTodayBaseline(avgRhr, avgHrv, recovery.score, metrics.dailyStrain);
-
     if (recovery.category === 'green') {
       try {
         confetti({
           particleCount: 80,
           spread: 70,
           origin: { y: 0.6 },
-          colors: ['#00E676', '#00F0FF', '#ffffff'],
+          colors: ['#16EC06', '#00F0FF', '#ffffff'],
         });
       } catch {}
     }
@@ -118,157 +118,140 @@ export const RecoveryTestModal: React.FC<RecoveryTestModalProps> = ({
 
   const progressPercent = Math.min(100, Math.round((elapsedSec / TOTAL_TEST_SEC) * 100));
   const remainingSec = TOTAL_TEST_SEC - elapsedSec;
-  const mins = Math.floor(remainingSec / 60);
-  const secs = remainingSec % 60;
+  const remMin = Math.floor(remainingSec / 60);
+  const remSec = remainingSec % 60;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
-      <div className="relative w-full max-w-lg p-6 rounded-3xl bg-whoop-card border border-whoop-border shadow-2xl">
-        <button
-          onClick={onClose}
-          className="absolute top-5 right-5 p-1.5 rounded-full bg-whoop-surface hover:bg-whoop-border text-slate-400 hover:text-white transition-colors"
-        >
-          <X className="w-5 h-5" />
-        </button>
-
-        <div className="text-center space-y-1 mb-6">
-          <div className="inline-flex p-3 rounded-2xl bg-emerald-500/10 text-whoop-green border border-whoop-green/30 mb-2">
-            <Timer className="w-6 h-6" />
+      <div className="relative w-full max-w-[430px] p-6 rounded-[24px] bg-[#16191E] border border-white/10 shadow-2xl space-y-5 animate-in zoom-in-95">
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-white/5 pb-3">
+          <div className="flex items-center gap-2">
+            <Timer className="w-5 h-5 text-[#16EC06]" />
+            <h3 className="text-sm font-black uppercase tracking-wider text-white font-condensed">
+              Morning Recovery Assessment
+            </h3>
           </div>
-          <h2 className="text-xl font-black text-white tracking-wide">3-Minute Morning Recovery Assessment</h2>
-          <p className="text-xs text-whoop-muted max-w-sm mx-auto">
-            Sit comfortably, breathe deeply, and allow your Whoop 4.0 strap to record clean parasympathetic HRV & resting heart rate.
-          </p>
+          <button
+            onClick={onClose}
+            className="p-1 rounded-full bg-[#222730] text-zinc-400 hover:text-white"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
 
-        {!isRunning && !isCompleted ? (
-          <div className="space-y-6 text-center">
-            <div className="p-4 rounded-2xl bg-whoop-bg/60 border border-whoop-border/70 space-y-2 text-xs text-slate-300">
-              <div className="flex items-center justify-center gap-2 text-whoop-cyan font-bold">
-                <Wind className="w-4 h-4" />
-                <span>Resonant Paced Breathing Protocol</span>
-              </div>
-              <p>Follow the breathing circle: 4s Inhale, 2s Hold, 4s Exhale, 2s Rest.</p>
-              <div className="flex justify-center gap-4 pt-2 font-mono text-[11px] text-slate-400">
-                <span>Baseline HRV: <b className="text-white">{settings.hrvBaseline} ms</b></span>
-                <span>Baseline RHR: <b className="text-white">{settings.restingHrBaseline} BPM</b></span>
-              </div>
+        {!isRunning && !isCompleted && (
+          <div className="space-y-4 text-center">
+            <div className="w-16 h-16 rounded-full bg-[#16EC06]/10 border border-[#16EC06]/30 text-[#16EC06] flex items-center justify-center mx-auto">
+              <Wind className="w-8 h-8 animate-pulse" />
+            </div>
+
+            <div className="space-y-1">
+              <h4 className="text-base font-bold text-white font-sans">
+                3-Minute Resonant Paced Protocol
+              </h4>
+              <p className="text-xs text-zinc-400 leading-relaxed font-sans">
+                Sit comfortably, relax your shoulders, and follow the paced breathing guide. This calculates your true resting autonomic baseline.
+              </p>
             </div>
 
             <button
               onClick={startTest}
-              className="w-full py-3.5 px-6 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-slate-950 font-black text-sm uppercase tracking-wider shadow-lg shadow-emerald-500/20 transition-all hover:scale-[1.02]"
+              className="w-full py-3.5 rounded-xl bg-[#16EC06] hover:bg-[#13d405] text-black font-black text-xs uppercase tracking-wider font-condensed transition-all shadow-lg shadow-green-500/20 active:scale-98"
             >
-              Begin 3-Minute Assessment
+              Start 3-Minute Assessment
             </button>
           </div>
-        ) : isRunning ? (
-          <div className="space-y-6 text-center">
-            <div className="relative w-48 h-48 mx-auto flex items-center justify-center">
-              <div
-                className={`absolute inset-0 rounded-full border-4 border-whoop-green/30 transition-all duration-1000 ${
-                  breathPhase === 'Inhale'
-                    ? 'scale-110 border-whoop-cyan shadow-xl shadow-cyan-500/20'
-                    : breathPhase === 'Exhale'
-                    ? 'scale-90 border-emerald-500 shadow-xl shadow-emerald-500/20'
-                    : 'scale-100 border-whoop-green'
-                }`}
-              />
+        )}
 
-              <div className="text-center z-10 space-y-1">
-                <span className="text-xs uppercase font-extrabold tracking-widest text-whoop-muted">
+        {isRunning && (
+          <div className="space-y-5 text-center">
+            {/* Visual Breath Bubble */}
+            <div className="relative flex items-center justify-center py-4">
+              <div
+                className={`w-32 h-32 rounded-full border-4 flex flex-col items-center justify-center transition-all duration-1000 ${
+                  breathPhase === 'Inhale'
+                    ? 'scale-110 border-[#16EC06] bg-[#16EC06]/10'
+                    : breathPhase === 'Hold'
+                    ? 'scale-105 border-[#00F0FF] bg-[#00F0FF]/10'
+                    : breathPhase === 'Exhale'
+                    ? 'scale-90 border-[#7293B2] bg-[#7293B2]/10'
+                    : 'scale-95 border-zinc-600 bg-zinc-900/50'
+                }`}
+              >
+                <span className="text-sm font-black uppercase tracking-wider text-white font-condensed">
                   {breathPhase}
                 </span>
-                <div className="text-3xl font-black font-mono text-white">
-                  {mins}:{secs.toString().padStart(2, '0')}
-                </div>
-                <div className="text-[11px] font-mono text-whoop-green flex items-center justify-center gap-1">
-                  <Heart className="w-3.5 h-3.5 fill-whoop-green" />
-                  <span>{metrics.currentHr} BPM</span>
-                </div>
+                <span className="text-[10px] text-zinc-400 font-mono mt-1">
+                  {metrics.currentHr !== null ? `${metrics.currentHr} BPM` : '--'}
+                </span>
               </div>
             </div>
 
-            <div className="space-y-1">
-              <div className="flex justify-between text-xs font-mono text-slate-400">
-                <span>Progress</span>
-                <span>{progressPercent}%</span>
+            {/* Time progress */}
+            <div className="space-y-1.5 font-mono">
+              <div className="text-2xl font-black text-white">
+                {remMin.toString().padStart(2, '0')}:{remSec.toString().padStart(2, '0')}
               </div>
-              <div className="w-full h-2 rounded-full bg-slate-800 overflow-hidden">
+              <div className="h-2 w-full bg-[#0B0D10] rounded-full overflow-hidden border border-white/5">
                 <div
-                  className="h-full bg-gradient-to-r from-emerald-500 to-cyan-500 transition-all duration-300"
+                  className="h-full bg-[#16EC06] transition-all duration-300"
                   style={{ width: `${progressPercent}%` }}
                 />
               </div>
             </div>
+
+            <button
+              onClick={() => {
+                setIsRunning(false);
+                setIsCompleted(false);
+              }}
+              className="text-xs text-rose-400 hover:underline font-condensed uppercase tracking-wider"
+            >
+              Cancel Test
+            </button>
           </div>
-        ) : (
-          result && (
-            <div className="space-y-6 text-center animate-in zoom-in-95">
-              <div className="p-5 rounded-2xl bg-whoop-bg/80 border border-whoop-border space-y-4">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider"
-                  style={{
-                    backgroundColor:
-                      result.category === 'green'
-                        ? 'rgba(0, 230, 118, 0.15)'
-                        : result.category === 'yellow'
-                        ? 'rgba(255, 179, 0, 0.15)'
-                        : 'rgba(255, 51, 102, 0.15)',
-                    color:
-                      result.category === 'green'
-                        ? '#00E676'
-                        : result.category === 'yellow'
-                        ? '#FFB300'
-                        : '#FF3366',
-                  }}
-                >
-                  {result.category === 'green' ? <ShieldCheck className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
-                  <span>{result.category.toUpperCase()} RECOVERY • {result.score}%</span>
-                </div>
+        )}
 
-                <div className="text-5xl font-black font-mono text-white tracking-tight">
-                  {result.score}%
-                </div>
-
-                <div className="grid grid-cols-2 gap-3 pt-2 border-t border-whoop-border/60">
-                  <div className="p-3 rounded-xl bg-whoop-card border border-whoop-border/50">
-                    <div className="text-[10px] uppercase font-bold text-whoop-muted">Official RMSSD</div>
-                    <div className="text-xl font-black font-mono text-whoop-cyan mt-0.5">{result.hrv} ms</div>
-                    <div className="text-[10px] text-slate-400">Baseline: {settings.hrvBaseline} ms</div>
-                  </div>
-                  <div className="p-3 rounded-xl bg-whoop-card border border-whoop-border/50">
-                    <div className="text-[10px] uppercase font-bold text-whoop-muted">Resting HR</div>
-                    <div className="text-xl font-black font-mono text-white mt-0.5">{result.rhr} BPM</div>
-                    <div className="text-[10px] text-slate-400">Baseline: {settings.restingHrBaseline} BPM</div>
-                  </div>
-                </div>
-
-                <p className="text-xs text-slate-300 leading-relaxed pt-2">
-                  {result.category === 'green'
-                    ? 'Your autonomic nervous system is fully restored and primed for maximum athletic output. High strain target recommended today (14.0 - 18.0).'
-                    : result.category === 'yellow'
-                    ? 'Moderate physiological readiness. You can undertake moderate workouts, but watch your fatigue accumulation.'
-                    : 'Elevated sympathetic tone and suppressed HRV detected. Prioritize sleep, hydration, and light active recovery today.'}
-                </p>
+        {isCompleted && result && (
+          <div className="space-y-4 text-center">
+            <div className="space-y-1">
+              <div
+                className="text-5xl font-black font-condensed tracking-tight tabular-nums"
+                style={{
+                  color:
+                    result.category === 'green'
+                      ? '#16EC06'
+                      : result.category === 'yellow'
+                      ? '#FFDE00'
+                      : '#FF0026',
+                }}
+              >
+                {result.score !== null ? `${result.score}%` : '--'}
               </div>
-
-              <div className="flex gap-3">
-                <button
-                  onClick={startTest}
-                  className="flex-1 py-3 rounded-xl bg-whoop-surface hover:bg-whoop-hover text-slate-300 text-xs font-bold border border-whoop-border flex items-center justify-center gap-1.5 transition-colors"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                  <span>Retest</span>
-                </button>
-                <button
-                  onClick={onClose}
-                  className="flex-1 py-3 rounded-xl bg-whoop-cyan hover:bg-cyan-400 text-slate-950 text-xs font-bold uppercase tracking-wider transition-colors"
-                >
-                  Apply & Close
-                </button>
+              <div className="text-xs font-black uppercase tracking-widest text-white font-condensed">
+                {result.category.toUpperCase()} RECOVERY
               </div>
             </div>
-          )
+
+            <div className="grid grid-cols-2 gap-3 font-mono text-xs">
+              <div className="p-3 rounded-xl bg-[#0B0D10] border border-white/5">
+                <div className="text-zinc-500 text-[10px] uppercase">Assessed HRV</div>
+                <div className="text-xl font-bold text-white mt-0.5">{result.hrv} ms</div>
+              </div>
+              <div className="p-3 rounded-xl bg-[#0B0D10] border border-white/5">
+                <div className="text-zinc-500 text-[10px] uppercase">Resting HR</div>
+                <div className="text-xl font-bold text-white mt-0.5">{result.rhr} bpm</div>
+              </div>
+            </div>
+
+            <button
+              onClick={onClose}
+              className="w-full py-3.5 rounded-xl bg-white text-black font-black text-xs uppercase tracking-wider font-condensed transition-all"
+            >
+              Apply Assessment to Today
+            </button>
+          </div>
         )}
       </div>
     </div>

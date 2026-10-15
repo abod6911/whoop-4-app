@@ -10,193 +10,159 @@ interface WhoopTripleGaugeProps {
 export const WhoopTripleGauge: React.FC<WhoopTripleGaugeProps> = ({
   metrics,
   onSelectTab,
-  activeSubTab,
 }) => {
   const recoveryColor =
     metrics.recoveryCategory === 'green'
       ? '#16EC06'
       : metrics.recoveryCategory === 'yellow'
       ? '#FFDE00'
-      : '#FF0026';
+      : metrics.recoveryCategory === 'red'
+      ? '#FF0026'
+      : '#52525B';
 
-  // SVG parameters for side small gauges
-  const sideSize = 92;
-  const sideStroke = 7;
-  const sideRadius = (sideSize - sideStroke) / 2;
-  const sideCirc = 2 * Math.PI * sideRadius;
-  const recoveryOffset = sideCirc - (metrics.recoveryScore / 100) * sideCirc;
-  const sleepOffset = sideCirc - (metrics.sleepPerformance / 100) * sideCirc;
+  const size = 96;
+  const stroke = 8;
+  const radius = (size - stroke) / 2;
+  const circ = 2 * Math.PI * radius;
 
-  // SVG parameters for center large Strain gauge
-  const centerSize = 144;
-  const centerStroke = 11;
-  const centerRadius = (centerSize - centerStroke) / 2;
-  const centerCirc = 2 * Math.PI * centerRadius;
+  // Sleep Ring offset
+  const sleepRatio = metrics.sleepPerformance !== null ? Math.min(1, metrics.sleepPerformance / 100) : 0;
+  const sleepOffset = circ - sleepRatio * circ;
+
+  // Recovery Ring offset
+  const recoveryRatio = metrics.recoveryScore !== null ? Math.min(1, metrics.recoveryScore / 100) : 0;
+  const recoveryOffset = circ - recoveryRatio * circ;
+
+  // Strain Ring offset (0.0 to 21.0)
   const strainRatio = Math.min(1, Math.max(0, metrics.dailyStrain / 21.0));
-  const strainOffset = centerCirc - strainRatio * centerCirc;
-
-  // Target bracket arc on Strain ring (e.g., targetMin to targetMax)
-  const targetMinRatio = metrics.optimalStrainTarget.min / 21.0;
-  const targetMaxRatio = metrics.optimalStrainTarget.max / 21.0;
-  const targetArcLength = (targetMaxRatio - targetMinRatio) * centerCirc;
-  const targetArcOffset = centerCirc - targetMinRatio * centerCirc;
+  const strainOffset = circ - strainRatio * circ;
 
   return (
-    <div className="relative flex items-center justify-center gap-3 sm:gap-6 py-4 px-2 select-none">
-      {/* LEFT: RECOVERY GAUGE */}
+    <div className="grid grid-cols-3 gap-3 px-4 py-3 select-none">
+      {/* 1. LEFT RING: SLEEP */}
+      <button
+        onClick={() => onSelectTab('sleep')}
+        className="flex flex-col items-center group transition-transform active:scale-95"
+      >
+        <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
+          <svg width={size} height={size} className="transform -rotate-90">
+            <circle
+              cx={size / 2}
+              cy={size / 2}
+              r={radius}
+              stroke="#222730"
+              strokeWidth={stroke}
+              fill="transparent"
+            />
+            {metrics.sleepPerformance !== null && (
+              <circle
+                cx={size / 2}
+                cy={size / 2}
+                r={radius}
+                stroke="#7293B2"
+                strokeWidth={stroke}
+                fill="transparent"
+                strokeDasharray={circ}
+                strokeDashoffset={sleepOffset}
+                strokeLinecap="round"
+                className="transition-all duration-700 ease-out"
+              />
+            )}
+          </svg>
+
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+            <span className="text-2xl font-black font-condensed tracking-tight tabular-nums text-white">
+              {metrics.sleepPerformance !== null ? `${metrics.sleepPerformance}%` : '--'}
+            </span>
+          </div>
+        </div>
+        <span className="text-[11px] font-black uppercase tracking-wider text-zinc-400 mt-2 font-condensed group-hover:text-white transition-colors">
+          SLEEP ›
+        </span>
+      </button>
+
+      {/* 2. CENTER RING: RECOVERY */}
       <button
         onClick={() => onSelectTab('recovery')}
-        className={`flex flex-col items-center group transition-transform active:scale-95 ${
-          activeSubTab === 'recovery' ? 'opacity-100 scale-105' : 'opacity-85 hover:opacity-100'
-        }`}
+        className="flex flex-col items-center group transition-transform active:scale-95"
       >
-        <div className="relative flex items-center justify-center" style={{ width: sideSize, height: sideSize }}>
-          <svg width={sideSize} height={sideSize} className="transform -rotate-90">
-            {/* Background ring */}
+        <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
+          <svg width={size} height={size} className="transform -rotate-90">
             <circle
-              cx={sideSize / 2}
-              cy={sideSize / 2}
-              r={sideRadius}
-              stroke="#1C212B"
-              strokeWidth={sideStroke}
+              cx={size / 2}
+              cy={size / 2}
+              r={radius}
+              stroke="#222730"
+              strokeWidth={stroke}
               fill="transparent"
             />
-            {/* Progress ring */}
-            <circle
-              cx={sideSize / 2}
-              cy={sideSize / 2}
-              r={sideRadius}
-              stroke={recoveryColor}
-              strokeWidth={sideStroke}
-              fill="transparent"
-              strokeDasharray={sideCirc}
-              strokeDashoffset={recoveryOffset}
-              strokeLinecap="round"
-              className="transition-all duration-700 ease-out"
-            />
+            {metrics.recoveryScore !== null && (
+              <circle
+                cx={size / 2}
+                cy={size / 2}
+                r={radius}
+                stroke={recoveryColor}
+                strokeWidth={stroke}
+                fill="transparent"
+                strokeDasharray={circ}
+                strokeDashoffset={recoveryOffset}
+                strokeLinecap="round"
+                className="transition-all duration-700 ease-out"
+              />
+            )}
           </svg>
 
           <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
             <span
-              className="text-xl font-black font-condensed tracking-tight tabular-nums"
-              style={{ color: recoveryColor }}
+              className="text-2xl font-black font-condensed tracking-tight tabular-nums"
+              style={{ color: metrics.recoveryScore !== null ? recoveryColor : '#71717A' }}
             >
-              {metrics.recoveryScore}%
+              {metrics.recoveryScore !== null ? `${metrics.recoveryScore}%` : '--'}
             </span>
           </div>
         </div>
-        <span className="text-[11px] font-black uppercase tracking-wider text-whoop-gray mt-1 font-condensed">
-          Recovery
+        <span className="text-[11px] font-black uppercase tracking-wider text-zinc-400 mt-2 font-condensed group-hover:text-white transition-colors">
+          RECOVERY ›
         </span>
       </button>
 
-      {/* CENTER: DAY STRAIN (LARGE SIGNATURE GAUGE) */}
+      {/* 3. RIGHT RING: STRAIN */}
       <button
         onClick={() => onSelectTab('strain')}
-        className={`flex flex-col items-center group transition-transform active:scale-95 ${
-          activeSubTab === 'strain' ? 'opacity-100 scale-105' : 'opacity-95 hover:opacity-100'
-        }`}
+        className="flex flex-col items-center group transition-transform active:scale-95"
       >
-        <div className="relative flex items-center justify-center" style={{ width: centerSize, height: centerSize }}>
-          <svg width={centerSize} height={centerSize} className="transform -rotate-90">
-            {/* Background ring */}
+        <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
+          <svg width={size} height={size} className="transform -rotate-90">
             <circle
-              cx={centerSize / 2}
-              cy={centerSize / 2}
-              r={centerRadius}
-              stroke="#1C212B"
-              strokeWidth={centerStroke}
+              cx={size / 2}
+              cy={size / 2}
+              r={radius}
+              stroke="#222730"
+              strokeWidth={stroke}
               fill="transparent"
             />
-            {/* Target bracket outline */}
             <circle
-              cx={centerSize / 2}
-              cy={centerSize / 2}
-              r={centerRadius}
-              stroke="rgba(255, 255, 255, 0.22)"
-              strokeWidth={centerStroke + 3}
+              cx={size / 2}
+              cy={size / 2}
+              r={radius}
+              stroke="#0093E9"
+              strokeWidth={stroke}
               fill="transparent"
-              strokeDasharray={`${targetArcLength} ${centerCirc - targetArcLength}`}
-              strokeDashoffset={targetArcOffset}
-              strokeLinecap="round"
-            />
-            {/* Strain Blue Progress ring */}
-            <circle
-              cx={centerSize / 2}
-              cy={centerSize / 2}
-              r={centerRadius}
-              stroke="url(#strainGrad)"
-              strokeWidth={centerStroke}
-              fill="transparent"
-              strokeDasharray={centerCirc}
+              strokeDasharray={circ}
               strokeDashoffset={strainOffset}
               strokeLinecap="round"
               className="transition-all duration-700 ease-out"
             />
-
-            <defs>
-              <linearGradient id="strainGrad" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stopColor="#0093E9" />
-                <stop offset="100%" stopColor="#00B4D8" />
-              </linearGradient>
-            </defs>
           </svg>
 
           <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-            <span className="text-3xl font-black font-condensed text-white tracking-tight tabular-nums">
+            <span className="text-2xl font-black font-condensed tracking-tight tabular-nums text-white">
               {metrics.dailyStrain.toFixed(1)}
             </span>
-            <span className="text-[10px] font-black uppercase tracking-widest text-[#00B4D8] font-condensed -mt-0.5">
-              Target {metrics.optimalStrainTarget.min}–{metrics.optimalStrainTarget.max}
-            </span>
           </div>
         </div>
-        <span className="text-[12px] font-black uppercase tracking-wider text-whoop-blue mt-1 font-condensed">
-          Day Strain
-        </span>
-      </button>
-
-      {/* RIGHT: SLEEP PERFORMANCE GAUGE */}
-      <button
-        onClick={() => onSelectTab('sleep')}
-        className={`flex flex-col items-center group transition-transform active:scale-95 ${
-          activeSubTab === 'sleep' ? 'opacity-100 scale-105' : 'opacity-85 hover:opacity-100'
-        }`}
-      >
-        <div className="relative flex items-center justify-center" style={{ width: sideSize, height: sideSize }}>
-          <svg width={sideSize} height={sideSize} className="transform -rotate-90">
-            {/* Background ring */}
-            <circle
-              cx={sideSize / 2}
-              cy={sideSize / 2}
-              r={sideRadius}
-              stroke="#1C212B"
-              strokeWidth={sideStroke}
-              fill="transparent"
-            />
-            {/* Sleep Steel Blue progress ring */}
-            <circle
-              cx={sideSize / 2}
-              cy={sideSize / 2}
-              r={sideRadius}
-              stroke="#7395B7"
-              strokeWidth={sideStroke}
-              fill="transparent"
-              strokeDasharray={sideCirc}
-              strokeDashoffset={sleepOffset}
-              strokeLinecap="round"
-              className="transition-all duration-700 ease-out"
-            />
-          </svg>
-
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-            <span className="text-xl font-black font-condensed text-[#7395B7] tracking-tight tabular-nums">
-              {metrics.sleepPerformance}%
-            </span>
-          </div>
-        </div>
-        <span className="text-[11px] font-black uppercase tracking-wider text-whoop-gray mt-1 font-condensed">
-          Sleep
+        <span className="text-[11px] font-black uppercase tracking-wider text-zinc-400 mt-2 font-condensed group-hover:text-white transition-colors">
+          STRAIN ›
         </span>
       </button>
     </div>

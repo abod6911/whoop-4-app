@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { LiveMetrics, DeviceMetadata } from '../../types/whoop';
-import { Moon, Battery, Heart, Lock, Unlock, X } from 'lucide-react';
+import { Moon, Battery, Heart, Unlock } from 'lucide-react';
 
 interface OledSleepOverlayProps {
   isOpen: boolean;
@@ -79,7 +79,7 @@ export const OledSleepOverlay: React.FC<OledSleepOverlayProps> = ({
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1 text-zinc-600">
             <Battery className="w-3.5 h-3.5" />
-            <span>{metadata.batteryLevel ?? 88}%</span>
+            <span>{metadata.batteryLevel !== null ? `${metadata.batteryLevel}%` : '--'}</span>
           </div>
         </div>
       </div>
@@ -96,7 +96,7 @@ export const OledSleepOverlay: React.FC<OledSleepOverlayProps> = ({
         <div className="flex items-center gap-2 pt-4">
           <Heart className="w-4 h-4 text-rose-900 fill-rose-950 animate-pulse" />
           <span className="text-xl font-black font-mono text-zinc-400 tabular-nums">
-            {metrics.currentHr > 0 ? metrics.currentHr : '--'}
+            {metrics.currentHr !== null ? metrics.currentHr : '--'}
           </span>
           <span className="text-[10px] uppercase font-bold text-zinc-600 font-mono">BPM</span>
         </div>

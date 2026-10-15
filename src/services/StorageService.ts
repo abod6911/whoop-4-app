@@ -1,31 +1,19 @@
-import type { SessionRecord, UserSettings, RawBlePacket } from '../types/whoop';
+import type { SessionRecord, UserSettings, RawBlePacket, DayHistoryRecord, StressPoint } from '../types/whoop';
 
 const DB_NAME = 'WhoopPulseLocalDB';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const SETTINGS_KEY = 'whoop_user_settings';
-const BASELINES_KEY = 'whoop_7day_baselines';
-const DAYS_HISTORY_KEY = 'whoop_days_history';
+const REAL_DAY_PREFIX = 'whoop_real_day_';
 
-export interface DayBaseline {
-  date: string;
-  rhr: number;
-  hrv: number;
-  recoveryScore: number;
+export interface RealDayPersistedState {
   dayStrain: number;
-}
-
-export interface DayHistoryRecord {
-  offset: number; // 0 = TODAY, 1 = YESTERDAY, 2 = 2 DAYS AGO, etc.
-  label: string;
-  date: string;
-  dayStrain: number;
-  recoveryScore: number;
-  recoveryCategory: 'green' | 'yellow' | 'red';
-  sleepPerformance: number;
-  rhr: number;
-  hrv: number;
   activeCalories: number;
-  sessions: SessionRecord[];
+  rhr: number | null;
+  hrv: number | null;
+  recoveryScore: number | null;
+  recoveryCategory: 'green' | 'yellow' | 'red' | 'calibrating';
+  zoneSeconds: Record<number, number>;
+  stressPoints?: StressPoint[];
 }
 
 export const DEFAULT_SETTINGS: UserSettings = {
@@ -115,276 +103,95 @@ class StorageService {
     }
   }
 
-  // --- 7-Day History for Carousel Navigation ---
+  // --- Real Day State Management (Zero Mock Data) ---
+  saveRealDayState(dateStr: string, state: RealDayPersistedState): void {
+    try {
+      localStorage.setItem(`${REAL_DAY_PREFIX}${dateStr}`, JSON.stringify(state));
+    } catch (e) {
+      console.warn('Failed saving real day state:', e);
+    }
+  }
+
+  getRealDayState(dateStr: string): RealDayPersistedState | null {
+    try {
+      const data = localStorage.getItem(`${REAL_DAY_PREFIX}${dateStr}`);
+      if (data) {
+        return JSON.parse(data);
+      }
+    } catch (e) {
+      console.warn('Failed reading real day state:', e);
+    }
+    return null;
+  }
+
+  clearRealDayState(dateStr: string): void {
+    try {
+      localStorage.removeItem(`${REAL_DAY_PREFIX}${dateStr}`);
+    } catch (e) {
+      console.warn('Failed clearing real day state:', e);
+    }
+  }
+
+  // --- 7-Day History from Real Stored Records ---
   getDaysHistory(): DayHistoryRecord[] {
-    try {
-      const data = localStorage.getItem(DAYS_HISTORY_KEY);
-      if (data) {
-        return JSON.parse(data);
-      }
-    } catch (e) {
-      console.warn('Failed reading days history from localStorage', e);
-    }
-
-    // Default realistic 7 days matching WHOOP's exact patterns
+    const records: DayHistoryRecord[] = [];
     const now = Date.now();
-    const seeded: DayHistoryRecord[] = [
-      {
-        offset: 0,
-        label: 'TODAY',
-        date: new Date(now).toISOString().slice(0, 10),
-        dayStrain: 6.8,
-        recoveryScore: 78,
-        recoveryCategory: 'green',
-        sleepPerformance: 98,
-        rhr: 52,
-        hrv: 68,
-        activeCalories: 215,
-        sessions: [
-          {
-            id: 'mock-workout-today',
-            type: 'workout',
-            title: 'Morning Interval Run',
-            sport: 'Running',
-            startTime: now - 3600000 * 3,
-            endTime: now - 3600000 * 2.3,
-            durationSec: 2520,
-            avgHr: 148,
-            maxHr: 174,
-            minHr: 110,
-            strain: 9.2,
-            calories: 340,
-            avgHrv: 62,
-            zoneDistribution: { 1: 300, 2: 720, 3: 900, 4: 480, 5: 120 },
-            dataPoints: [],
-          },
-        ],
-      },
-      {
-        offset: 1,
-        label: 'YESTERDAY',
-        date: new Date(now - 86400000).toISOString().slice(0, 10),
-        dayStrain: 14.6,
-        recoveryScore: 84,
-        recoveryCategory: 'green',
-        sleepPerformance: 92,
-        rhr: 50,
-        hrv: 72,
-        activeCalories: 560,
-        sessions: [
-          {
-            id: 'mock-workout-yest-1',
-            type: 'workout',
-            title: 'Heavy Squats & Deadlifts',
-            sport: 'Weightlifting',
-            startTime: now - 86400000 - 3600000 * 5,
-            endTime: now - 86400000 - 3600000 * 4,
-            durationSec: 3600,
-            avgHr: 138,
-            maxHr: 168,
-            minHr: 95,
-            strain: 11.8,
-            calories: 420,
-            avgHrv: 66,
-            zoneDistribution: { 1: 600, 2: 1200, 3: 1200, 4: 600, 5: 0 },
-            dataPoints: [],
-          },
-        ],
-      },
-      {
-        offset: 2,
-        label: '2 DAYS AGO',
-        date: new Date(now - 86400000 * 2).toISOString().slice(0, 10),
-        dayStrain: 8.4,
-        recoveryScore: 61,
-        recoveryCategory: 'yellow',
-        sleepPerformance: 85,
-        rhr: 53,
-        hrv: 62,
-        activeCalories: 310,
-        sessions: [],
-      },
-      {
-        offset: 3,
-        label: '3 DAYS AGO',
-        date: new Date(now - 86400000 * 3).toISOString().slice(0, 10),
-        dayStrain: 16.2,
-        recoveryScore: 54,
-        recoveryCategory: 'yellow',
-        sleepPerformance: 78,
-        rhr: 54,
-        hrv: 58,
-        activeCalories: 680,
-        sessions: [
-          {
-            id: 'mock-workout-3d',
-            type: 'workout',
-            title: 'Outdoor Road Cycling',
-            sport: 'Cycling',
-            startTime: now - 86400000 * 3 - 3600000 * 4,
-            endTime: now - 86400000 * 3 - 3600000 * 2,
-            durationSec: 7200,
-            avgHr: 142,
-            maxHr: 169,
-            minHr: 105,
-            strain: 15.1,
-            calories: 780,
-            avgHrv: 55,
-            zoneDistribution: { 1: 900, 2: 2400, 3: 2700, 4: 1200, 5: 0 },
-            dataPoints: [],
-          },
-        ],
-      },
-      {
-        offset: 4,
-        label: '4 DAYS AGO',
-        date: new Date(now - 86400000 * 4).toISOString().slice(0, 10),
-        dayStrain: 5.1,
-        recoveryScore: 31,
-        recoveryCategory: 'red',
-        sleepPerformance: 64,
-        rhr: 58,
-        hrv: 44,
-        activeCalories: 180,
-        sessions: [],
-      },
-      {
-        offset: 5,
-        label: '5 DAYS AGO',
-        date: new Date(now - 86400000 * 5).toISOString().slice(0, 10),
-        dayStrain: 12.3,
-        recoveryScore: 68,
-        recoveryCategory: 'green',
-        sleepPerformance: 89,
-        rhr: 51,
-        hrv: 69,
-        activeCalories: 450,
-        sessions: [],
-      },
-      {
-        offset: 6,
-        label: '6 DAYS AGO',
-        date: new Date(now - 86400000 * 6).toISOString().slice(0, 10),
-        dayStrain: 9.8,
-        recoveryScore: 75,
-        recoveryCategory: 'green',
-        sleepPerformance: 91,
-        rhr: 52,
-        hrv: 67,
-        activeCalories: 380,
-        sessions: [],
-      },
-    ];
 
-    this.saveDaysHistory(seeded);
-    return seeded;
-  }
+    for (let offset = 0; offset < 7; offset++) {
+      const targetTime = now - offset * 86400000;
+      const dateStr = new Date(targetTime).toISOString().slice(0, 10);
+      const saved = this.getRealDayState(dateStr);
 
-  saveDaysHistory(days: DayHistoryRecord[]): void {
-    try {
-      localStorage.setItem(DAYS_HISTORY_KEY, JSON.stringify(days));
-    } catch (e) {
-      console.error('Failed saving days history', e);
-    }
-  }
+      let label = 'TODAY';
+      if (offset === 1) label = 'YESTERDAY';
+      else if (offset > 1) label = `${offset} DAYS AGO`;
 
-  addWorkoutToToday(workout: SessionRecord): void {
-    const days = this.getDaysHistory();
-    const today = days[0];
-    if (today) {
-      today.sessions.unshift(workout);
-      // Increase today strain logarithmically
-      const currentTrimp = -70 * Math.log(Math.max(0.001, 1 - today.dayStrain / 21));
-      const addedTrimp = -70 * Math.log(Math.max(0.001, 1 - workout.strain / 21));
-      const newTrimp = currentTrimp + addedTrimp;
-      const newStrain = 21 * (1 - Math.exp(-newTrimp / 70));
-      today.dayStrain = Number(Math.min(21, Math.max(today.dayStrain, newStrain)).toFixed(1));
-      today.activeCalories += workout.calories;
-      this.saveDaysHistory(days);
-    }
-  }
-
-  // --- 7-Day Rolling Baselines ---
-  get7DayBaselines(): DayBaseline[] {
-    try {
-      const data = localStorage.getItem(BASELINES_KEY);
-      if (data) {
-        return JSON.parse(data);
+      if (saved) {
+        records.push({
+          offset,
+          label,
+          date: dateStr,
+          dayStrain: saved.dayStrain || 0,
+          recoveryScore: saved.recoveryScore || null,
+          recoveryCategory: saved.recoveryCategory || 'calibrating',
+          sleepPerformance: null,
+          rhr: saved.rhr || null,
+          hrv: saved.hrv || null,
+          activeCalories: saved.activeCalories || 0,
+          sessions: [],
+          stressPoints: saved.stressPoints || [],
+          hasRealData: true,
+        });
+      } else {
+        records.push({
+          offset,
+          label,
+          date: dateStr,
+          dayStrain: 0,
+          recoveryScore: null,
+          recoveryCategory: 'calibrating',
+          sleepPerformance: null,
+          rhr: null,
+          hrv: null,
+          activeCalories: 0,
+          sessions: [],
+          stressPoints: [],
+          hasRealData: false,
+        });
       }
-    } catch (e) {
-      console.warn('Failed reading baselines from localStorage', e);
     }
 
-    const days = this.getDaysHistory();
-    const baselines: DayBaseline[] = days.map((d) => ({
-      date: d.date,
-      rhr: d.rhr,
-      hrv: d.hrv,
-      recoveryScore: d.recoveryScore,
-      dayStrain: d.dayStrain,
-    }));
-
-    this.save7DayBaselines(baselines);
-    return baselines;
+    return records;
   }
 
-  save7DayBaselines(baselines: DayBaseline[]): void {
-    try {
-      localStorage.setItem(BASELINES_KEY, JSON.stringify(baselines));
-    } catch (e) {
-      console.error('Failed saving 7-day baselines', e);
-    }
-  }
-
-  updateTodayBaseline(rhr: number, hrv: number, recoveryScore: number, dayStrain: number): void {
-    const baselines = this.get7DayBaselines();
-    const todayStr = new Date().toISOString().split('T')[0];
-    const existingIndex = baselines.findIndex((b) => b.date === todayStr);
-
-    if (existingIndex >= 0) {
-      baselines[existingIndex] = {
-        date: todayStr,
-        rhr: Math.round(rhr),
-        hrv: Math.round(hrv),
-        recoveryScore: Math.round(recoveryScore),
-        dayStrain: Number(dayStrain.toFixed(1)),
-      };
-    } else {
-      baselines.unshift({
-        date: todayStr,
-        rhr: Math.round(rhr),
-        hrv: Math.round(hrv),
-        recoveryScore: Math.round(recoveryScore),
-        dayStrain: Number(dayStrain.toFixed(1)),
-      });
-      if (baselines.length > 14) baselines.pop();
-    }
-
-    this.save7DayBaselines(baselines);
-
-    // Also sync to DayHistoryRecord[0]
-    const days = this.getDaysHistory();
-    if (days[0]) {
-      days[0].rhr = Math.round(rhr);
-      days[0].hrv = Math.round(hrv);
-      days[0].recoveryScore = Math.round(recoveryScore);
-      days[0].recoveryCategory = recoveryScore >= 67 ? 'green' : recoveryScore <= 33 ? 'red' : 'yellow';
-      days[0].dayStrain = Number(dayStrain.toFixed(1));
-      this.saveDaysHistory(days);
-    }
-  }
-
-  // --- Sessions Store (Workouts, Sleep, Tests) ---
+  // --- Sessions Store (Real Workouts, Sleep) ---
   async saveSession(session: SessionRecord): Promise<void> {
     const db = await this.initDB();
     return new Promise((resolve, reject) => {
       const tx = db.transaction('sessions', 'readwrite');
       const store = tx.objectStore('sessions');
       const req = store.put(session);
-      req.onsuccess = () => {
-        this.addWorkoutToToday(session);
-        resolve();
-      };
+      req.onsuccess = () => resolve();
       req.onerror = () => reject(req.error);
     });
   }
@@ -400,6 +207,14 @@ class StorageService {
         resolve(sorted);
       };
       req.onerror = () => reject(req.error);
+    });
+  }
+
+  async getSessionsForDay(dateStr: string): Promise<SessionRecord[]> {
+    const all = await this.getAllSessions();
+    return all.filter((s) => {
+      const d = new Date(s.startTime).toISOString().slice(0, 10);
+      return d === dateStr;
     });
   }
 
@@ -459,7 +274,7 @@ class StorageService {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `whoop-${session.type}-${new Date(session.startTime).toISOString().slice(0, 10)}.json`;
+    a.download = `whoop-session-${new Date(session.startTime).toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -475,7 +290,7 @@ class StorageService {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `whoop-${session.type}-${new Date(session.startTime).toISOString().slice(0, 10)}.csv`;
+    a.download = `whoop-session-${new Date(session.startTime).toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   }

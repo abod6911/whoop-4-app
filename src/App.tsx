@@ -11,10 +11,9 @@ import type {
   HealthMonitorMetric,
   SleepMetrics,
 } from './types/whoop';
-import { whoopBLE } from './services/WhoopBLEManager';
-import { whoopSimulator, type SimulatorState } from './services/WhoopSimulator';
-import { metricsEngine } from './services/MetricsEngine';
-import { storageService, type DayHistoryRecord } from './services/StorageService';
+import { whoopBleEngine } from './services/whoopBleEngine';
+import { biometricEngine } from './utils/biometricEngine';
+import { storageService } from './services/StorageService';
 import {
   generateHealthMonitorMetrics,
   generateSleepMetrics,
@@ -24,10 +23,10 @@ import {
 import { WhoopTopBar } from './components/WhoopTopBar';
 import { WhoopBottomNav } from './components/WhoopBottomNav';
 import { OverviewView } from './components/views/OverviewView';
+import { HealthView } from './components/views/HealthView';
 import { StrainView } from './components/views/StrainView';
 import { RecoveryView } from './components/views/RecoveryView';
 import { SleepView } from './components/views/SleepView';
-import { CoachingView } from './components/views/CoachingView';
 import { StrapLabView } from './components/views/StrapLabView';
 import { MoreView } from './components/views/MoreView';
 import { OledSleepOverlay } from './components/views/OledSleepOverlay';
@@ -36,27 +35,21 @@ import { QuickActionModal } from './components/QuickActionModal';
 import { StrapConnectSheet } from './components/StrapConnectSheet';
 import { WorkoutHudModal } from './components/views/WorkoutHudModal';
 
-import { AlertCircle, X } from 'lucide-react';
+import { AlertCircle, X, Plus } from 'lucide-react';
 
 export const App: React.FC = () => {
   // --- User Settings & Biometrics ---
   const [settings, setSettings] = useState<UserSettings>(() => {
-    const s = storageService.getUserSettings();
-    return {
-      ...s,
-      sleepNeedHours: 7.9,
-    };
+    return storageService.getUserSettings();
   });
 
-  // --- Navigation States ---
+  // --- Navigation States (Official 4 Tabs: Home, Health, Strap, More) ---
   const [mainTab, setMainTab] = useState<MainTabType>('home');
   const [homeSubTab, setHomeSubTab] = useState<HomeSubTab>('overview');
-  const [selectedDateIndex, setSelectedDateIndex] = useState(0); // 0 = TODAY, 1 = YESTERDAY, 2 = 2 DAYS AGO...
+  const [selectedDateIndex, setSelectedDateIndex] = useState(0); // 0 = TODAY, 1 = YESTERDAY...
 
-  // --- 7-Day History Records from Storage ---
-  const [daysHistory, setDaysHistory] = useState<DayHistoryRecord[]>(() =>
-    storageService.getDaysHistory()
-  );
+  // --- Real 7-Day History Records from Storage ---
+  const [daysHistory, setDaysHistory] = useState(() => storageService.getDaysHistory());
 
   // --- Modal States ---
   const [isStrapSheetOpen, setIsStrapSheetOpen] = useState(false);
@@ -66,31 +59,13 @@ export const App: React.FC = () => {
   const [isQuickActionOpen, setIsQuickActionOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // --- Live BLE & Simulator States ---
-  const [metadata, setMetadata] = useState<DeviceMetadata>(() => whoopBLE.getMetadata());
-  const [isSimulator, setIsSimulator] = useState<boolean>(true); // Pre-enabled for immediate out-of-the-box exploration
-  const [simulatorMode, setSimulatorMode] = useState<SimulatorState>('resting');
+  // --- Real BLE Hardware State (100% Real Sensor Data Only) ---
+  const [metadata, setMetadata] = useState<DeviceMetadata>(() => whoopBleEngine.getMetadata());
 
-  // --- Live Metrics State (for Today) ---
-  const [liveMetrics, setLiveMetrics] = useState<LiveMetrics>(() => ({
-    currentHr: 62,
-    currentHrv: settings.hrvBaseline,
-    sdnn: Math.round(settings.hrvBaseline * 1.1),
-    meanRR: 880,
-    minHr: 52,
-    maxHr: 84,
-    avgHr: 64,
-    restingHr: settings.restingHrBaseline,
-    dailyStrain: 6.8,
-    recoveryScore: 78,
-    recoveryCategory: 'green',
-    sleepPerformance: 98,
-    activeCalories: 215,
-    currentZone: 1,
-    zoneSeconds: { 0: 3600, 1: 520, 2: 180, 3: 0, 4: 0, 5: 0 },
-    optimalStrainTarget: calculateOptimalStrainTarget(78),
-    timestamp: Date.now(),
-  }));
+  // --- Live Metrics State (Initial Disconnected Calibrating State) ---
+  const [liveMetrics, setLiveMetrics] = useState<LiveMetrics>(() =>
+    biometricEngine.getInitialDisconnectedMetrics()
+  );
 
   // --- Active Workout State ---
   const [isWorkoutActive, setIsWorkoutActive] = useState(false);
@@ -99,12 +74,12 @@ export const App: React.FC = () => {
   const [activeSportTitle, setActiveSportTitle] = useState('Running');
   const [workoutSamples, setWorkoutSamples] = useState<Array<{ timestamp: number; hr: number; hrv: number }>>([]);
 
-  // --- Sessions & BLE Explorer Packets ---
+  // --- Real Recorded Sessions & Packets ---
   const [sessions, setSessions] = useState<SessionRecord[]>([]);
   const [services, setServices] = useState<GattServiceInfo[]>([]);
   const [packets, setPackets] = useState<RawBlePacket[]>([]);
 
-  // Load saved sessions & packets from IndexedDB
+  // Load real saved sessions & packets from IndexedDB
   const refreshSessions = useCallback(async () => {
     try {
       const all = await storageService.getAllSessions();
@@ -144,72 +119,48 @@ export const App: React.FC = () => {
     };
   }, [isWorkoutActive, workoutStartTime]);
 
-  // Ingest sample from BLE or Simulator
-  const handleSample = useCallback((bpm: number, rrIntervals: number[]) => {
-    const updated = metricsEngine.ingestSample(bpm, rrIntervals);
-    const target = calculateOptimalStrainTarget(updated.recoveryScore);
+  // Ingest 100% real sample from physical strap
+  const handleMeasurement = useCallback((measurement: Parameters<typeof biometricEngine.ingestSample>[0]) => {
+    const updated = biometricEngine.ingestSample(measurement);
+    setLiveMetrics(updated);
 
-    setLiveMetrics({
-      ...updated,
-      sleepPerformance: 98,
-      optimalStrainTarget: target,
-    });
-
-    // If workout is active, collect session samples
-    if (isWorkoutActive) {
+    if (isWorkoutActive && measurement.bpm > 0) {
       setWorkoutSamples((prev) => [
         ...prev,
-        { timestamp: Date.now(), hr: bpm, hrv: updated.currentHrv },
+        {
+          timestamp: measurement.timestamp,
+          hr: measurement.bpm,
+          hrv: updated.currentHrv || 0,
+        },
       ]);
     }
   }, [isWorkoutActive]);
 
-  // BLE & Simulator event subscriptions
+  // Subscribe to real BLE events
   useEffect(() => {
-    const unsubHr = whoopBLE.onHeartRate((data) => {
-      if (!isSimulator) {
-        handleSample(data.bpm, data.rrIntervals);
-      }
+    const unsubHr = whoopBleEngine.onHeartRate((measurement) => {
+      handleMeasurement(measurement);
     });
 
-    const unsubBat = whoopBLE.onBattery((level) => {
+    const unsubBat = whoopBleEngine.onBattery((level) => {
       setMetadata((prev) => ({ ...prev, batteryLevel: level }));
     });
 
-    const unsubMeta = whoopBLE.onMetadata((meta) => {
-      if (!isSimulator) {
-        setMetadata(meta);
-      }
+    const unsubMeta = whoopBleEngine.onMetadata((meta) => {
+      setMetadata(meta);
     });
 
-    const unsubPkt = whoopBLE.onPacket((pkt) => {
+    const unsubPkt = whoopBleEngine.onPacket((pkt) => {
       setPackets((prev) => [pkt, ...prev.slice(0, 99)]);
     });
 
-    const unsubGatt = whoopBLE.onGattTree((tree) => {
+    const unsubGatt = whoopBleEngine.onGattTree((tree) => {
       setServices(tree);
     });
 
-    const unsubErr = whoopBLE.onError((err) => {
+    const unsubErr = whoopBleEngine.onError((err) => {
       setErrorMessage(err);
     });
-
-    const unsubSimSample = whoopSimulator.onSample((data) => {
-      if (isSimulator) {
-        handleSample(data.bpm, data.rrIntervals);
-      }
-    });
-
-    const unsubSimState = whoopSimulator.onStateChange((running) => {
-      if (running) {
-        setMetadata(whoopSimulator.getSimulatedMetadata());
-      }
-    });
-
-    if (isSimulator) {
-      whoopSimulator.start();
-      setMetadata(whoopSimulator.getSimulatedMetadata());
-    }
 
     return () => {
       unsubHr();
@@ -218,21 +169,14 @@ export const App: React.FC = () => {
       unsubPkt();
       unsubGatt();
       unsubErr();
-      unsubSimSample();
-      unsubSimState();
-      whoopSimulator.stop();
     };
-  }, [isSimulator, handleSample]);
+  }, [handleMeasurement]);
 
-  // Connect BLE flow
-  const handleConnectBle = async (filterByWhoop = false) => {
+  // Connect BLE flow (Physical WHOOP 4.0 Strap)
+  const handleConnectBle = async () => {
     try {
       setErrorMessage(null);
-      if (isSimulator) {
-        whoopSimulator.stop();
-        setIsSimulator(false);
-      }
-      await whoopBLE.connect(filterByWhoop);
+      await whoopBleEngine.connect();
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       if (!msg.includes('cancelled') && !msg.includes('User cancelled')) {
@@ -242,28 +186,8 @@ export const App: React.FC = () => {
   };
 
   const handleDisconnectBle = () => {
-    whoopBLE.disconnect();
-  };
-
-  const handleToggleSimulator = () => {
-    if (isSimulator) {
-      whoopSimulator.stop();
-      setIsSimulator(false);
-      setMetadata(whoopBLE.getMetadata());
-    } else {
-      whoopBLE.disconnect();
-      setIsSimulator(true);
-      whoopSimulator.setMode(simulatorMode);
-      whoopSimulator.start();
-      setMetadata(whoopSimulator.getSimulatedMetadata());
-    }
-  };
-
-  const handleSelectSimulatorMode = (mode: SimulatorState) => {
-    setSimulatorMode(mode);
-    if (isSimulator) {
-      whoopSimulator.setMode(mode);
-    }
+    whoopBleEngine.disconnect();
+    setLiveMetrics(biometricEngine.getInitialDisconnectedMetrics());
   };
 
   // Workout start & stop
@@ -278,7 +202,7 @@ export const App: React.FC = () => {
   const handleStopWorkout = async () => {
     if (!workoutStartTime) return;
     const endTime = Date.now();
-    const evaluated = metricsEngine.evaluateWorkoutSession(workoutStartTime, endTime, workoutSamples);
+    const evaluated = biometricEngine.evaluateWorkoutSession(workoutStartTime, endTime, workoutSamples);
 
     const record: SessionRecord = {
       id: `workout-${Date.now()}`,
@@ -300,35 +224,32 @@ export const App: React.FC = () => {
   const handleSaveSettings = (newSettings: UserSettings) => {
     setSettings(newSettings);
     storageService.saveUserSettings(newSettings);
-    metricsEngine.updateSettings(newSettings);
+    biometricEngine.updateSettings(newSettings);
   };
 
   const handleResetDayCounters = () => {
-    metricsEngine.resetDayCounters();
-    setLiveMetrics((prev) => ({
-      ...prev,
-      dailyStrain: 0,
-      activeCalories: 0,
-      zoneSeconds: { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
-    }));
+    biometricEngine.resetDayCounters();
+    setLiveMetrics(biometricEngine.getInitialDisconnectedMetrics());
   };
 
-  // --- Effective Metrics based on Selected Date ---
+  // --- Effective Metrics based on Date Carousel (Real Records Only) ---
   const currentDayRecord = daysHistory[selectedDateIndex] || daysHistory[0];
 
   const effectiveMetrics: LiveMetrics = useMemo(() => {
     if (selectedDateIndex === 0) {
       return liveMetrics;
     }
-    // For past days, present historical record snapshot
+
+    // Historical day snapshot
     return {
-      currentHr: 0,
+      currentHr: null,
       currentHrv: currentDayRecord.hrv,
-      sdnn: Math.round(currentDayRecord.hrv * 1.1),
-      meanRR: 850,
-      minHr: 48,
-      maxHr: 165,
-      avgHr: 65,
+      sdnn: null,
+      meanRR: null,
+      lastRR: null,
+      minHr: null,
+      maxHr: null,
+      avgHr: null,
       restingHr: currentDayRecord.rhr,
       dailyStrain: currentDayRecord.dayStrain,
       recoveryScore: currentDayRecord.recoveryScore,
@@ -336,38 +257,44 @@ export const App: React.FC = () => {
       sleepPerformance: currentDayRecord.sleepPerformance,
       activeCalories: currentDayRecord.activeCalories,
       currentZone: 0,
-      zoneSeconds: { 0: 3600, 1: 1800, 2: 900, 3: 600, 4: 300, 5: 0 },
+      zoneSeconds: { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
       optimalStrainTarget: calculateOptimalStrainTarget(currentDayRecord.recoveryScore),
+      respiratoryRate: null,
+      stressScore: null,
+      stressCategory: null,
+      onWrist: null,
       timestamp: Date.now(),
     };
   }, [selectedDateIndex, liveMetrics, currentDayRecord]);
 
   const effectiveSessions: SessionRecord[] = useMemo(() => {
     if (selectedDateIndex === 0) {
-      return sessions.length > 0 ? sessions : currentDayRecord.sessions;
+      return sessions;
     }
-    return currentDayRecord.sessions;
+    const targetDate = currentDayRecord.date;
+    return sessions.filter((s) => new Date(s.startTime).toISOString().slice(0, 10) === targetDate);
   }, [selectedDateIndex, sessions, currentDayRecord]);
 
   const healthMetrics: HealthMonitorMetric[] = useMemo(() => {
     return generateHealthMonitorMetrics(
       effectiveMetrics.currentHrv,
       effectiveMetrics.restingHr,
+      effectiveMetrics.respiratoryRate,
       settings
     );
-  }, [effectiveMetrics.currentHrv, effectiveMetrics.restingHr, settings]);
+  }, [effectiveMetrics.currentHrv, effectiveMetrics.restingHr, effectiveMetrics.respiratoryRate, settings]);
 
   const sleepData: SleepMetrics = useMemo(() => {
     return generateSleepMetrics(effectiveMetrics.sleepPerformance);
   }, [effectiveMetrics.sleepPerformance]);
 
-  const zones = metricsEngine.getZones();
+  const zones = biometricEngine.getZones();
   const maxDayIndex = Math.min(6, daysHistory.length - 1);
 
   return (
-    <div className="min-h-screen bg-black text-white flex justify-center font-sans antialiased selection:bg-whoop-blue selection:text-black">
-      {/* Mobile iPhone Shell Container */}
-      <div className="w-full max-w-[430px] min-h-dvh bg-black flex flex-col relative border-x border-[#1E232D] shadow-2xl">
+    <div className="min-h-screen bg-[#0B0D10] text-white flex justify-center font-sans antialiased selection:bg-[#0093E9] selection:text-black">
+      {/* Mobile Shell Container with subtle top atmospheric gradient */}
+      <div className="w-full max-w-[430px] min-h-dvh bg-gradient-to-b from-[#161B22] via-[#0B0D10] to-[#000000] flex flex-col relative border-x border-white/5 shadow-2xl">
         {/* Top WHOOP Bar & Home Sub-Tabs */}
         <WhoopTopBar
           metadata={metadata}
@@ -398,8 +325,8 @@ export const App: React.FC = () => {
         )}
 
         {/* Main Content Area */}
-        <main className="flex-1 px-3.5 pt-3 overflow-y-auto">
-          {/* TAB 1: HOME (Sub-tabs: Overview | Strain | Recovery | Sleep) */}
+        <main className="flex-1 px-4 pt-3 overflow-y-auto">
+          {/* TAB 1: HOME (Sub-tabs: Overview | Sleep | Recovery | Strain) */}
           {mainTab === 'home' && (
             <>
               {homeSubTab === 'overview' && (
@@ -408,9 +335,27 @@ export const App: React.FC = () => {
                   healthMetrics={healthMetrics}
                   sessions={effectiveSessions}
                   settings={settings}
+                  metadata={metadata}
                   onSelectSubTab={setHomeSubTab}
+                  onSwitchToHealthTab={() => setMainTab('health')}
                   onStartActivity={() => handleStartWorkout('Running')}
                   onLogSleep={() => setIsOledNightLockOpen(true)}
+                />
+              )}
+
+              {homeSubTab === 'sleep' && (
+                <SleepView
+                  metrics={effectiveMetrics}
+                  sleepData={sleepData}
+                  onActivateOledNightLock={() => setIsOledNightLockOpen(true)}
+                />
+              )}
+
+              {homeSubTab === 'recovery' && (
+                <RecoveryView
+                  metrics={effectiveMetrics}
+                  settings={settings}
+                  onOpenRecoveryTest={() => setIsRecoveryTestOpen(true)}
                 />
               )}
 
@@ -425,65 +370,33 @@ export const App: React.FC = () => {
                   workoutElapsedSec={workoutElapsedSec}
                 />
               )}
-
-              {homeSubTab === 'recovery' && (
-                <RecoveryView
-                  metrics={effectiveMetrics}
-                  settings={settings}
-                  onOpenRecoveryTest={() => setIsRecoveryTestOpen(true)}
-                />
-              )}
-
-              {homeSubTab === 'sleep' && (
-                <SleepView
-                  metrics={effectiveMetrics}
-                  sleepData={sleepData}
-                  onActivateOledNightLock={() => setIsOledNightLockOpen(true)}
-                />
-              )}
             </>
           )}
 
-          {/* TAB 2: COACHING */}
-          {mainTab === 'coaching' && (
-            <CoachingView
+          {/* TAB 2: HEALTH (ECG waveform, Stress Monitor, Healthspan WHOOP Age) */}
+          {mainTab === 'health' && (
+            <HealthView
               metrics={effectiveMetrics}
-              sleepData={sleepData}
+              healthMetrics={healthMetrics}
               settings={settings}
-              onStartActivity={() => handleStartWorkout('Running')}
-              onStartSleep={() => setIsOledNightLockOpen(true)}
+              metadata={metadata}
             />
           )}
 
-          {/* TAB 3: LIVE ACTIVITY */}
-          {mainTab === 'activity' && (
-            <StrainView
-              metrics={effectiveMetrics}
-              zones={zones}
-              settings={settings}
-              onStartWorkout={handleStartWorkout}
-              onStopWorkout={handleStopWorkout}
-              isWorkoutActive={isWorkoutActive}
-              workoutElapsedSec={workoutElapsedSec}
-            />
-          )}
-
-          {/* TAB 4: STRAP / BLE LAB */}
+          {/* TAB 3: STRAP (Hardware Specs, Real Battery, Poincaré Scatter Plot, Raw Sniffer) */}
           {mainTab === 'strap' && (
             <StrapLabView
               metadata={metadata}
               services={services}
               packets={packets}
-              isSimulator={isSimulator}
               onConnectBle={handleConnectBle}
               onDisconnectBle={handleDisconnectBle}
-              onToggleSimulator={handleToggleSimulator}
               onClearPackets={() => setPackets([])}
-              onRefreshGattTree={() => whoopBLE.scanFullGattTree()}
+              onRefreshGattTree={() => whoopBleEngine.scanFullGattTree()}
             />
           )}
 
-          {/* TAB 5: MORE / SETTINGS */}
+          {/* TAB 4: MORE (Profile, Baselines, Real CSV/JSON Export, Clear Data) */}
           {mainTab === 'more' && (
             <MoreView
               settings={settings}
@@ -495,15 +408,23 @@ export const App: React.FC = () => {
           )}
         </main>
 
-        {/* Bottom Navigation Bar */}
+        {/* Floating Action Button (+) */}
+        <button
+          onClick={() => setIsQuickActionOpen(true)}
+          className="w-14 h-14 rounded-full bg-white text-black shadow-2xl fixed bottom-24 right-5 z-40 flex items-center justify-center hover:scale-105 active:scale-95 transition-transform"
+          title="Start Live Workout or Sleep"
+        >
+          <Plus className="w-7 h-7 stroke-[2.5]" />
+        </button>
+
+        {/* 4-Tab Bottom Navigation Bar */}
         <WhoopBottomNav
           activeTab={mainTab}
           onChangeTab={setMainTab}
-          onOpenQuickAction={() => setIsQuickActionOpen(true)}
           packetCount={packets.length}
         />
 
-        {/* Quick Action Modal (Plus Button) */}
+        {/* Quick Action Modal */}
         <QuickActionModal
           isOpen={isQuickActionOpen}
           onClose={() => setIsQuickActionOpen(false)}
@@ -514,17 +435,13 @@ export const App: React.FC = () => {
           }}
         />
 
-        {/* WHOOP 4.0 Strap Connection Bottom Sheet Modal */}
+        {/* Real WHOOP 4.0 Strap Connection Bottom Sheet Modal */}
         <StrapConnectSheet
           isOpen={isStrapSheetOpen}
           onClose={() => setIsStrapSheetOpen(false)}
           metadata={metadata}
-          isSimulator={isSimulator}
-          simulatorMode={simulatorMode}
           onConnectBle={handleConnectBle}
           onDisconnectBle={handleDisconnectBle}
-          onToggleSimulator={handleToggleSimulator}
-          onSelectSimulatorMode={handleSelectSimulatorMode}
         />
 
         {/* Full-Screen Live Workout HUD Modal */}

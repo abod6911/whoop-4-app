@@ -1,14 +1,13 @@
 import React from 'react';
 import type { DeviceMetadata } from '../types/whoop';
-import type { SimulatorState } from '../services/WhoopSimulator';
 import { WhoopLogo } from './WhoopLogo';
 import {
   Bluetooth,
   BluetoothOff,
   Battery,
-  Radio,
   X,
-  Sliders,
+  Radio,
+  ShieldCheck,
   CheckCircle2,
 } from 'lucide-react';
 
@@ -16,87 +15,117 @@ interface StrapConnectSheetProps {
   isOpen: boolean;
   onClose: () => void;
   metadata: DeviceMetadata;
-  isSimulator: boolean;
-  simulatorMode: SimulatorState;
-  onConnectBle: (filterByWhoop: boolean) => void;
+  onConnectBle: () => void;
   onDisconnectBle: () => void;
-  onToggleSimulator: () => void;
-  onSelectSimulatorMode: (mode: SimulatorState) => void;
 }
 
 export const StrapConnectSheet: React.FC<StrapConnectSheetProps> = ({
   isOpen,
   onClose,
   metadata,
-  isSimulator,
-  simulatorMode,
   onConnectBle,
   onDisconnectBle,
-  onToggleSimulator,
-  onSelectSimulatorMode,
 }) => {
   if (!isOpen) return null;
 
+  const isBatteryLow = metadata.batteryLevel !== null && metadata.batteryLevel < 15;
+
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/80 backdrop-blur-sm animate-in fade-in">
-      <div className="relative w-full max-w-[430px] p-5 rounded-t-3xl bg-[#12151A] border-t border-x border-[#262B35] shadow-2xl space-y-4 animate-in slide-in-from-bottom-5">
+      <div className="relative w-full max-w-[430px] p-5 rounded-t-[28px] bg-[#16191E] border-t border-x border-white/10 shadow-2xl space-y-4 animate-in slide-in-from-bottom-5">
         {/* iOS Handle Indicator */}
-        <div className="w-10 h-1 rounded-full bg-zinc-700 mx-auto -mt-1 mb-2" />
+        <div className="w-10 h-1 rounded-full bg-zinc-600 mx-auto -mt-1 mb-2" />
 
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-[#1E232D] pb-3">
+        <div className="flex items-center justify-between border-b border-white/5 pb-3">
           <div className="flex items-center gap-2.5">
             <WhoopLogo size="sm" showWordmark={true} />
-            <span className="text-[10px] font-mono bg-[#181C23] px-2 py-0.5 rounded text-white border border-[#262B35]">
+            <span className="text-[10px] font-mono bg-[#0B0D10] px-2 py-0.5 rounded text-white border border-white/5">
               4.0 STRAP
             </span>
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-full bg-[#181C23] text-zinc-400 hover:text-white"
+            className="p-1.5 rounded-full bg-[#222730] text-zinc-400 hover:text-white transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Hardware Status Strip */}
-        <div className="p-3.5 rounded-2xl bg-[#181C23] border border-[#262B35] space-y-2.5">
+        <div className="p-4 rounded-2xl bg-[#0B0D10] border border-white/5 space-y-3">
+          {/* Connection Status */}
           <div className="flex items-center justify-between text-xs font-condensed">
             <span className="text-zinc-400 uppercase font-bold tracking-wide">Status</span>
             <span className="flex items-center gap-1.5 font-black text-white">
               <span
                 className={`w-2 h-2 rounded-full ${
-                  metadata.connected ? 'bg-whoop-green animate-ping' : 'bg-zinc-600'
+                  metadata.connected ? 'bg-[#16EC06] animate-ping' : 'bg-zinc-600'
                 }`}
               />
               {metadata.connected
-                ? metadata.name || 'WHOOP 4.0'
-                : isSimulator
-                ? 'SIMULATION PREVIEW'
-                : 'DISCONNECTED'}
+                ? metadata.name || 'WHOOP 4.0 Connected'
+                : metadata.connecting
+                ? 'Connecting...'
+                : 'Disconnected'}
             </span>
           </div>
 
-          <div className="flex items-center justify-between text-xs font-condensed border-t border-[#262B35]/60 pt-2">
+          {/* Real Battery Level */}
+          <div className="flex items-center justify-between text-xs font-condensed border-t border-white/5 pt-2.5">
             <span className="text-zinc-400 uppercase font-bold tracking-wide">Battery</span>
-            <div className="flex items-center gap-1.5 font-mono text-white font-bold">
+            <div className="flex items-center gap-1.5 font-mono font-bold">
               <Battery
                 className={`w-4 h-4 ${
-                  (metadata.batteryLevel ?? 80) < 20
-                    ? 'text-whoop-red'
-                    : (metadata.batteryLevel ?? 80) < 50
-                    ? 'text-whoop-yellow'
-                    : 'text-whoop-green'
+                  metadata.batteryLevel === null
+                    ? 'text-zinc-500'
+                    : isBatteryLow
+                    ? 'text-[#FF0026]'
+                    : metadata.batteryLevel < 50
+                    ? 'text-[#FFDE00]'
+                    : 'text-[#16EC06]'
                 }`}
               />
-              <span>{metadata.batteryLevel ?? 88}%</span>
+              <span className={metadata.batteryLevel !== null ? 'text-white' : 'text-zinc-500'}>
+                {metadata.batteryLevel !== null ? `${metadata.batteryLevel}%` : '--'}
+              </span>
             </div>
           </div>
 
-          <div className="flex items-center justify-between text-xs font-condensed border-t border-[#262B35]/60 pt-2">
+          {/* Wrist Contact Detection */}
+          <div className="flex items-center justify-between text-xs font-condensed border-t border-white/5 pt-2.5">
+            <span className="text-zinc-400 uppercase font-bold tracking-wide">Wrist Placement</span>
+            <span
+              className={`text-xs font-bold font-condensed uppercase ${
+                metadata.onWrist === true
+                  ? 'text-[#16EC06]'
+                  : metadata.onWrist === false
+                  ? 'text-[#FFDE00]'
+                  : 'text-zinc-500'
+              }`}
+            >
+              {metadata.onWrist === true
+                ? '✓ On Wrist (Locked)'
+                : metadata.onWrist === false
+                ? 'Off Wrist'
+                : metadata.connected
+                ? 'Detecting...'
+                : '--'}
+            </span>
+          </div>
+
+          {/* Firmware & Serial */}
+          <div className="flex items-center justify-between text-xs font-condensed border-t border-white/5 pt-2.5">
             <span className="text-zinc-400 uppercase font-bold tracking-wide">Firmware</span>
             <span className="font-mono text-zinc-300 text-[11px]">
-              {metadata.firmwareRevision || '41.14.2.0'}
+              {metadata.firmwareRevision || '--'}
+            </span>
+          </div>
+
+          <div className="flex items-center justify-between text-xs font-condensed border-t border-white/5 pt-2.5">
+            <span className="text-zinc-400 uppercase font-bold tracking-wide">Serial Number</span>
+            <span className="font-mono text-zinc-300 text-[11px]">
+              {metadata.serialNumber || '--'}
             </span>
           </div>
         </div>
@@ -109,74 +138,22 @@ export const StrapConnectSheet: React.FC<StrapConnectSheetProps> = ({
                 onDisconnectBle();
                 onClose();
               }}
-              className="w-full py-3 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-whoop-red border border-whoop-red/30 text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-colors"
+              className="w-full py-3.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-[#FF0026] border border-rose-500/30 text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-colors"
             >
               <BluetoothOff className="w-4 h-4" />
-              <span>Disconnect BLE Strap</span>
+              <span>Disconnect Strap</span>
             </button>
           ) : (
             <button
               onClick={() => {
                 onClose();
-                onConnectBle(false);
+                onConnectBle();
               }}
-              className="w-full py-3 rounded-xl bg-whoop-blue hover:bg-[#00B4D8] text-black text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-lg shadow-cyan-500/20 active:scale-95"
+              className="w-full py-3.5 rounded-xl bg-[#0093E9] hover:bg-[#00B4D8] text-black text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-lg shadow-cyan-500/20 active:scale-95"
             >
               <Bluetooth className="w-4 h-4" />
-              <span>Connect Physical WHOOP 4.0 via Bluetooth</span>
+              <span>Pair Physical WHOOP 4.0 via Bluetooth</span>
             </button>
-          )}
-        </div>
-
-        {/* Discreet Simulation Preview Control */}
-        <div className="pt-2 border-t border-[#1E232D] space-y-2">
-          <div className="flex items-center justify-between text-xs font-condensed">
-            <span className="text-zinc-400 font-bold uppercase tracking-wide">Preview Simulator</span>
-            <button
-              onClick={onToggleSimulator}
-              className={`px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider transition-all ${
-                isSimulator
-                  ? 'bg-whoop-green text-black'
-                  : 'bg-zinc-800 text-zinc-400 hover:text-white'
-              }`}
-            >
-              {isSimulator ? 'ACTIVE' : 'OFF'}
-            </button>
-          </div>
-
-          {isSimulator && (
-            <div className="grid grid-cols-3 gap-1.5 pt-1 font-condensed text-xs">
-              <button
-                onClick={() => onSelectSimulatorMode('resting')}
-                className={`py-1.5 rounded-lg border text-center transition-all ${
-                  simulatorMode === 'resting'
-                    ? 'bg-[#181C23] text-whoop-green border-whoop-green font-black'
-                    : 'bg-black text-zinc-400 border-[#262B35]'
-                }`}
-              >
-                Rest
-              </button>
-              <button
-                onClick={() => onSelectSimulatorMode('workout')}
-                className={`py-1.5 rounded-lg border text-center transition-all ${
-                  simulatorMode === 'workout'
-                    ? 'bg-[#181C23] text-whoop-blue border-whoop-blue font-black'
-                    : 'bg-black text-zinc-400 border-[#262B35]'
-                }`}
-              >
-                Workout
-              </button>
-              <button
-                onClick={() => onSelectSimulatorMode('sleep')}
-                className={`py-1.5 rounded-lg border text-center transition-all ${
-                  simulatorMode === 'sleep'
-                    ? 'bg-[#181C23] text-whoop-sleep border-whoop-sleep font-black'
-                    : 'bg-black text-zinc-400 border-[#262B35]'
-                }`}
-              >
-                Sleep
-              </button>
-            </div>
           )}
         </div>
       </div>
