@@ -6,8 +6,8 @@ A pixel-perfect, 1:1 functional clone of the official **WHOOP 4.0 iOS mobile app
 
 ## 🌐 Live Deployments & Repository
 
-- **Live Production (Vercel):** [https://temporary-fast-platinum-l5zk1m5.vercel.app](https://temporary-fast-platinum-l5zk1m5.vercel.app)
-- **Claim Deployment to Your Vercel Account:** [Claim on Vercel](https://vercel.com/claim-deployment?code=9537a6ac-d1e2-4189-9046-43cc30998ff1)
+- **Official Live Production (Vercel):** [https://whoop-4-app.vercel.app/](https://whoop-4-app.vercel.app/)
+- **Backup Mirror (GitHub Pages):** [https://abod6911.github.io/whoop-4-app/](https://abod6911.github.io/whoop-4-app/)
 - **Official GitHub Repository:** [https://github.com/abod6911/whoop-4-app](https://github.com/abod6911/whoop-4-app)
 - **Local Dev Server:** `http://localhost:5173/`
 
