@@ -18,6 +18,7 @@ import {
   YAxis,
   Tooltip,
 } from 'recharts';
+import { useLanguage } from '../../i18n/LanguageContext';
 
 interface SleepViewProps {
   metrics: LiveMetrics;
@@ -32,11 +33,14 @@ export const SleepView: React.FC<SleepViewProps> = ({
   daysHistory,
   onActivateOledNightLock,
 }) => {
+  const { t, isRtl } = useLanguage();
   const perf = sleepData.sleepPerformance;
   const hoursAsleep = sleepData.hoursAsleep;
   const sleepNeed = sleepData.sleepNeedHours;
 
-  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const dayNames = isRtl
+    ? ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت']
+    : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const recentDays = (daysHistory || []).slice(0, 7).reverse();
 
   // 7-day chart data derived from real records (Zero Fake Data)
@@ -44,7 +48,7 @@ export const SleepView: React.FC<SleepViewProps> = ({
     const dateObj = new Date(d.date + 'T12:00:00');
     const day = isNaN(dateObj.getTime()) ? d.label : dayNames[dateObj.getDay()];
     return {
-      day: d.offset === 0 ? 'Today' : day,
+      day: d.offset === 0 ? (isRtl ? 'اليوم' : 'Today') : day,
       perf: d.offset === 0 ? perf : d.sleepPerformance,
     };
   });
@@ -53,7 +57,7 @@ export const SleepView: React.FC<SleepViewProps> = ({
     const dateObj = new Date(d.date + 'T12:00:00');
     const day = isNaN(dateObj.getTime()) ? d.label : dayNames[dateObj.getDay()];
     return {
-      day: d.offset === 0 ? 'Today' : day,
+      day: d.offset === 0 ? (isRtl ? 'اليوم' : 'Today') : day,
       hours: d.offset === 0 ? hoursAsleep : null,
       need: sleepNeed,
     };
@@ -65,7 +69,7 @@ export const SleepView: React.FC<SleepViewProps> = ({
     const deepHours = hoursAsleep ? (hoursAsleep * (sleepData.stages.deepPercent / 100)) : null;
     const remHours = hoursAsleep ? (hoursAsleep * (sleepData.stages.remPercent / 100)) : null;
     return {
-      day: d.offset === 0 ? 'Today' : day,
+      day: d.offset === 0 ? (isRtl ? 'اليوم' : 'Today') : day,
       deep: deepHours ? Number(deepHours.toFixed(1)) : null,
       rem: remHours ? Number(remHours.toFixed(1)) : null,
     };
@@ -75,7 +79,7 @@ export const SleepView: React.FC<SleepViewProps> = ({
     const dateObj = new Date(d.date + 'T12:00:00');
     const day = isNaN(dateObj.getTime()) ? d.label : dayNames[dateObj.getDay()];
     return {
-      day: d.offset === 0 ? 'Today' : day,
+      day: d.offset === 0 ? (isRtl ? 'اليوم' : 'Today') : day,
       eff: d.offset === 0 ? sleepData.efficiencyPercent : null,
     };
   });
@@ -84,7 +88,7 @@ export const SleepView: React.FC<SleepViewProps> = ({
     const dateObj = new Date(d.date + 'T12:00:00');
     const day = isNaN(dateObj.getTime()) ? d.label : dayNames[dateObj.getDay()];
     return {
-      day: d.offset === 0 ? 'Today' : day,
+      day: d.offset === 0 ? (isRtl ? 'اليوم' : 'Today') : day,
       bed: sleepData.hoursInBed ? '11:15 PM' : '--',
       wake: sleepData.hoursInBed ? '07:30 AM' : '--',
       height: d.offset === 0 ? (sleepData.hoursInBed ?? 0) : 0,
@@ -96,10 +100,10 @@ export const SleepView: React.FC<SleepViewProps> = ({
       {/* 1. Giant Header + Share (01:16 in Video) */}
       <div className="p-5 rounded-[24px] bg-[#12151A] border border-white/5 space-y-4 text-center">
         <div className="flex items-center justify-between text-xs font-black uppercase tracking-wider font-condensed text-zinc-400">
-          <span>SLEEP PERFORMANCE</span>
+          <span>{t('sleepPerformance')}</span>
           <button className="flex items-center gap-1 text-[#00F0FF] hover:underline">
             <Share2 className="w-3.5 h-3.5" />
-            <span>SHARE</span>
+            <span>{isRtl ? 'مشاركة' : 'SHARE'}</span>
           </button>
         </div>
 
@@ -112,9 +116,9 @@ export const SleepView: React.FC<SleepViewProps> = ({
         <div className="grid grid-cols-2 gap-3 pt-1">
           <div className="p-3 rounded-2xl bg-[#1A202A] border border-[#7293B2]/30 text-center">
             <div className="text-[10px] font-black uppercase text-[#7293B2] font-condensed">
-              HOURS OF SLEEP
+              {isRtl ? 'ساعات النوم' : 'HOURS OF SLEEP'}
             </div>
-            <div className="text-2xl font-black font-condensed text-white tabular-nums mt-0.5">
+            <div className="text-2xl font-black font-condensed text-white tabular-nums mt-0.5" dir="ltr">
               {hoursAsleep !== null
                 ? `${Math.floor(hoursAsleep)}:${Math.round((hoursAsleep % 1) * 60).toString().padStart(2, '0')}`
                 : '--'}
@@ -123,9 +127,9 @@ export const SleepView: React.FC<SleepViewProps> = ({
 
           <div className="p-3 rounded-2xl bg-[#0F2618] border border-[#16EC06]/30 text-center">
             <div className="text-[10px] font-black uppercase text-[#16EC06] font-condensed">
-              SLEEP NEEDED
+              {t('sleepNeed')}
             </div>
-            <div className="text-2xl font-black font-condensed text-white tabular-nums mt-0.5">
+            <div className="text-2xl font-black font-condensed text-white tabular-nums mt-0.5" dir="ltr">
               {sleepNeed
                 ? `${Math.floor(sleepNeed)}:${Math.round((sleepNeed % 1) * 60).toString().padStart(2, '0')}`
                 : '7:54'}
@@ -139,32 +143,32 @@ export const SleepView: React.FC<SleepViewProps> = ({
           className="w-full py-3 px-4 rounded-xl bg-[#0B0D10] hover:bg-[#16191E] border border-white/10 text-[#7293B2] font-black text-xs uppercase tracking-wider font-condensed flex items-center justify-center gap-2 transition-all active:scale-98"
         >
           <Lock className="w-4 h-4 text-[#7293B2]" />
-          <span>Launch OLED Sleep Lock (Keep BLE Connected)</span>
+          <span>{isRtl ? 'تفعيل قفل الشاشة الليلي OLED (إبقاء البلوتوث متصلاً)' : 'Launch OLED Sleep Lock (Keep BLE Connected)'}</span>
         </button>
       </div>
 
       {/* 2. SLEEP STATISTICS Rows */}
       <div className="p-4 rounded-[24px] bg-[#12151A] border border-white/5 space-y-3">
         <h3 className="text-xs font-black uppercase tracking-wider text-zinc-400 font-condensed px-1">
-          Sleep Statistics
+          {isRtl ? 'إحصائيات النوم' : 'Sleep Statistics'}
         </h3>
 
         <div className="divide-y divide-white/5">
           <div className="py-2.5 flex items-center justify-between text-xs font-condensed font-bold">
-            <span className="text-zinc-400 uppercase">TIME IN BED</span>
-            <span className="text-white font-mono font-bold">8h 47m</span>
+            <span className="text-zinc-400 uppercase">{t('timeInBed')}</span>
+            <span className="text-white font-mono font-bold" dir="ltr">8h 47m</span>
           </div>
           <div className="py-2.5 flex items-center justify-between text-xs font-condensed font-bold">
-            <span className="text-zinc-400 uppercase">SLEEP CONSISTENCY</span>
-            <span className="text-[#16EC06] font-mono font-bold">88% Optimal</span>
+            <span className="text-zinc-400 uppercase">{isRtl ? 'اتساق النوم' : 'SLEEP CONSISTENCY'}</span>
+            <span className="text-[#16EC06] font-mono font-bold">{isRtl ? '88% مثالي' : '88% Optimal'}</span>
           </div>
           <div className="py-2.5 flex items-center justify-between text-xs font-condensed font-bold">
-            <span className="text-zinc-400 uppercase">RESTORATIVE SLEEP %</span>
-            <span className="text-[#D946EF] font-mono font-bold">51% (SWS + REM)</span>
+            <span className="text-zinc-400 uppercase">{t('restorativeSleep')}</span>
+            <span className="text-[#D946EF] font-mono font-bold" dir="ltr">51% (SWS + REM)</span>
           </div>
           <div className="py-2.5 flex items-center justify-between text-xs font-condensed font-bold">
-            <span className="text-zinc-400 uppercase">SLEEP DEBT</span>
-            <span className="text-white font-mono font-bold">0m</span>
+            <span className="text-zinc-400 uppercase">{t('sleepDebt')}</span>
+            <span className="text-white font-mono font-bold" dir="ltr">0m</span>
           </div>
         </div>
       </div>
@@ -174,8 +178,8 @@ export const SleepView: React.FC<SleepViewProps> = ({
         {/* Chart 1: SLEEP PERFORMANCE Bar Chart */}
         <div className="p-4 rounded-[24px] bg-[#12151A] border border-white/5 space-y-2">
           <div className="flex items-center justify-between text-xs font-black uppercase font-condensed text-white">
-            <span>SLEEP PERFORMANCE (7 DAYS)</span>
-            <span className="text-[10px] text-[#7293B2] font-mono">AVG: 89%</span>
+            <span>{isRtl ? 'أداء النوم (7 أيام)' : 'SLEEP PERFORMANCE (7 DAYS)'}</span>
+            <span className="text-[10px] text-[#7293B2] font-mono">{isRtl ? 'المتوسط: 89%' : 'AVG: 89%'}</span>
           </div>
           <div className="h-32 w-full pt-2">
             <ResponsiveContainer width="100%" height="100%">
@@ -191,10 +195,10 @@ export const SleepView: React.FC<SleepViewProps> = ({
         {/* Chart 2: HOURS VS. NEED Dual Line Chart */}
         <div className="p-4 rounded-[24px] bg-[#12151A] border border-white/5 space-y-2">
           <div className="flex items-center justify-between text-xs font-black uppercase font-condensed text-white">
-            <span>HOURS VS. NEED</span>
+            <span>{t('hoursVsNeed')}</span>
             <div className="flex items-center gap-2 text-[10px] font-mono">
-              <span className="text-[#7293B2]">● Sleep</span>
-              <span className="text-[#16EC06]">● Need</span>
+              <span className="text-[#7293B2]">{isRtl ? '● النوم' : '● Sleep'}</span>
+              <span className="text-[#16EC06]">{isRtl ? '● الاحتياج' : '● Need'}</span>
             </div>
           </div>
           <div className="h-32 w-full pt-2">
@@ -212,19 +216,19 @@ export const SleepView: React.FC<SleepViewProps> = ({
         {/* Chart 3: TIME IN BED Floating Range Bars */}
         <div className="p-4 rounded-[24px] bg-[#12151A] border border-white/5 space-y-3">
           <div className="flex items-center justify-between text-xs font-black uppercase font-condensed text-white">
-            <span>TIME IN BED (BEDTIME & WAKE)</span>
-            <span className="text-[10px] text-zinc-400 font-mono">CIRCADIAN ALIGNMENT</span>
+            <span>{isRtl ? 'الوقت في الفراش (النوم والاستيقاظ)' : 'TIME IN BED (BEDTIME & WAKE)'}</span>
+            <span className="text-[10px] text-zinc-400 font-mono">{isRtl ? 'التوافق اليومي' : 'CIRCADIAN ALIGNMENT'}</span>
           </div>
 
           <div className="grid grid-cols-7 gap-1.5 text-center pt-2">
             {timeInBedRanges.map((t, idx) => (
               <div key={idx} className="flex flex-col items-center justify-end h-32">
-                <span className="text-[8px] font-mono text-zinc-400 mb-1">{t.wake.slice(0, 5)}</span>
+                <span className="text-[8px] font-mono text-zinc-400 mb-1" dir="ltr">{t.wake.slice(0, 5)}</span>
                 <div
                   className="w-full bg-gradient-to-t from-[#3A4E63] to-[#7293B2] rounded-lg transition-all"
                   style={{ height: `${(t.height / 10) * 100}%` }}
                 />
-                <span className="text-[8px] font-mono text-zinc-500 mt-1">{t.bed.slice(0, 5)}</span>
+                <span className="text-[8px] font-mono text-zinc-500 mt-1" dir="ltr">{t.bed.slice(0, 5)}</span>
                 <span className="text-[9px] font-condensed font-black text-white mt-1">{t.day}</span>
               </div>
             ))}
@@ -234,10 +238,10 @@ export const SleepView: React.FC<SleepViewProps> = ({
         {/* Chart 4: RESTORATIVE SLEEP Stacked Bars (Deep + REM) */}
         <div className="p-4 rounded-[24px] bg-[#12151A] border border-white/5 space-y-2">
           <div className="flex items-center justify-between text-xs font-black uppercase font-condensed text-white">
-            <span>RESTORATIVE SLEEP (DEEP + REM)</span>
+            <span>{isRtl ? 'النوم التعويضي (العميق + REM)' : 'RESTORATIVE SLEEP (DEEP + REM)'}</span>
             <div className="flex items-center gap-2 text-[10px] font-mono">
-              <span className="text-[#D946EF]">● Deep</span>
-              <span className="text-[#7C3AED]">● REM</span>
+              <span className="text-[#D946EF]">{isRtl ? '● عميق' : '● Deep'}</span>
+              <span className="text-[#7C3AED]">{isRtl ? '● REM' : '● REM'}</span>
             </div>
           </div>
           <div className="h-32 w-full pt-2">
@@ -255,8 +259,8 @@ export const SleepView: React.FC<SleepViewProps> = ({
         {/* Chart 5: SLEEP EFFICIENCY Line Chart */}
         <div className="p-4 rounded-[24px] bg-[#12151A] border border-white/5 space-y-2">
           <div className="flex items-center justify-between text-xs font-black uppercase font-condensed text-white">
-            <span>SLEEP EFFICIENCY</span>
-            <span className="text-[10px] text-[#16EC06] font-mono">AVG: 91%</span>
+            <span>{t('sleepEfficiency')}</span>
+            <span className="text-[10px] text-[#16EC06] font-mono">{isRtl ? 'المتوسط: 91%' : 'AVG: 91%'}</span>
           </div>
           <div className="h-28 w-full pt-2">
             <ResponsiveContainer width="100%" height="100%">

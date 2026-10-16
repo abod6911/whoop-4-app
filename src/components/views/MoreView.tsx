@@ -17,8 +17,10 @@ import {
   Save,
   Bell,
   CheckCircle2,
+  Globe,
 } from 'lucide-react';
 import { whoopBleEngine } from '../../services/whoopBleEngine';
+import { useLanguage } from '../../i18n/LanguageContext';
 
 interface MoreViewProps {
   settings: UserSettings;
@@ -51,6 +53,7 @@ export const MoreView: React.FC<MoreViewProps> = ({
   onRefreshSessions,
   onOpenNotifications,
 }) => {
+  const { language, setLanguage, t, isRtl } = useLanguage();
   const [subScreen, setSubScreen] = useState<SubScreen>('menu');
   const [form, setForm] = useState<UserSettings>({ ...settings });
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
@@ -184,8 +187,8 @@ export const MoreView: React.FC<MoreViewProps> = ({
           onClick={() => setSubScreen('menu')}
           className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wider font-condensed text-zinc-400 hover:text-white transition-colors pt-1"
         >
-          <ChevronLeft className="w-4 h-4" />
-          <span>BACK TO MORE MENU</span>
+          <ChevronLeft className={`w-4 h-4 ${isRtl ? 'rotate-180' : ''}`} />
+          <span>{isRtl ? 'العودة لقائمة المزيد' : 'BACK TO MORE MENU'}</span>
         </button>
       )}
 
@@ -193,17 +196,62 @@ export const MoreView: React.FC<MoreViewProps> = ({
       {subScreen === 'menu' && (
         <div className="space-y-4">
           <div className="p-4 rounded-[24px] bg-[#12151A] border border-white/5 space-y-1">
-            <h2 className="text-xl font-bold text-white tracking-tight">More</h2>
+            <h2 className="text-xl font-bold text-white tracking-tight">{t('more')}</h2>
             <p className="text-xs text-zinc-400 font-sans">
-              Manage WHOOP 4.0 hardware, biometric baselines, and data.
+              {isRtl
+                ? 'إدارة سوار WHOOP 4.0 ومعدلاتك الحيوية وإعدادات اللغة ومستودع البيانات.'
+                : 'Manage WHOOP 4.0 hardware, biometric baselines, language, and data.'}
             </p>
           </div>
 
           <div className="rounded-[24px] bg-[#12151A] border border-white/5 divide-y divide-white/5 overflow-hidden">
+            {/* QUICK LANGUAGE SWITCHER ROW */}
+            <div className="w-full p-4 flex items-center justify-between text-start">
+              <div className="flex items-center gap-3.5">
+                <div className="w-10 h-10 rounded-2xl bg-[#0B0D10] border border-white/5 flex items-center justify-center text-white">
+                  <Globe className="w-5 h-5 text-[#16EC06]" />
+                </div>
+                <div>
+                  <div className="text-sm font-bold text-white font-sans">
+                    {t('language')} / LANGUAGE
+                  </div>
+                  <div className="text-[11px] text-zinc-400 font-mono">
+                    {language === 'ar' ? 'العربية (مفعلة)' : 'English (Active)'}
+                  </div>
+                </div>
+              </div>
+
+              {/* Language Toggle Buttons */}
+              <div className="flex items-center gap-1 bg-[#0B0D10] p-1 rounded-xl border border-white/5">
+                <button
+                  type="button"
+                  onClick={() => setLanguage('en')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-condensed font-black uppercase transition-all ${
+                    language === 'en'
+                      ? 'bg-white text-black shadow-md'
+                      : 'text-zinc-400 hover:text-white'
+                  }`}
+                >
+                  English
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLanguage('ar')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-condensed font-black uppercase transition-all ${
+                    language === 'ar'
+                      ? 'bg-[#16EC06] text-black shadow-md'
+                      : 'text-zinc-400 hover:text-white'
+                  }`}
+                >
+                  العربية
+                </button>
+              </div>
+            </div>
+
             {/* DEVICE SETTINGS */}
             <button
               onClick={() => setSubScreen('device')}
-              className="w-full p-4 flex items-center justify-between text-left hover:bg-[#161C24] transition-colors group"
+              className="w-full p-4 flex items-center justify-between text-start hover:bg-[#161C24] transition-colors group"
             >
               <div className="flex items-center gap-3.5">
                 <div className="w-10 h-10 rounded-2xl bg-[#0B0D10] border border-white/5 flex items-center justify-center text-white">
@@ -211,20 +259,22 @@ export const MoreView: React.FC<MoreViewProps> = ({
                 </div>
                 <div>
                   <div className="text-sm font-bold text-white font-sans">
-                    DEVICE SETTINGS
+                    {t('deviceSettings')}
                   </div>
                   <div className="text-[11px] text-zinc-400 font-mono">
-                    {metadata.connected ? `${metadata.name} (Connected • ${metadata.batteryLevel ?? '--'}%)` : 'Strap Disconnected'}
+                    {metadata.connected
+                      ? `${metadata.name} (${t('connected')} • ${metadata.batteryLevel ?? '--'}%)`
+                      : t('disconnected')}
                   </div>
                 </div>
               </div>
-              <ChevronRight className="w-4 h-4 text-zinc-500 group-hover:text-white transition-colors" />
+              <ChevronRight className={`w-4 h-4 text-zinc-500 group-hover:text-white transition-colors ${isRtl ? 'rotate-180' : ''}`} />
             </button>
 
             {/* MY ACCOUNT */}
             <button
               onClick={() => setSubScreen('account')}
-              className="w-full p-4 flex items-center justify-between text-left hover:bg-[#161C24] transition-colors group"
+              className="w-full p-4 flex items-center justify-between text-start hover:bg-[#161C24] transition-colors group"
             >
               <div className="flex items-center gap-3.5">
                 <div className="w-10 h-10 rounded-2xl bg-[#0B0D10] border border-white/5 flex items-center justify-center text-white">
@@ -232,20 +282,20 @@ export const MoreView: React.FC<MoreViewProps> = ({
                 </div>
                 <div>
                   <div className="text-sm font-bold text-white font-sans">
-                    MY ACCOUNT
+                    {t('myAccount')}
                   </div>
                   <div className="text-[11px] text-zinc-400 font-mono">
-                    {settings.name || 'Athlete'} • Baselines & Physiology
+                    {settings.name || 'Athlete'} • {isRtl ? 'خط الأساس الفسيولوجي' : 'Baselines & Physiology'}
                   </div>
                 </div>
               </div>
-              <ChevronRight className="w-4 h-4 text-zinc-500 group-hover:text-white transition-colors" />
+              <ChevronRight className={`w-4 h-4 text-zinc-500 group-hover:text-white transition-colors ${isRtl ? 'rotate-180' : ''}`} />
             </button>
 
             {/* APP SETTINGS */}
             <button
               onClick={() => setSubScreen('app_settings')}
-              className="w-full p-4 flex items-center justify-between text-left hover:bg-[#161C24] transition-colors group"
+              className="w-full p-4 flex items-center justify-between text-start hover:bg-[#161C24] transition-colors group"
             >
               <div className="flex items-center gap-3.5">
                 <div className="w-10 h-10 rounded-2xl bg-[#0B0D10] border border-white/5 flex items-center justify-center text-white">
@@ -253,20 +303,20 @@ export const MoreView: React.FC<MoreViewProps> = ({
                 </div>
                 <div>
                   <div className="text-sm font-bold text-white font-sans">
-                    APP SETTINGS
+                    {t('appSettings')}
                   </div>
                   <div className="text-[11px] text-zinc-400 font-mono">
-                    Notifications, Data Vault & Reset
+                    {isRtl ? 'تغيير اللغة، الإشعارات ومستودع البيانات' : 'Language, Notifications & Data Vault'}
                   </div>
                 </div>
               </div>
-              <ChevronRight className="w-4 h-4 text-zinc-500 group-hover:text-white transition-colors" />
+              <ChevronRight className={`w-4 h-4 text-zinc-500 group-hover:text-white transition-colors ${isRtl ? 'rotate-180' : ''}`} />
             </button>
 
             {/* PRIVACY SETTINGS */}
             <button
               onClick={() => setSubScreen('privacy')}
-              className="w-full p-4 flex items-center justify-between text-left hover:bg-[#161C24] transition-colors group"
+              className="w-full p-4 flex items-center justify-between text-start hover:bg-[#161C24] transition-colors group"
             >
               <div className="flex items-center gap-3.5">
                 <div className="w-10 h-10 rounded-2xl bg-[#0B0D10] border border-white/5 flex items-center justify-center text-white">
@@ -274,20 +324,20 @@ export const MoreView: React.FC<MoreViewProps> = ({
                 </div>
                 <div>
                   <div className="text-sm font-bold text-white font-sans">
-                    PRIVACY SETTINGS
+                    {t('privacy')}
                   </div>
                   <div className="text-[11px] text-zinc-400 font-mono">
-                    100% Offline Local BLE Storage
+                    {isRtl ? 'تخزين محلي آمن 100% بدون سحابة' : '100% Offline Local BLE Storage'}
                   </div>
                 </div>
               </div>
-              <ChevronRight className="w-4 h-4 text-zinc-500 group-hover:text-white transition-colors" />
+              <ChevronRight className={`w-4 h-4 text-zinc-500 group-hover:text-white transition-colors ${isRtl ? 'rotate-180' : ''}`} />
             </button>
 
             {/* TUTORIALS */}
             <button
               onClick={() => setSubScreen('tutorials')}
-              className="w-full p-4 flex items-center justify-between text-left hover:bg-[#161C24] transition-colors group"
+              className="w-full p-4 flex items-center justify-between text-start hover:bg-[#161C24] transition-colors group"
             >
               <div className="flex items-center gap-3.5">
                 <div className="w-10 h-10 rounded-2xl bg-[#0B0D10] border border-white/5 flex items-center justify-center text-white">
@@ -295,20 +345,20 @@ export const MoreView: React.FC<MoreViewProps> = ({
                 </div>
                 <div>
                   <div className="text-sm font-bold text-white font-sans">
-                    TUTORIALS
+                    {t('tutorials')}
                   </div>
                   <div className="text-[11px] text-zinc-400 font-mono">
-                    Sensor Placement, HRV & Charging
+                    {isRtl ? 'ارتداء الحساس، تقلب النبض والشحن' : 'Sensor Placement, HRV & Charging'}
                   </div>
                 </div>
               </div>
-              <ChevronRight className="w-4 h-4 text-zinc-500 group-hover:text-white transition-colors" />
+              <ChevronRight className={`w-4 h-4 text-zinc-500 group-hover:text-white transition-colors ${isRtl ? 'rotate-180' : ''}`} />
             </button>
 
             {/* ABOUT */}
             <button
               onClick={() => setSubScreen('about')}
-              className="w-full p-4 flex items-center justify-between text-left hover:bg-[#161C24] transition-colors group"
+              className="w-full p-4 flex items-center justify-between text-start hover:bg-[#161C24] transition-colors group"
             >
               <div className="flex items-center gap-3.5">
                 <div className="w-10 h-10 rounded-2xl bg-[#0B0D10] border border-white/5 flex items-center justify-center text-white">
@@ -316,14 +366,14 @@ export const MoreView: React.FC<MoreViewProps> = ({
                 </div>
                 <div>
                   <div className="text-sm font-bold text-white font-sans">
-                    ABOUT
+                    {t('about')}
                   </div>
                   <div className="text-[11px] text-zinc-400 font-mono">
                     WHOOP 4.0 Local Web Bluetooth
                   </div>
                 </div>
               </div>
-              <ChevronRight className="w-4 h-4 text-zinc-500 group-hover:text-white transition-colors" />
+              <ChevronRight className={`w-4 h-4 text-zinc-500 group-hover:text-white transition-colors ${isRtl ? 'rotate-180' : ''}`} />
             </button>
           </div>
 
@@ -467,6 +517,64 @@ export const MoreView: React.FC<MoreViewProps> = ({
       {/* 4. APP SETTINGS & DATA VAULT SUB-SCREEN */}
       {subScreen === 'app_settings' && (
         <div className="space-y-4">
+          {/* Language Preference Card (خيار اللغة) */}
+          <div className="p-4 rounded-[24px] bg-[#12151A] border border-white/5 space-y-3">
+            <div className="flex items-center justify-between border-b border-white/5 pb-2.5">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-[#222730] flex items-center justify-center text-[#16EC06]">
+                  <Globe className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-white uppercase font-sans">
+                    {t('language')} / LANGUAGE
+                  </div>
+                  <div className="text-[10px] text-zinc-400 font-sans">
+                    {isRtl ? 'اختر لغة واجهة التطبيق' : 'Choose app display language'}
+                  </div>
+                </div>
+              </div>
+              <span className="text-xs font-bold font-condensed px-2.5 py-0.5 rounded-full bg-[#16EC06]/15 text-[#16EC06] border border-[#16EC06]/30">
+                {language === 'ar' ? 'العربية' : 'English'}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 pt-1">
+              {/* Arabic Option */}
+              <button
+                type="button"
+                onClick={() => setLanguage('ar')}
+                className={`p-3.5 rounded-xl border text-start transition-all flex items-center justify-between ${
+                  language === 'ar'
+                    ? 'bg-[#16EC06]/10 border-[#16EC06]/40 text-white shadow-lg shadow-emerald-500/10 ring-1 ring-[#16EC06]/40'
+                    : 'bg-[#1A1F26] border-white/5 text-zinc-400 hover:text-white hover:bg-[#222832]'
+                }`}
+              >
+                <div>
+                  <div className="text-sm font-black font-condensed">العربية</div>
+                  <div className="text-[10px] font-mono text-zinc-400">Arabic (RTL)</div>
+                </div>
+                {language === 'ar' && <CheckCircle2 className="w-4 h-4 text-[#16EC06]" />}
+              </button>
+
+              {/* English Option */}
+              <button
+                type="button"
+                onClick={() => setLanguage('en')}
+                className={`p-3.5 rounded-xl border text-start transition-all flex items-center justify-between ${
+                  language === 'en'
+                    ? 'bg-[#0093E9]/10 border-[#0093E9]/40 text-white shadow-lg shadow-cyan-500/10 ring-1 ring-[#0093E9]/40'
+                    : 'bg-[#1A1F26] border-white/5 text-zinc-400 hover:text-white hover:bg-[#222832]'
+                }`}
+              >
+                <div>
+                  <div className="text-sm font-black font-condensed">English</div>
+                  <div className="text-[10px] font-mono text-zinc-400">الإنجليزية (LTR)</div>
+                </div>
+                {language === 'en' && <CheckCircle2 className="w-4 h-4 text-[#0093E9]" />}
+              </button>
+            </div>
+          </div>
+
           {/* Notifications Quick Link */}
           <div className="p-4 rounded-[24px] bg-[#12151A] border border-white/5 flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -474,15 +582,17 @@ export const MoreView: React.FC<MoreViewProps> = ({
                 <Bell className="w-4 h-4" />
               </div>
               <div>
-                <div className="text-xs font-bold text-white uppercase font-sans">Notification Center</div>
-                <div className="text-[10px] text-zinc-400 font-sans">Test chimes, haptics and push alerts</div>
+                <div className="text-xs font-bold text-white uppercase font-sans">{t('notificationCenter')}</div>
+                <div className="text-[10px] text-zinc-400 font-sans">
+                  {isRtl ? 'اختبار الأصوات والاهتزازات والتنبيهات الذكية' : 'Test chimes, haptics and push alerts'}
+                </div>
               </div>
             </div>
             <button
               onClick={onOpenNotifications}
               className="px-3 py-1.5 rounded-full bg-white text-black font-condensed font-black text-xs uppercase"
             >
-              Open
+              {isRtl ? 'فتح' : 'Open'}
             </button>
           </div>
 
@@ -490,28 +600,30 @@ export const MoreView: React.FC<MoreViewProps> = ({
           <div className="p-4 rounded-[24px] bg-[#12151A] border border-white/5 space-y-3">
             <div className="border-b border-white/5 pb-2">
               <h3 className="text-xs font-black uppercase tracking-wider text-white font-condensed">
-                Data Vault & Official Import / Export
+                {t('dataVault')}
               </h3>
               <p className="text-[11px] text-zinc-400 font-sans mt-0.5">
-                Ingest historical official WHOOP export archives or export local telemetry.
+                {isRtl
+                  ? 'استيراد سجلات WHOOP الرسمية أو تصدير بياناتك الحيوية المحلية.'
+                  : 'Ingest historical official WHOOP export archives or export local telemetry.'}
               </p>
             </div>
 
             <div className="grid grid-cols-2 gap-2">
               <button
                 onClick={exportDaysToCSV}
-                className="p-3 rounded-xl bg-[#1A1F26] hover:bg-[#222832] border border-white/5 text-left text-xs font-condensed font-black uppercase text-white flex items-center gap-2"
+                className="p-3 rounded-xl bg-[#1A1F26] hover:bg-[#222832] border border-white/5 text-start text-xs font-condensed font-black uppercase text-white flex items-center gap-2"
               >
                 <Download className="w-3.5 h-3.5 text-[#0093E9]" />
-                <span>Export CSV</span>
+                <span>{t('exportCsv')}</span>
               </button>
 
               <button
                 onClick={exportAllData}
-                className="p-3 rounded-xl bg-[#1A1F26] hover:bg-[#222832] border border-white/5 text-left text-xs font-condensed font-black uppercase text-white flex items-center gap-2"
+                className="p-3 rounded-xl bg-[#1A1F26] hover:bg-[#222832] border border-white/5 text-start text-xs font-condensed font-black uppercase text-white flex items-center gap-2"
               >
                 <Download className="w-3.5 h-3.5 text-[#16EC06]" />
-                <span>Backup JSON</span>
+                <span>{t('backupJson')}</span>
               </button>
             </div>
 
@@ -519,10 +631,10 @@ export const MoreView: React.FC<MoreViewProps> = ({
               <label className="w-full p-3 rounded-xl bg-[#0B0D10] border border-dashed border-white/20 hover:border-[#0093E9] text-center cursor-pointer block transition-colors">
                 <Upload className="w-4 h-4 text-zinc-400 mx-auto mb-1" />
                 <span className="text-xs font-black uppercase tracking-wider text-zinc-300 font-condensed block">
-                  Import WHOOP (.CSV or .JSON)
+                  {t('importWhoop')}
                 </span>
                 <span className="text-[10px] text-zinc-500 font-mono block mt-0.5">
-                  Click or drag official export file
+                  {isRtl ? 'انقر أو اسحب ملف التصدير الرسمي' : 'Click or drag official export file'}
                 </span>
                 <input
                   type="file"
@@ -543,14 +655,16 @@ export const MoreView: React.FC<MoreViewProps> = ({
           {/* Reset Day Counters */}
           <div className="p-4 rounded-[24px] bg-[#12151A] border border-white/5 flex items-center justify-between">
             <div>
-              <div className="text-xs font-bold text-white font-sans uppercase">Reset Today's Strain</div>
-              <div className="text-[10px] text-zinc-500 font-sans">Clear daily TRIMP accumulator</div>
+              <div className="text-xs font-bold text-white font-sans uppercase">{t('resetTodayStrain')}</div>
+              <div className="text-[10px] text-zinc-500 font-sans">
+                {isRtl ? 'تصفير تراكم إجهاد اليوم TRIMP' : 'Clear daily TRIMP accumulator'}
+              </div>
             </div>
             <button
               onClick={onResetDayCounters}
               className="px-3 py-1.5 rounded-full bg-[#FF0026]/20 border border-[#FF0026]/40 text-[#FF0026] text-xs font-condensed font-black uppercase hover:bg-[#FF0026]/30"
             >
-              Reset
+              {t('reset')}
             </button>
           </div>
         </div>

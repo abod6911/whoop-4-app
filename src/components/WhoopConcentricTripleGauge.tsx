@@ -2,6 +2,8 @@ import React from 'react';
 import type { LiveMetrics, HomeSubTab } from '../types/whoop';
 import { WhoopEmblemIcon } from './WhoopLogo';
 
+import { useLanguage } from '../i18n/LanguageContext';
+
 interface WhoopConcentricTripleGaugeProps {
   metrics: LiveMetrics;
   onSelectTab: (tab: HomeSubTab) => void;
@@ -12,6 +14,8 @@ export const WhoopConcentricTripleGauge: React.FC<WhoopConcentricTripleGaugeProp
   metrics,
   onSelectTab,
 }) => {
+  const { t, isRtl } = useLanguage();
+
   const recoveryColor =
     metrics.recoveryCategory === 'green'
       ? '#16EC06'
@@ -48,11 +52,11 @@ export const WhoopConcentricTripleGauge: React.FC<WhoopConcentricTripleGaugeProp
   return (
     <div className="flex items-center justify-between px-3 py-2 select-none">
       {/* LEFT COLUMN: Recovery % & HRV */}
-      <div className="flex flex-col items-start justify-between min-w-[95px] space-y-4">
+      <div className="flex flex-col items-start justify-between min-w-[95px] space-y-4 text-start">
         {/* Top: Recovery */}
         <button
           onClick={() => onSelectTab('recovery')}
-          className="text-left group transition-transform active:scale-95"
+          className="text-start group transition-transform active:scale-95"
           title="View Recovery Drill-down"
         >
           <div
@@ -62,15 +66,15 @@ export const WhoopConcentricTripleGauge: React.FC<WhoopConcentricTripleGaugeProp
             {metrics.recoveryScore !== null ? `${metrics.recoveryScore}%` : '--'}
           </div>
           <div className="text-[11px] font-black uppercase tracking-wider text-zinc-400 font-condensed group-hover:text-white transition-colors flex items-center gap-0.5">
-            <span>RECOVERY</span>
-            <span className="text-[10px] text-zinc-500">›</span>
+            <span>{t('recoveryScore')}</span>
+            <span className="text-[10px] text-zinc-500">{isRtl ? '‹' : '›'}</span>
           </div>
         </button>
 
         {/* Bottom: HRV */}
         <button
           onClick={() => onSelectTab('recovery')}
-          className="text-left group transition-transform active:scale-95 pt-1"
+          className="text-start group transition-transform active:scale-95 pt-1"
           title="View HRV Details"
         >
           <div className="text-2xl font-black font-condensed tracking-tight tabular-nums text-white">
@@ -78,7 +82,7 @@ export const WhoopConcentricTripleGauge: React.FC<WhoopConcentricTripleGaugeProp
             <span className="text-xs font-sans text-zinc-400 font-medium ml-1">ms</span>
           </div>
           <div className="text-[10px] font-black uppercase tracking-wider text-zinc-500 font-condensed group-hover:text-zinc-300 transition-colors">
-            HRV
+            {t('hrv')}
           </div>
         </button>
       </div>
@@ -166,33 +170,33 @@ export const WhoopConcentricTripleGauge: React.FC<WhoopConcentricTripleGaugeProp
       </div>
 
       {/* RIGHT COLUMN: Strain & Sleep Performance */}
-      <div className="flex flex-col items-end justify-between min-w-[95px] space-y-4 text-right">
+      <div className="flex flex-col items-end justify-between min-w-[95px] space-y-4 text-end">
         {/* Top: Day Strain */}
         <button
           onClick={() => onSelectTab('strain')}
-          className="text-right group transition-transform active:scale-95"
+          className="text-end group transition-transform active:scale-95"
           title="View Strain Drill-down"
         >
           <div className="text-4xl font-black font-condensed tracking-tight tabular-nums text-[#0093E9]">
             {metrics.dailyStrain > 0 ? metrics.dailyStrain.toFixed(1) : '--'}
           </div>
           <div className="text-[11px] font-black uppercase tracking-wider text-zinc-400 font-condensed group-hover:text-white transition-colors flex items-center justify-end gap-0.5">
-            <span>STRAIN</span>
-            <span className="text-[10px] text-zinc-500">›</span>
+            <span>{t('dayStrain')}</span>
+            <span className="text-[10px] text-zinc-500">{isRtl ? '‹' : '›'}</span>
           </div>
         </button>
 
         {/* Bottom: Sleep Performance */}
         <button
           onClick={() => onSelectTab('sleep')}
-          className="text-right group transition-transform active:scale-95 pt-1"
+          className="text-end group transition-transform active:scale-95 pt-1"
           title="View Sleep Performance Details"
         >
           <div className="text-2xl font-black font-condensed tracking-tight tabular-nums text-white">
             {metrics.sleepPerformance !== null ? `${metrics.sleepPerformance}%` : '--'}
           </div>
           <div className="text-[10px] font-black uppercase tracking-wider text-zinc-500 font-condensed group-hover:text-zinc-300 transition-colors">
-            SLEEP PERFORMANCE
+            {t('sleepPerformance')}
           </div>
         </button>
       </div>

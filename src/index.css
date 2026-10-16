@@ -58,3 +58,23 @@ body {
 .glow-amber {
   box-shadow: 0 0 25px -5px rgba(255, 179, 0, 0.35);
 }
+
+/* Arabic (RTL) Typography & Bidirectional Support */
+html[dir="rtl"], body.rtl-mode {
+  font-family: 'Readex Pro', 'IBM Plex Sans Arabic', 'Cairo', 'Inter', system-ui, -apple-system, sans-serif;
+  letter-spacing: normal;
+}
+
+html[dir="rtl"] .font-condensed {
+  font-family: 'Readex Pro', 'Cairo', 'Barlow Condensed', sans-serif;
+  letter-spacing: 0;
+}
+
+html[dir="rtl"] .font-mono {
+  font-family: 'JetBrains Mono', 'Readex Pro', monospace;
+}
+
+html[dir="rtl"] .rtl-flip {
+  transform: scaleX(-1);
+}
+

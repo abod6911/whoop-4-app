@@ -25,6 +25,7 @@ export const DEFAULT_SETTINGS: UserSettings = {
   hrvBaseline: 65,
   sleepNeedHours: 7.9,
   gender: 'male',
+  language: 'ar',
 };
 
 class StorageService {

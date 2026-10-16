@@ -26,10 +26,14 @@ const PlanIcon = ({ active }: { active: boolean }) => (
   </div>
 );
 
+import { useLanguage } from '../i18n/LanguageContext';
+
 export const WhoopBottomNav: React.FC<WhoopBottomNavProps> = ({
   activeTab,
   onChangeTab,
 }) => {
+  const { t } = useLanguage();
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 bg-[#0B0D10]/95 backdrop-blur-md border-t border-white/5 pb-[env(safe-area-inset-bottom)]">
       <div className="max-w-[430px] mx-auto px-6 h-16 flex items-center justify-between">
@@ -42,7 +46,7 @@ export const WhoopBottomNav: React.FC<WhoopBottomNavProps> = ({
         >
           <Home className="w-5 h-5 stroke-[2.2]" />
           <span className="text-[10px] font-black uppercase tracking-wider font-condensed mt-1">
-            Home
+            {t('home')}
           </span>
         </button>
 
@@ -55,7 +59,7 @@ export const WhoopBottomNav: React.FC<WhoopBottomNavProps> = ({
         >
           <PlanIcon active={activeTab === 'plan'} />
           <span className="text-[10px] font-black uppercase tracking-wider font-condensed mt-1">
-            Plan
+            {t('plan')}
           </span>
         </button>
 
@@ -68,7 +72,7 @@ export const WhoopBottomNav: React.FC<WhoopBottomNavProps> = ({
         >
           <Users className="w-5 h-5 stroke-[2.2]" />
           <span className="text-[10px] font-black uppercase tracking-wider font-condensed mt-1">
-            Community
+            {t('community')}
           </span>
         </button>
 
@@ -81,7 +85,7 @@ export const WhoopBottomNav: React.FC<WhoopBottomNavProps> = ({
         >
           <Menu className="w-5 h-5 stroke-[2.2]" />
           <span className="text-[10px] font-black uppercase tracking-wider font-condensed mt-1">
-            More
+            {t('more')}
           </span>
         </button>
       </div>

@@ -12,6 +12,8 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 
+import { useLanguage } from '../i18n/LanguageContext';
+
 interface StrapConnectSheetProps {
   isOpen: boolean;
   onClose: () => void;
@@ -31,6 +33,7 @@ export const StrapConnectSheet: React.FC<StrapConnectSheetProps> = ({
   onReconnectPermitted,
   onDisconnectBle,
 }) => {
+  const { t, isRtl } = useLanguage();
   if (!isOpen) return null;
 
   const isBatteryLow = metadata.batteryLevel !== null && metadata.batteryLevel < 15;
@@ -48,7 +51,7 @@ export const StrapConnectSheet: React.FC<StrapConnectSheetProps> = ({
           <div className="flex items-center gap-2.5">
             <WhoopLogo size="sm" showWordmark={true} />
             <span className="text-[10px] font-mono bg-[#0B0D10] px-2 py-0.5 rounded text-white border border-white/5">
-              4.0 STRAP
+              {t('strapTitle')}
             </span>
           </div>
           <button
@@ -63,7 +66,7 @@ export const StrapConnectSheet: React.FC<StrapConnectSheetProps> = ({
         <div className="p-4 rounded-2xl bg-[#0B0D10] border border-white/5 space-y-3">
           {/* Connection Status */}
           <div className="flex items-center justify-between text-xs font-condensed">
-            <span className="text-zinc-400 uppercase font-bold tracking-wide">Status</span>
+            <span className="text-zinc-400 uppercase font-bold tracking-wide">{t('status')}</span>
             <span className="flex items-center gap-1.5 font-black text-white">
               <span
                 className={`w-2 h-2 rounded-full ${
@@ -75,16 +78,16 @@ export const StrapConnectSheet: React.FC<StrapConnectSheetProps> = ({
                 }`}
               />
               {metadata.connected
-                ? metadata.name || 'WHOOP 4.0 Connected'
+                ? metadata.name || t('connected')
                 : metadata.connecting
-                ? 'Connecting / Reconnecting...'
-                : 'Disconnected'}
+                ? t('connecting')
+                : t('disconnected')}
             </span>
           </div>
 
           {/* Real Battery Level */}
           <div className="flex items-center justify-between text-xs font-condensed border-t border-white/5 pt-2.5">
-            <span className="text-zinc-400 uppercase font-bold tracking-wide">Battery</span>
+            <span className="text-zinc-400 uppercase font-bold tracking-wide">{t('battery')}</span>
             <div className="flex items-center gap-1.5 font-mono font-bold">
               <Battery
                 className={`w-4 h-4 ${
@@ -105,7 +108,7 @@ export const StrapConnectSheet: React.FC<StrapConnectSheetProps> = ({
 
           {/* Wrist Contact Detection */}
           <div className="flex items-center justify-between text-xs font-condensed border-t border-white/5 pt-2.5">
-            <span className="text-zinc-400 uppercase font-bold tracking-wide">Wrist Placement</span>
+            <span className="text-zinc-400 uppercase font-bold tracking-wide">{t('wristPlacement')}</span>
             <span
               className={`text-xs font-bold font-condensed uppercase ${
                 metadata.onWrist === true
@@ -116,25 +119,25 @@ export const StrapConnectSheet: React.FC<StrapConnectSheetProps> = ({
               }`}
             >
               {metadata.onWrist === true
-                ? '✓ On Wrist (Locked)'
+                ? (isRtl ? '✓ على المعصم (مُحكم)' : '✓ On Wrist (Locked)')
                 : metadata.onWrist === false
-                ? 'Off Wrist'
+                ? t('offWrist')
                 : metadata.connected
-                ? 'Detecting...'
+                ? (isRtl ? 'جاري الفحص...' : 'Detecting...')
                 : '--'}
             </span>
           </div>
 
           {/* Firmware & Serial */}
           <div className="flex items-center justify-between text-xs font-condensed border-t border-white/5 pt-2.5">
-            <span className="text-zinc-400 uppercase font-bold tracking-wide">Firmware</span>
+            <span className="text-zinc-400 uppercase font-bold tracking-wide">{t('firmware')}</span>
             <span className="font-mono text-zinc-300 text-[11px]">
               {metadata.firmwareRevision || '--'}
             </span>
           </div>
 
           <div className="flex items-center justify-between text-xs font-condensed border-t border-white/5 pt-2.5">
-            <span className="text-zinc-400 uppercase font-bold tracking-wide">Serial Number</span>
+            <span className="text-zinc-400 uppercase font-bold tracking-wide">{t('serialNumber')}</span>
             <span className="font-mono text-zinc-300 text-[11px]">
               {metadata.serialNumber || '--'}
             </span>
@@ -152,7 +155,7 @@ export const StrapConnectSheet: React.FC<StrapConnectSheetProps> = ({
               className="w-full py-3.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-[#FF0026] border border-rose-500/30 text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-colors"
             >
               <BluetoothOff className="w-4 h-4" />
-              <span>Disconnect Strap</span>
+              <span>{t('disconnectStrap')}</span>
             </button>
           ) : (
             <>
@@ -166,8 +169,8 @@ export const StrapConnectSheet: React.FC<StrapConnectSheetProps> = ({
                   <Bluetooth className="w-4 h-4 stroke-[2.5]" />
                   <span>
                     {metadata.connecting
-                      ? 'Connecting...'
-                      : `1-Click Reconnect to ${primaryPermitted.name || 'WHOOP 4.0'}`}
+                      ? t('connecting')
+                      : `${t('oneClickReconnect')} ${primaryPermitted.name || 'WHOOP 4.0'}`}
                   </span>
                 </button>
               )}
@@ -179,7 +182,7 @@ export const StrapConnectSheet: React.FC<StrapConnectSheetProps> = ({
                 className="w-full py-3.5 rounded-xl bg-[#0093E9] hover:bg-[#00B4D8] text-black text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-lg shadow-cyan-500/20 active:scale-95 disabled:opacity-50"
               >
                 <Bluetooth className="w-4 h-4" />
-                <span>Pair WHOOP 4.0 (Filtered Search)</span>
+                <span>{t('pairFiltered')}</span>
               </button>
 
               {/* Fallback Search: Show All Devices */}
@@ -189,24 +192,27 @@ export const StrapConnectSheet: React.FC<StrapConnectSheetProps> = ({
                 className="w-full py-2.5 rounded-xl bg-[#1A1F26] hover:bg-[#222832] text-zinc-300 border border-white/10 text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all active:scale-95"
               >
                 <Radio className="w-3.5 h-3.5 text-zinc-400" />
-                <span>Show All Devices (Fallback Search)</span>
+                <span>{t('showAllDevices')}</span>
               </button>
 
               {/* Troubleshooting Instructions */}
-              <div className="p-3.5 rounded-xl bg-[#0B0D10] border border-white/5 text-[11px] text-zinc-300 space-y-2 font-sans text-left">
+              <div className="p-3.5 rounded-xl bg-[#0B0D10] border border-white/5 text-[11px] text-zinc-300 space-y-2 font-sans text-start">
                 <div className="flex items-center gap-1.5 text-white font-bold font-condensed uppercase tracking-wider text-xs">
                   <AlertTriangle className="w-3.5 h-3.5 text-[#FFDE00]" />
-                  <span>WHOOP 4.0 Connection Guide</span>
+                  <span>{t('connectionGuide')}</span>
                 </div>
                 <ul className="space-y-1 list-disc list-inside text-zinc-300 leading-relaxed text-[11px]">
                   <li>
-                    <strong className="text-white">Disconnect phone app:</strong> Close or turn off Bluetooth on your smartphone (WHOOP 4.0 allows only 1 connection at a time).
+                    <strong className="text-white">{isRtl ? 'فصل تطبيق الهاتف: ' : 'Disconnect phone app: '}</strong>
+                    {isRtl ? 'أغلق تطبيق WHOOP على هاتفك (السوار يقبل اتصالاً واحداً فقط).' : 'Close official WHOOP app on your phone (single connection limit).'}
                   </li>
                   <li>
-                    <strong className="text-white">Enable Pairing Mode:</strong> Firmly double-tap the top of the WHOOP strap until LEDs pulse, or snap on the battery pack.
+                    <strong className="text-white">{isRtl ? 'تفعيل وضع الإقران: ' : 'Enable Pairing Mode: '}</strong>
+                    {isRtl ? 'انقر مرتين بقوة على أعلى السوار حتى تومض لمبات LED.' : 'Firmly double-tap the top of the sensor until LEDs pulse.'}
                   </li>
                   <li>
-                    <strong className="text-white">Bluetooth ON:</strong> Verify Bluetooth is turned ON in your system settings.
+                    <strong className="text-white">{isRtl ? 'تشغيل البلوتوث: ' : 'Bluetooth ON: '}</strong>
+                    {isRtl ? 'تأكد من تفعيل البلوتوث في جهاز الكمبيوتر أو المتصفح.' : 'Verify Bluetooth is active in your system settings.'}
                   </li>
                 </ul>
               </div>

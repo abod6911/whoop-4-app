@@ -36,12 +36,15 @@ export const getRecoveryColor = (score: number | null) => {
   return '#FF0026';
 };
 
+import { useLanguage } from '../../i18n/LanguageContext';
+
 export const RecoveryView: React.FC<RecoveryViewProps> = ({
   metrics,
   settings,
   daysHistory,
   onOpenRecoveryTest,
 }) => {
+  const { t, isRtl } = useLanguage();
   const recoveryScore = metrics.recoveryScore;
   const recoveryColor = getRecoveryColor(recoveryScore);
 
@@ -96,10 +99,10 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
       {/* 1. Large Circular Recovery Gauge + Share (01:35 in Video) */}
       <div className="p-6 rounded-[24px] bg-[#12151A] border border-white/5 flex flex-col items-center justify-center text-center">
         <div className="w-full flex items-center justify-between text-xs font-black uppercase tracking-wider font-condensed text-zinc-400 mb-2">
-          <span>RECOVERY SCORE</span>
+          <span>{t('recoveryScore')}</span>
           <button className="flex items-center gap-1 text-[#00F0FF] hover:underline">
             <Share2 className="w-3.5 h-3.5" />
-            <span>SHARE</span>
+            <span>{isRtl ? 'مشاركة' : 'SHARE'}</span>
           </button>
         </div>
 
@@ -138,23 +141,36 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
             </span>
             <span className="text-[11px] font-black uppercase tracking-widest text-zinc-400 font-condensed mt-1">
               {recoveryScore !== null
-                ? recoveryScore >= 67 ? 'GREEN' : recoveryScore >= 34 ? 'YELLOW' : 'RED'
-                : 'CALIBRATING'}
+                ? recoveryScore >= 67
+                  ? (isRtl ? 'أخضر (جاهزية عالية)' : 'GREEN')
+                  : recoveryScore >= 34
+                  ? (isRtl ? 'أصفر (متوازن)' : 'YELLOW')
+                  : (isRtl ? 'أحمر (يحتاج راحة)' : 'RED')
+                : t('calibrating')}
             </span>
           </div>
         </div>
 
         {/* Dynamic Insight Box */}
-        <div className="mt-5 w-full p-3.5 rounded-2xl bg-[#0D1612] border border-[#16EC06]/20 text-xs text-zinc-300 leading-relaxed text-left flex items-start gap-2.5">
+        <div className="mt-5 w-full p-3.5 rounded-2xl bg-[#0D1612] border border-[#16EC06]/20 text-xs text-zinc-300 leading-relaxed text-start flex items-start gap-2.5">
           <Info className="w-4 h-4 text-[#16EC06] flex-shrink-0 mt-0.5" />
           <p>
             {recoveryScore !== null ? (
-              <>
-                Your autonomic nervous system readiness is calculated from real WHOOP 4.0 telemetry. Resting heart rate of{' '}
-                {metrics.restingHr ?? '--'} bpm and HRV of {metrics.currentHrv ?? '--'} ms indicate your current autonomic capacity.
-              </>
+              isRtl ? (
+                <>
+                  جاهزية جهازك العصبي المستقل محسوبة من بيانات سوار WHOOP 4.0 الحقيقية. نبض الراحة{' '}
+                  {metrics.restingHr ?? '--'} ن/د وتقلب النبض HRV بمقدار {metrics.currentHrv ?? '--'} ms يوضحان قدرتك البدنية والذهنية اليوم.
+                </>
+              ) : (
+                <>
+                  Your autonomic nervous system readiness is calculated from real WHOOP 4.0 telemetry. Resting heart rate of{' '}
+                  {metrics.restingHr ?? '--'} bpm and HRV of {metrics.currentHrv ?? '--'} ms indicate your current autonomic capacity.
+                </>
+              )
             ) : (
-              'Connect your physical WHOOP 4.0 strap to record live heart rate and calculate your daily Recovery Score and HRV metrics.'
+              isRtl
+                ? 'اربط سوارك الفعلي WHOOP 4.0 لبدء قياس نبض القلب وحساب مؤشر التعافي وتقلب النبض الفعلي.'
+                : 'Connect your physical WHOOP 4.0 strap to record live heart rate and calculate your daily Recovery Score and HRV metrics.'
             )}
           </p>
         </div>
@@ -165,21 +181,21 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
           className="mt-3 w-full py-3 px-4 rounded-xl bg-[#0B0D10] hover:bg-[#16191E] border border-white/10 text-white font-black text-xs uppercase tracking-wider font-condensed flex items-center justify-center gap-2 transition-all active:scale-98"
         >
           <Timer className="w-4 h-4 text-[#16EC06]" />
-          <span>Measure Morning Recovery (3-Min HRV Test)</span>
+          <span>{isRtl ? 'قياس التعافي الصباحي (اختبار HRV لمدة 3 دقائق)' : 'Measure Morning Recovery (3-Min HRV Test)'}</span>
         </button>
       </div>
 
       {/* 2. RECOVERY STATISTICS Rows */}
       <div className="p-4 rounded-[24px] bg-[#12151A] border border-white/5 space-y-3">
         <h3 className="text-xs font-black uppercase tracking-wider text-zinc-400 font-condensed px-1">
-          Recovery Statistics
+          {isRtl ? 'إحصائيات التعافي الفسيولوجي' : 'Recovery Statistics'}
         </h3>
 
         <div className="divide-y divide-white/5">
           <div className="py-2.5 flex items-center justify-between text-xs font-condensed font-bold">
             <div className="flex items-center gap-2 text-zinc-400">
               <Activity className="w-3.5 h-3.5 text-zinc-300" />
-              <span className="uppercase">HEART RATE VARIABILITY</span>
+              <span className="uppercase">{t('hrv')}</span>
             </div>
             <span className="text-white font-mono font-bold">
               {metrics.currentHrv ?? settings.hrvBaseline} ms
@@ -189,17 +205,17 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
           <div className="py-2.5 flex items-center justify-between text-xs font-condensed font-bold">
             <div className="flex items-center gap-2 text-zinc-400">
               <Heart className="w-3.5 h-3.5 text-zinc-300" />
-              <span className="uppercase">RESTING HEART RATE</span>
+              <span className="uppercase">{t('rhr')}</span>
             </div>
             <span className="text-white font-mono font-bold">
-              {metrics.restingHr ?? settings.restingHrBaseline} bpm
+              {metrics.restingHr ?? settings.restingHrBaseline} {t('bpm')}
             </span>
           </div>
 
           <div className="py-2.5 flex items-center justify-between text-xs font-condensed font-bold">
             <div className="flex items-center gap-2 text-zinc-400">
               <Wind className="w-3.5 h-3.5 text-zinc-300" />
-              <span className="uppercase">RESPIRATORY RATE</span>
+              <span className="uppercase">{t('respiratoryRate')}</span>
             </div>
             <span className="text-white font-mono font-bold">
               {metrics.respiratoryRate ?? 14.2} rpm
@@ -209,7 +225,7 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
           <div className="py-2.5 flex items-center justify-between text-xs font-condensed font-bold">
             <div className="flex items-center gap-2 text-zinc-400">
               <Moon className="w-3.5 h-3.5 text-zinc-300" />
-              <span className="uppercase">SLEEP PERFORMANCE</span>
+              <span className="uppercase">{t('sleepPerformance')}</span>
             </div>
             <span className="text-white font-mono font-bold">
               {metrics.sleepPerformance !== null ? `${metrics.sleepPerformance}%` : '100%'}

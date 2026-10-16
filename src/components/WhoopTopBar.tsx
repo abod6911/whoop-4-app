@@ -58,6 +58,8 @@ export const VerticalWhoopStrapIcon: React.FC<{ isConnected: boolean; className?
   </div>
 );
 
+import { useLanguage } from '../i18n/LanguageContext';
+
 export const WhoopTopBar: React.FC<WhoopTopBarProps> = ({
   metadata,
   mainTab,
@@ -70,20 +72,37 @@ export const WhoopTopBar: React.FC<WhoopTopBarProps> = ({
   onPrevDate,
   onNextDate,
 }) => {
+  const { t, isRtl } = useLanguage();
   const isBatteryLow = metadata.batteryLevel !== null && metadata.batteryLevel < 15;
   const batteryColor = isBatteryLow ? 'text-[#FF0026]' : 'text-white';
 
   const getMainTabTitle = () => {
     switch (mainTab) {
       case 'plan':
-        return 'WEEKLY PLAN & PROTOCOLS';
+        return t('weeklyPlan');
       case 'community':
-        return 'COMMUNITY & LEADERBOARDS';
+        return t('communityLeaderboards');
       case 'more':
-        return 'SETTINGS & HARDWARE';
+        return t('settingsHardware');
       default:
-        return 'HOME';
+        return t('home').toUpperCase();
     }
+  };
+
+  const getLocalizedDate = (dateStr: string) => {
+    if (dateStr === 'TODAY') return t('today');
+    if (dateStr === 'YESTERDAY') return t('yesterday');
+    if (isRtl && dateStr.includes('D AGO')) {
+      return dateStr.replace('D AGO', ' أيام مضت');
+    }
+    return dateStr;
+  };
+
+  const subTabLabels: Record<HomeSubTab, string> = {
+    overview: t('overview'),
+    sleep: t('sleep'),
+    recovery: t('recovery'),
+    strain: t('strain'),
   };
 
   return (
@@ -125,17 +144,17 @@ export const WhoopTopBar: React.FC<WhoopTopBarProps> = ({
             className="p-0.5 text-zinc-400 hover:text-white transition-colors"
             title="Previous Day"
           >
-            <ChevronLeft className="w-3.5 h-3.5" />
+            <ChevronLeft className={`w-3.5 h-3.5 ${isRtl ? 'rotate-180' : ''}`} />
           </button>
           <span className="text-[11px] font-black uppercase text-white font-condensed tracking-widest px-2.5">
-            {selectedDate}
+            {getLocalizedDate(selectedDate)}
           </span>
           <button
             onClick={onNextDate}
             className="p-0.5 text-zinc-400 hover:text-white transition-colors"
             title="Next Day"
           >
-            <ChevronRight className="w-3.5 h-3.5" />
+            <ChevronRight className={`w-3.5 h-3.5 ${isRtl ? 'rotate-180' : ''}`} />
           </button>
         </div>
 
@@ -166,7 +185,7 @@ export const WhoopTopBar: React.FC<WhoopTopBarProps> = ({
                   isActive ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'
                 }`}
               >
-                <span>{tab}</span>
+                <span>{subTabLabels[tab]}</span>
                 {isActive && (
                   <div className="absolute bottom-0 left-2 right-2 h-[2px] bg-white rounded-full shadow-sm" />
                 )}
@@ -175,7 +194,7 @@ export const WhoopTopBar: React.FC<WhoopTopBarProps> = ({
           })}
         </div>
       ) : (
-        <div className="py-2 px-4 max-w-[430px] mx-auto border-t border-white/5 text-left">
+        <div className="py-2 px-4 max-w-[430px] mx-auto border-t border-white/5 text-start">
           <span className="text-xs font-black uppercase tracking-wider font-condensed text-zinc-300">
             {getMainTabTitle()}
           </span>

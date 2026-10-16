@@ -37,6 +37,8 @@ interface StrapLabViewProps {
   onRefreshGattTree: () => void;
 }
 
+import { useLanguage } from '../../i18n/LanguageContext';
+
 export const StrapLabView: React.FC<StrapLabViewProps> = ({
   metadata,
   services,
@@ -46,6 +48,7 @@ export const StrapLabView: React.FC<StrapLabViewProps> = ({
   onClearPackets,
   onRefreshGattTree,
 }) => {
+  const { t, isRtl } = useLanguage();
   const [commandFeedback, setCommandFeedback] = useState<string | null>(null);
   const isBatteryLow = metadata.batteryLevel !== null && metadata.batteryLevel < 15;
   const poincarePoints = biometricEngine.getPoincarePoints();
@@ -73,7 +76,7 @@ export const StrapLabView: React.FC<StrapLabViewProps> = ({
           <div className="flex items-center gap-2.5">
             <WhoopLogo size="sm" showWordmark={true} />
             <span className="text-[10px] font-mono bg-[#0B0D10] px-2 py-0.5 rounded text-white border border-white/5">
-              4.0 HARDWARE
+              {t('strapTitle')}
             </span>
           </div>
 
@@ -84,7 +87,7 @@ export const StrapLabView: React.FC<StrapLabViewProps> = ({
               }`}
             />
             <span className="text-xs font-bold font-condensed uppercase text-white">
-              {metadata.connected ? 'CONNECTED (REAL SENSORS)' : 'DISCONNECTED'}
+              {metadata.connected ? t('connected') : t('disconnected')}
             </span>
           </div>
         </div>
@@ -94,7 +97,7 @@ export const StrapLabView: React.FC<StrapLabViewProps> = ({
           {/* Battery */}
           <div className="p-3 rounded-xl bg-[#0B0D10] border border-white/5">
             <div className="text-[10px] uppercase font-bold text-zinc-500 font-condensed">
-              Exact Battery Level
+              {t('battery')}
             </div>
             <div className="text-xl font-black text-white mt-1 flex items-center gap-2">
               <Battery
@@ -117,16 +120,16 @@ export const StrapLabView: React.FC<StrapLabViewProps> = ({
           {/* Wrist Contact Status */}
           <div className="p-3 rounded-xl bg-[#0B0D10] border border-white/5">
             <div className="text-[10px] uppercase font-bold text-zinc-500 font-condensed">
-              Wrist Detection
+              {t('wristPlacement')}
             </div>
             <div className="text-sm font-bold mt-1.5 font-condensed uppercase truncate">
               {metadata.onWrist === true ? (
                 <span className="text-[#16EC06] flex items-center gap-1">
-                  <CheckCircle2 className="w-3.5 h-3.5" /> ON WRIST
+                  <CheckCircle2 className="w-3.5 h-3.5" /> {t('onWrist')}
                 </span>
               ) : metadata.onWrist === false ? (
                 <span className="text-[#FFDE00] flex items-center gap-1">
-                  <AlertTriangle className="w-3.5 h-3.5" /> OFF WRIST
+                  <AlertTriangle className="w-3.5 h-3.5" /> {t('offWrist')}
                 </span>
               ) : (
                 <span className="text-zinc-500">--</span>
@@ -137,7 +140,7 @@ export const StrapLabView: React.FC<StrapLabViewProps> = ({
           {/* Firmware */}
           <div className="p-3 rounded-xl bg-[#0B0D10] border border-white/5">
             <div className="text-[10px] uppercase font-bold text-zinc-500 font-condensed">
-              Firmware Revision
+              {t('firmware')}
             </div>
             <div className="text-xs font-bold text-white mt-1 truncate">
               {metadata.firmwareRevision || '--'}
@@ -147,7 +150,7 @@ export const StrapLabView: React.FC<StrapLabViewProps> = ({
           {/* Hardware Model */}
           <div className="p-3 rounded-xl bg-[#0B0D10] border border-white/5">
             <div className="text-[10px] uppercase font-bold text-zinc-500 font-condensed">
-              Hardware Model
+              {isRtl ? 'طراز العتاد' : 'Hardware Model'}
             </div>
             <div className="text-xs font-bold text-white mt-1 truncate font-condensed">
               {metadata.hardwareRevision || 'WHOOP 4.0'}
@@ -163,7 +166,7 @@ export const StrapLabView: React.FC<StrapLabViewProps> = ({
               className="w-full py-2.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-[#FF0026] border border-rose-500/30 text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-colors"
             >
               <BluetoothOff className="w-4 h-4" />
-              <span>Disconnect Strap</span>
+              <span>{t('disconnectStrap')}</span>
             </button>
           ) : (
             <button
@@ -171,7 +174,7 @@ export const StrapLabView: React.FC<StrapLabViewProps> = ({
               className="w-full py-3 rounded-xl bg-[#0093E9] hover:bg-[#00B4D8] text-black text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-lg shadow-cyan-500/20 active:scale-98"
             >
               <Bluetooth className="w-4 h-4" />
-              <span>Connect Physical WHOOP 4.0</span>
+              <span>{t('pairFiltered')}</span>
             </button>
           )}
         </div>

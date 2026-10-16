@@ -4,11 +4,15 @@ import './index.css';
 import App from './App';
 import { initializeAppIcons } from './utils/generateAppIcons';
 
+import { LanguageProvider } from './i18n/LanguageContext';
+
 // Initialize dynamic official WHOOP icons
 initializeAppIcons();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <LanguageProvider>
+      <App />
+    </LanguageProvider>
   </StrictMode>,
 );

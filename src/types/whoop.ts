@@ -21,6 +21,7 @@ export interface UserSettings {
   hrvBaseline: number;
   sleepNeedHours: number;
   gender: 'male' | 'female';
+  language?: 'en' | 'ar';
 }
 
 export interface HrZoneInfo {

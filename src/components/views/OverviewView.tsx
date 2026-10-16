@@ -50,6 +50,8 @@ interface OverviewViewProps {
   onOpenSleepPlanner?: () => void;
 }
 
+import { useLanguage } from '../../i18n/LanguageContext';
+
 export const OverviewView: React.FC<OverviewViewProps> = ({
   metrics,
   healthMetrics,
@@ -66,6 +68,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   onOpenJournal,
   onOpenSleepPlanner,
 }) => {
+  const { t, isRtl } = useLanguage();
   const [isOutlookModalOpen, setIsOutlookModalOpen] = useState(false);
 
   // 100% Real Stress formatting from WHOOP 4.0 telemetry
@@ -75,17 +78,17 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
     : '--';
 
   let stressBadgeColor = 'bg-[#181C23] text-zinc-500 border-white/5';
-  let stressText = 'CALIBRATING';
+  let stressText = t('calibrating').toUpperCase();
   if (stressScore !== null) {
     if (stressScore >= 2.0) {
       stressBadgeColor = 'bg-[#351515] text-[#FF8A00] border-[#FF8A00]/30';
-      stressText = 'HIGH';
+      stressText = t('high');
     } else if (stressScore >= 1.0) {
       stressBadgeColor = 'bg-[#3A2E14] text-[#FFDE00] border-[#FFDE00]/30';
-      stressText = 'MEDIUM';
+      stressText = t('medium');
     } else {
       stressBadgeColor = 'bg-[#0D3528] text-[#16EC06] border-[#16EC06]/30';
-      stressText = 'LOW';
+      stressText = t('low');
     }
   }
 
@@ -130,7 +133,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
           <div className="flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-[#818CF8]" />
             <span className="text-xs font-black uppercase tracking-wider font-condensed text-white">
-              Your Daily Outlook
+              {t('dailyOutlook')}
             </span>
           </div>
 
@@ -141,29 +144,31 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
         </div>
 
         <p className="text-xs text-zinc-300 font-sans mt-2 leading-relaxed">
-          Discover today's personalized insights and recommendations from WHOOP Coach to optimize your daily routine.
+          {isRtl
+            ? 'اكتشف التحليلات والتوصيات اليومية المخصصة لك من مدرب WHOOP لتحسين أدائك وروتينك.'
+            : "Discover today's personalized insights and recommendations from WHOOP Coach to optimize your daily routine."}
         </p>
 
         <button
           onClick={() => setIsOutlookModalOpen(true)}
           className="mt-3 text-xs font-black uppercase tracking-wider font-condensed text-[#00F0FF] flex items-center gap-1 hover:underline"
         >
-          <span>GET MY OUTLOOK</span>
-          <span>→</span>
+          <span>{isRtl ? 'عرض التقرير اليومي' : 'GET MY OUTLOOK'}</span>
+          <span>{isRtl ? '←' : '→'}</span>
         </button>
       </div>
 
       {/* 3. "Ask WHOOP anything" Interactive AI Coach Bar (00:04) */}
       <button
         onClick={onOpenCoachChat}
-        className="w-full px-4 py-3 rounded-full bg-[#16191E] border border-white/10 hover:border-zinc-700 flex items-center gap-3 text-left transition-all active:scale-98 shadow-sm"
+        className="w-full px-4 py-3 rounded-full bg-[#16191E] border border-white/10 hover:border-zinc-700 flex items-center gap-3 text-start transition-all active:scale-98 shadow-sm"
       >
         <WhoopEmblemIcon size={22} />
         <span className="text-xs text-zinc-400 font-sans flex-1">
-          Ask WHOOP anything...
+          {t('askCoach')}
         </span>
         <span className="text-[10px] bg-[#0093E9]/20 text-[#0093E9] px-2 py-0.5 rounded-full font-mono font-bold">
-          COACH
+          {t('whoopCoach').split(' ')[0]}
         </span>
       </button>
 
@@ -172,11 +177,11 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
         {/* Left: HEALTH MONITOR */}
         <button
           onClick={onOpenHealthMonitorModal}
-          className="p-3.5 rounded-[22px] bg-[#12151A] border border-white/5 hover:border-zinc-700 text-left transition-all active:scale-98 flex flex-col justify-between h-[106px]"
+          className="p-3.5 rounded-[22px] bg-[#12151A] border border-white/5 hover:border-zinc-700 text-start transition-all active:scale-98 flex flex-col justify-between h-[106px]"
         >
           <div className="flex items-center justify-between text-xs font-black uppercase tracking-wider text-white font-condensed">
-            <span>HEALTH MONITOR</span>
-            <ChevronRight className="w-3.5 h-3.5 text-zinc-500" />
+            <span>{t('healthMonitor')}</span>
+            <ChevronRight className={`w-3.5 h-3.5 text-zinc-500 ${isRtl ? 'rotate-180' : ''}`} />
           </div>
 
           <div className="flex items-center gap-2">
@@ -185,10 +190,10 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
             </div>
             <div>
               <div className="text-xs font-black text-[#16EC06] font-condensed uppercase tracking-wide">
-                WITHIN RANGE
+                {t('withinRange')}
               </div>
               <div className="text-[10px] text-zinc-400 font-mono">
-                {activeHealthCount > 0 ? `${activeHealthCount}/5 Metrics` : 'Calibrating'}
+                {activeHealthCount > 0 ? `${activeHealthCount}/5 ${isRtl ? 'مؤشرات' : 'Metrics'}` : t('calibrating')}
               </div>
             </div>
           </div>
@@ -197,11 +202,11 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
         {/* Right: STRESS MONITOR */}
         <button
           onClick={onOpenStressMonitorModal}
-          className="p-3.5 rounded-[22px] bg-[#12151A] border border-white/5 hover:border-zinc-700 text-left transition-all active:scale-98 flex flex-col justify-between h-[106px]"
+          className="p-3.5 rounded-[22px] bg-[#12151A] border border-white/5 hover:border-zinc-700 text-start transition-all active:scale-98 flex flex-col justify-between h-[106px]"
         >
           <div className="flex items-center justify-between text-xs font-black uppercase tracking-wider text-white font-condensed">
-            <span>STRESS MONITOR</span>
-            <ChevronRight className="w-3.5 h-3.5 text-zinc-500" />
+            <span>{t('stressMonitor')}</span>
+            <ChevronRight className={`w-3.5 h-3.5 text-zinc-500 ${isRtl ? 'rotate-180' : ''}`} />
           </div>
 
           <div className="flex items-center gap-2">
@@ -222,13 +227,13 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
 
       {/* 5. "My Day" Section (00:32 – 00:54) */}
       <div className="space-y-3">
-        <h2 className="text-xl font-bold text-white tracking-tight px-1">My Day</h2>
+        <h2 className="text-xl font-bold text-white tracking-tight px-1">{t('myDay')}</h2>
 
         {/* TODAY'S ACTIVITIES Card */}
         <div className="rounded-[24px] bg-[#12151A] border border-white/5 p-4 space-y-3">
           <div className="flex items-center justify-between border-b border-white/5 pb-2.5">
             <span className="text-xs font-black uppercase tracking-wider text-zinc-300 font-condensed">
-              TODAY'S ACTIVITIES
+              {t('todaysActivities')}
             </span>
             <Maximize2 className="w-3.5 h-3.5 text-zinc-500" />
           </div>
@@ -238,7 +243,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
             {/* Logged Sleep Row (Tappable to open Sleep Stage Detail) */}
             <button
               onClick={onOpenSleepDetailModal}
-              className="w-full py-2.5 flex items-center justify-between text-left group hover:opacity-90 transition-opacity"
+              className="w-full py-2.5 flex items-center justify-between text-start group hover:opacity-90 transition-opacity"
             >
               <div className="flex items-center gap-3">
                 <div className="px-2.5 py-1 rounded-full font-condensed font-black text-xs flex items-center gap-1.5 bg-[#7293B2]/20 text-[#7293B2] border border-[#7293B2]/40">
@@ -247,16 +252,16 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                 </div>
                 <div>
                   <div className="text-xs font-bold text-white uppercase font-sans flex items-center gap-1">
-                    <span>SLEEP</span>
+                    <span>{t('sleep')}</span>
                     <span className="text-[10px] text-zinc-500 group-hover:text-white transition-colors">›</span>
                   </div>
                   <div className="text-[10px] text-zinc-400 font-mono">
-                    100% Sleep Need • Restorative 51%
+                    {isRtl ? '100% من الاحتياج • 51% نوم مجدد' : '100% Sleep Need • Restorative 51%'}
                   </div>
                 </div>
               </div>
 
-              <div className="text-right text-[10px] font-mono text-zinc-400">
+              <div className="text-end text-[10px] font-mono text-zinc-400">
                 <div>11:15 PM</div>
                 <div>7:35 AM</div>
               </div>
@@ -275,12 +280,12 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                       {s.title}
                     </div>
                     <div className="text-[10px] text-zinc-400 font-mono">
-                      {Math.floor(s.durationSec / 60)} min • Avg {s.avgHr} bpm
+                      {Math.floor(s.durationSec / 60)} {isRtl ? 'دقيقة' : 'min'} • {s.avgHr} {t('bpm')}
                     </div>
                   </div>
                 </div>
 
-                <div className="text-right text-[10px] font-mono text-zinc-400">
+                <div className="text-end text-[10px] font-mono text-zinc-400">
                   <div>{new Date(s.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
                   <div>{new Date(s.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
                 </div>
@@ -288,14 +293,14 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
             ))}
           </div>
 
-          {/* Bottom Matte Buttons inside Today's Activities: + ADD ACTIVITY & START ACTIVITY */}
+          {/* Bottom Matte Buttons inside Today's Activities */}
           <div className="grid grid-cols-2 gap-2 pt-2 border-t border-white/5">
             <button
               onClick={onStartActivity}
               className="py-2.5 px-3 rounded-xl bg-[#1A1F26] hover:bg-[#222832] text-white text-xs font-black uppercase tracking-wider font-condensed flex items-center justify-center gap-1.5 transition-all active:scale-98"
             >
               <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
-              <span>ADD ACTIVITY</span>
+              <span>{isRtl ? 'إضافة نشاط' : 'ADD ACTIVITY'}</span>
             </button>
 
             <button
@@ -303,7 +308,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
               className="py-2.5 px-3 rounded-xl bg-[#1A1F26] hover:bg-[#222832] text-white text-xs font-black uppercase tracking-wider font-condensed flex items-center justify-center gap-1.5 transition-all active:scale-98"
             >
               <Clock className="w-3.5 h-3.5 stroke-[2.5]" />
-              <span>START ACTIVITY</span>
+              <span>{t('startActivity')}</span>
             </button>
           </div>
         </div>
@@ -311,7 +316,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
         {/* TONIGHT'S SLEEP Card */}
         <button
           onClick={onOpenSleepPlanner}
-          className="w-full p-4 rounded-[24px] bg-[#12151A] border border-white/5 hover:border-zinc-700 flex items-center justify-between text-left transition-all active:scale-98"
+          className="w-full p-4 rounded-[24px] bg-[#12151A] border border-white/5 hover:border-zinc-700 flex items-center justify-between text-start transition-all active:scale-98"
         >
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-[#7293B2]/20 flex items-center justify-center text-[#7293B2]">
@@ -322,18 +327,18 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                 23:11
               </div>
               <div className="text-[10px] font-black uppercase tracking-wider text-zinc-400 font-condensed">
-                RECOMMENDED BEDTIME
+                {isRtl ? 'موعد النوم الموصى به' : 'RECOMMENDED BEDTIME'}
               </div>
             </div>
           </div>
 
-          <div className="text-right">
+          <div className="text-end">
             <div className="flex items-center justify-end gap-1.5 text-xs font-mono font-bold text-white">
               <span className="w-2 h-2 rounded-full bg-[#16EC06]" />
               <span>07:30</span>
             </div>
             <div className="text-[10px] font-black uppercase tracking-wider text-[#16EC06] font-condensed">
-              ALARM ON (EXACT)
+              {isRtl ? 'المنبه الذكي مفعل' : 'ALARM ON (EXACT)'}
             </div>
           </div>
         </button>
@@ -346,10 +351,10 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
             </div>
             <div>
               <div className="text-sm font-black uppercase tracking-wider text-white font-condensed">
-                MY JOURNAL
+                {t('dailyJournal')}
               </div>
               <div className="text-[10px] text-zinc-400 font-sans">
-                Track daily athletic behaviors
+                {isRtl ? 'تسجيل العادات الرياضية والصحية اليومية' : 'Track daily athletic behaviors'}
               </div>
             </div>
           </div>
@@ -359,7 +364,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
             className="px-3.5 py-1.5 rounded-full bg-[#222730] hover:bg-[#2C323E] text-white text-xs font-black uppercase tracking-wider font-condensed flex items-center gap-1 transition-all active:scale-95"
           >
             <Edit3 className="w-3 h-3" />
-            <span>FILL OUT</span>
+            <span>{isRtl ? 'تعبئة' : 'FILL OUT'}</span>
           </button>
         </div>
       </div>
