@@ -16,6 +16,7 @@ export interface UserSettings {
   name: string;
   age: number;
   weightKg: number;
+  heightCm: number;
   maxHr: number;
   restingHrBaseline: number;
   hrvBaseline: number;
@@ -44,6 +45,19 @@ export interface HealthMonitorMetric {
   statusText: string;
 }
 
+export interface SleepStagePoint {
+  timestamp: number;
+  stage: 'awake' | 'light' | 'deep' | 'rem';
+  hr?: number;
+}
+
+export interface SleepNeedBreakdown {
+  baselineNeedHours: number;
+  recentDebtHours: number;
+  strainNeedHours: number;
+  totalNeedHours: number;
+}
+
 export interface SleepMetrics {
   hoursInBed: number | null;
   hoursAsleep: number | null;
@@ -52,6 +66,9 @@ export interface SleepMetrics {
   efficiencyPercent: number | null;
   latencyMinutes: number | null;
   disturbancesCount: number | null;
+  sleepDebtHours: number;
+  needBreakdown?: SleepNeedBreakdown;
+  timeline?: SleepStagePoint[];
   stages: {
     awakePercent: number;
     remPercent: number;
@@ -88,12 +105,22 @@ export interface LiveMetrics {
   recoveryCategory: 'green' | 'yellow' | 'red' | 'calibrating';
   sleepPerformance: number | null;
   activeCalories: number;
+  bmrCalories: number;
+  totalCalories: number;
+  steps: number;
+  cadence: number; // steps per minute
+  stepSource: 'imu_hardware' | 'activity_inference';
   currentZone: 0 | 1 | 2 | 3 | 4 | 5;
   zoneSeconds: Record<number, number>; // seconds spent in zone 0-5
   optimalStrainTarget: { min: number; max: number };
   respiratoryRate: number | null; // breaths/min from RSA
   stressScore: number | null; // 0.0 - 3.0
   stressCategory: 'low' | 'medium' | 'high' | null;
+  skinTempCelsius: number | null;
+  skinTempDelta: number | null;
+  spO2: number | null;
+  spO2NightlyAvg: number | null;
+  spO2DipsCount: number;
   vo2Max: number | null;
   sd1?: number | null;
   sd2?: number | null;
@@ -189,3 +216,107 @@ export interface RawBlePacket {
   ascii: string;
   decimalArray: number[];
 }
+
+export interface JournalHabitItem {
+  id: string;
+  category: 'nutrition' | 'sleep' | 'recovery' | 'lifestyle';
+  titleEn: string;
+  titleAr: string;
+  type: 'boolean' | 'number';
+  unit?: string;
+  defaultVal: boolean | number;
+}
+
+export interface JournalDayEntry {
+  date: string; // YYYY-MM-DD
+  timestamp: number;
+  habits: Record<string, boolean | number>;
+  notes?: string;
+}
+
+export interface HabitCorrelationStat {
+  habitId: string;
+  title: string;
+  impactPercent: number; // e.g. -14 or +8
+  withCount: number;
+  withoutCount: number;
+  avgRecoveryWith: number;
+  avgRecoveryWithout: number;
+  status: 'positive' | 'negative' | 'neutral' | 'insufficient_data';
+}
+
+// --- Dexie Database Schema Entities ---
+export interface UserProfileEntity {
+  id: string; // 'current_user'
+  name: string;
+  age: number;
+  gender: 'male' | 'female';
+  weightKg: number;
+  heightCm: number;
+  maxHr: number;
+  restingHrBaseline: number;
+  hrvBaseline: number;
+  sleepNeedHours: number;
+  updatedAt: number;
+}
+
+export interface RealtimeTelemetryEntity {
+  id?: number;
+  timestamp: number;
+  bpm: number;
+  rrIntervals: number[];
+  accelMagnitude?: number;
+  stress?: number;
+  skinTemp?: number;
+  spO2?: number;
+}
+
+export interface DailyRecordEntity {
+  date: string; // primary key: YYYY-MM-DD
+  timestamp: number;
+  dayStrain: number;
+  recoveryScore: number | null;
+  recoveryCategory: 'green' | 'yellow' | 'red' | 'calibrating';
+  activeCalories: number;
+  bmrCalories: number;
+  totalCalories: number;
+  steps: number;
+  cadence: number;
+  rhr: number | null;
+  hrv: number | null;
+  sleepPerformance: number | null;
+  hoursAsleep: number | null;
+  hoursInBed: number | null;
+  sleepNeedHours: number;
+  stressAvg: number | null;
+  skinTempDelta: number | null;
+  spO2Avg: number | null;
+  zoneSeconds: Record<number, number>;
+}
+
+export interface JournalEntryEntity {
+  date: string; // primary key: YYYY-MM-DD
+  timestamp: number;
+  habits: Record<string, boolean | number>;
+  notes?: string;
+}
+
+export interface WorkoutEntity {
+  id: string; // primary key
+  sport: string;
+  title: string;
+  type: SessionType;
+  startTime: number;
+  endTime: number;
+  durationSec: number;
+  avgHr: number;
+  maxHr: number;
+  minHr: number;
+  strain: number;
+  calories: number;
+  avgHrv: number;
+  zoneDistribution: Record<number, number>;
+  dataPoints: Array<{ timestamp: number; hr: number; hrv: number; strain?: number }>;
+  notes?: string;
+}
+

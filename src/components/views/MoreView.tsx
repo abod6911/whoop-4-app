@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { whoopBleEngine } from '../../services/whoopBleEngine';
 import { useLanguage } from '../../i18n/LanguageContext';
+import { whoopDb } from '../../services/whoopDatabase';
 
 interface MoreViewProps {
   settings: UserSettings;
@@ -76,35 +77,57 @@ export const MoreView: React.FC<MoreViewProps> = ({
     setTimeout(() => setSaveStatus(null), 2500);
   };
 
-  const exportAllData = () => {
-    const backup = {
-      exportedAt: new Date().toISOString(),
-      settings: form,
-      sessions,
-      daysHistory: storageService.getDaysHistory(),
-    };
-    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `whoop-real-telemetry-backup-${Date.now()}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+  const exportAllData = async () => {
+    try {
+      const dump = await whoopDb.exportDatabaseToJson();
+      const blob = new Blob([dump], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `whoop-dexie-vault-${Date.now()}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      const backup = {
+        exportedAt: new Date().toISOString(),
+        settings: form,
+        sessions,
+        daysHistory: storageService.getDaysHistory(),
+      };
+      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `whoop-real-telemetry-backup-${Date.now()}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
   };
 
-  const exportDaysToCSV = () => {
-    const days = storageService.getDaysHistory();
-    let csv = 'Date,Label,DayStrain,RecoveryScore,RecoveryCategory,RHR_BPM,HRV_RMSSD_ms,Calories\n';
-    days.forEach((d) => {
-      csv += `${d.date},${d.label},${d.dayStrain},${d.recoveryScore || ''},${d.recoveryCategory},${d.rhr || ''},${d.hrv || ''},${d.activeCalories}\n`;
-    });
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `whoop-history-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+  const exportDaysToCSV = async () => {
+    try {
+      const csv = await whoopDb.exportDailyToCsv();
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `whoop-history-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      const days = storageService.getDaysHistory();
+      let csv = 'Date,Label,DayStrain,RecoveryScore,RecoveryCategory,RHR_BPM,HRV_RMSSD_ms,Calories\n';
+      days.forEach((d) => {
+        csv += `${d.date},${d.label},${d.dayStrain},${d.recoveryScore || ''},${d.recoveryCategory},${d.rhr || ''},${d.hrv || ''},${d.activeCalories}\n`;
+      });
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `whoop-history-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -112,10 +135,15 @@ export const MoreView: React.FC<MoreViewProps> = ({
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (evt) => {
+    reader.onload = async (evt) => {
       try {
         const text = evt.target?.result as string;
         if (file.name.endsWith('.json')) {
+          // Import into Dexie DB
+          try {
+            await whoopDb.importDatabaseFromJson(text);
+          } catch {}
+
           const parsed = JSON.parse(text);
           if (parsed.daysHistory && Array.isArray(parsed.daysHistory)) {
             parsed.daysHistory.forEach((d: any) => {
@@ -136,7 +164,7 @@ export const MoreView: React.FC<MoreViewProps> = ({
             onSaveSettings(parsed.settings);
             setForm(parsed.settings);
           }
-          setImportStatus('JSON backup successfully imported!');
+          setImportStatus('JSON vault successfully imported!');
           onRefreshSessions();
         } else if (file.name.endsWith('.csv')) {
           const lines = text.split('\n');
@@ -418,7 +446,7 @@ export const MoreView: React.FC<MoreViewProps> = ({
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-[11px] font-black uppercase text-zinc-400 font-condensed block mb-1">
-                  Athlete Name
+                  {isRtl ? 'اسم الرياضي' : 'Athlete Name'}
                 </label>
                 <input
                   type="text"
@@ -430,13 +458,53 @@ export const MoreView: React.FC<MoreViewProps> = ({
 
               <div>
                 <label className="text-[11px] font-black uppercase text-zinc-400 font-condensed block mb-1">
-                  Age (Years)
+                  {isRtl ? 'الجنس (حساب BMR)' : 'Gender (BMR Formula)'}
+                </label>
+                <select
+                  value={form.gender}
+                  onChange={(e) => setForm({ ...form, gender: e.target.value as 'male' | 'female' })}
+                  className="w-full bg-[#0B0D10] border border-white/10 rounded-xl px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-[#0093E9]"
+                >
+                  <option value="male">{isRtl ? 'ذكر (Male)' : 'Male'}</option>
+                  <option value="female">{isRtl ? 'أنثى (Female)' : 'Female'}</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2">
+              <div>
+                <label className="text-[11px] font-black uppercase text-zinc-400 font-condensed block mb-1">
+                  {isRtl ? 'العمر' : 'Age (Yrs)'}
                 </label>
                 <input
                   type="number"
                   value={form.age}
                   onChange={(e) => setForm({ ...form, age: parseInt(e.target.value) || 25 })}
-                  className="w-full bg-[#0B0D10] border border-white/10 rounded-xl px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-[#0093E9]"
+                  className="w-full bg-[#0B0D10] border border-white/10 rounded-xl px-2.5 py-2 text-xs font-mono text-white focus:outline-none focus:border-[#0093E9]"
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] font-black uppercase text-zinc-400 font-condensed block mb-1">
+                  {isRtl ? 'الوزن (كغ)' : 'Weight (kg)'}
+                </label>
+                <input
+                  type="number"
+                  value={form.weightKg}
+                  onChange={(e) => setForm({ ...form, weightKg: parseFloat(e.target.value) || 75 })}
+                  className="w-full bg-[#0B0D10] border border-white/10 rounded-xl px-2.5 py-2 text-xs font-mono text-white focus:outline-none focus:border-[#0093E9]"
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] font-black uppercase text-zinc-400 font-condensed block mb-1">
+                  {isRtl ? 'الطول (سم)' : 'Height (cm)'}
+                </label>
+                <input
+                  type="number"
+                  value={form.heightCm ?? 178}
+                  onChange={(e) => setForm({ ...form, heightCm: parseInt(e.target.value) || 178 })}
+                  className="w-full bg-[#0B0D10] border border-white/10 rounded-xl px-2.5 py-2 text-xs font-mono text-white focus:outline-none focus:border-[#0093E9]"
                 />
               </div>
             </div>

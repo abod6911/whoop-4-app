@@ -9,6 +9,9 @@ import type {
 } from '../types/whoop';
 import { storageService } from '../services/StorageService';
 import { notificationEngine } from '../services/notificationEngine';
+import { pedometerEngine } from '../services/pedometerEngine';
+import { sleepEngine } from '../services/sleepEngine';
+import { whoopDb } from '../services/whoopDatabase';
 
 export class BiometricEngine {
   private userSettings: UserSettings;
@@ -37,6 +40,13 @@ export class BiometricEngine {
   private trimpAccumulator = 0;
   private activeCalories = 0;
   private zoneSeconds: Record<number, number> = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+
+  // Health Monitor: Skin Temperature & Blood Oxygen (SpO2)
+  private skinTempCelsius: number | null = null;
+  private skinTempDelta: number | null = null;
+  private spO2: number | null = null;
+  private spO2Readings: number[] = [];
+  private spO2DipsCount = 0;
 
   // Real Stress Monitoring
   private stressPoints: StressPoint[] = [];
@@ -80,7 +90,11 @@ export class BiometricEngine {
     const todayStr = new Date().toISOString().split('T')[0];
     const currentHrv = this.calculateRMSSD();
     const rhr = this.getRestingHeartRate();
-    const recovery = this.calculateRecovery(currentHrv, rhr);
+    const sleepMetrics = sleepEngine.getSleepMetrics(this.userSettings, this.dailyStrain);
+    const recovery = this.calculateRecovery(currentHrv, rhr, this.calculateRespiratoryRate(), sleepMetrics.sleepPerformance);
+    const pedo = pedometerEngine.getState();
+    const bmrToday = this.getBmrCaloriesElapsedToday();
+    const totalCal = Math.round(bmrToday + this.activeCalories);
 
     storageService.saveRealDayState(todayStr, {
       dayStrain: this.dailyStrain,
@@ -92,6 +106,30 @@ export class BiometricEngine {
       zoneSeconds: this.zoneSeconds,
       stressPoints: this.stressPoints.slice(-120), // keep latest 120 timeline points
     });
+
+    // Also persist to Dexie production IndexedDB table
+    whoopDb.saveDailyRecord({
+      date: todayStr,
+      timestamp: Date.now(),
+      dayStrain: this.dailyStrain,
+      recoveryScore: recovery.score,
+      recoveryCategory: recovery.category,
+      activeCalories: Math.round(this.activeCalories),
+      bmrCalories: bmrToday,
+      totalCalories: totalCal,
+      steps: pedo.steps,
+      cadence: pedo.cadence,
+      rhr,
+      hrv: currentHrv,
+      sleepPerformance: sleepMetrics.sleepPerformance,
+      hoursAsleep: sleepMetrics.hoursAsleep,
+      hoursInBed: sleepMetrics.hoursInBed,
+      sleepNeedHours: sleepMetrics.sleepNeedHours,
+      stressAvg: this.currentStressScore,
+      skinTempDelta: this.skinTempDelta,
+      spO2Avg: this.getSpO2NightlyAvg(),
+      zoneSeconds: { ...this.zoneSeconds },
+    }).catch(() => {});
   }
 
   // --- Heart Rate Zones ---
@@ -355,6 +393,61 @@ export class BiometricEngine {
     return Math.max(0, calPerMin / 60);
   }
 
+  // --- Mifflin-St Jeor Basal Metabolic Rate (BMR) ---
+  public calculateDailyBmr(settings?: UserSettings): number {
+    const s = settings || this.userSettings;
+    const { gender, weightKg, heightCm, age } = s;
+    const h = heightCm || 178;
+    if (gender === 'male') {
+      return (10 * weightKg) + (6.25 * h) - (5 * age) + 5;
+    } else {
+      return (10 * weightKg) + (6.25 * h) - (5 * age) - 161;
+    }
+  }
+
+  public getBmrCaloriesElapsedToday(): number {
+    const now = new Date();
+    const minutesSinceMidnight = (now.getHours() * 60) + now.getMinutes() + (now.getSeconds() / 60);
+    const dailyBmr = this.calculateDailyBmr();
+    return Math.round((dailyBmr / 1440) * minutesSinceMidnight);
+  }
+
+  public getTotalDailyCalories(): number {
+    return Math.round(this.getBmrCaloriesElapsedToday() + this.activeCalories);
+  }
+
+  // --- Health Monitor Ingestion (Skin Temp & SpO2) ---
+  public ingestSkinTemp(celsius: number): void {
+    this.skinTempCelsius = Number(celsius.toFixed(1));
+    const baseline = 33.5; // WHOOP skin temperature baseline reference
+    this.skinTempDelta = Number((celsius - baseline).toFixed(1));
+  }
+
+  public ingestSpO2(percent: number): void {
+    if (percent >= 70 && percent <= 100) {
+      this.spO2 = Math.round(percent);
+      this.spO2Readings.push(this.spO2);
+      if (this.spO2Readings.length > 500) this.spO2Readings.shift();
+      if (percent < 95) {
+        this.spO2DipsCount++;
+      }
+    }
+  }
+
+  public getSpO2NightlyAvg(): number | null {
+    if (this.spO2Readings.length === 0) return null;
+    const sum = this.spO2Readings.reduce((a, b) => a + b, 0);
+    return Math.round(sum / this.spO2Readings.length);
+  }
+
+  public getSkinTempState(): { celsius: number | null; delta: number | null } {
+    return { celsius: this.skinTempCelsius, delta: this.skinTempDelta };
+  }
+
+  public getSpO2State(): { current: number | null; nightlyAvg: number | null; dips: number } {
+    return { current: this.spO2, nightlyAvg: this.getSpO2NightlyAvg(), dips: this.spO2DipsCount };
+  }
+
   // --- Real Day Strain (0.0 to 21.0 Logarithmic Scale) ---
   public calculateStrainFromTrimp(trimp: number): number {
     if (trimp <= 0) return 0;
@@ -509,18 +602,40 @@ export class BiometricEngine {
 
       // Calories Accumulation
       this.activeCalories += this.calculateCaloriesPerSecond(bpm);
+
+      // Ingest into Pedometer Activity-Cadence Model
+      pedometerEngine.ingestHeartRate(bpm, zone, timestamp);
     }
 
-    // 3. Compute Metrics
+    // 3. Sleep Engine Ingestion & Metrics
     const currentHrv = this.calculateRMSSD();
+    const rhr = this.getRestingHeartRate();
+    sleepEngine.ingestSample(bpm, currentHrv, onWrist, rhr || this.userSettings.restingHrBaseline, timestamp);
+    const sleepMetrics = sleepEngine.getSleepMetrics(this.userSettings, this.dailyStrain);
+
+    // 4. Compute Metrics
     const sdnn = this.calculateSDNN();
     const meanRR = this.getMeanRR();
     const lastRR = this.getLastRR();
     const respiratoryRate = this.calculateRespiratoryRate();
-    const rhr = this.getRestingHeartRate();
-    const recovery = this.calculateRecovery(currentHrv, rhr, respiratoryRate);
+    const recovery = this.calculateRecovery(currentHrv, rhr, respiratoryRate, sleepMetrics.sleepPerformance);
+    const pedo = pedometerEngine.getState();
+    const bmrToday = this.getBmrCaloriesElapsedToday();
+    const totalCalories = Math.round(bmrToday + this.activeCalories);
 
-    // 4. Compute Stress Score every 5 seconds
+    // 5. Ingest into Dexie Telemetry Buffer
+    if (bpm > 0 && this.hrCount % 5 === 0) {
+      whoopDb.logTelemetry({
+        timestamp,
+        bpm,
+        rrIntervals: rrIntervals || [],
+        stress: this.currentStressScore || undefined,
+        skinTemp: this.skinTempCelsius || undefined,
+        spO2: this.spO2 || undefined,
+      }).catch(() => {});
+    }
+
+    // 6. Compute Stress Score every 5 seconds
     if (timestamp - this.lastStressTick >= 5000) {
       this.lastStressTick = timestamp;
       const stressResult = this.computeStressScore(bpm, currentHrv);
@@ -540,7 +655,7 @@ export class BiometricEngine {
       }
     }
 
-    // 5. Persist every 15 beats
+    // 7. Persist every 15 beats
     if (this.hrCount % 15 === 0) {
       this.persistTodayRealState();
     }
@@ -571,14 +686,24 @@ export class BiometricEngine {
       dailyStrain: this.dailyStrain,
       recoveryScore: recovery.score,
       recoveryCategory: recovery.category,
-      sleepPerformance: null, // calibrated when sleep session is logged
+      sleepPerformance: sleepMetrics.sleepPerformance,
       activeCalories: Math.round(this.activeCalories),
+      bmrCalories: bmrToday,
+      totalCalories,
+      steps: pedo.steps,
+      cadence: pedo.cadence,
+      stepSource: pedo.source,
       currentZone: bpm > 0 ? this.determineZone(bpm) : 0,
       zoneSeconds: { ...this.zoneSeconds },
       optimalStrainTarget: { min: optimalTargetMin, max: optimalTargetMax },
       respiratoryRate,
       stressScore: this.currentStressScore,
       stressCategory: stressCat,
+      skinTempCelsius: this.skinTempCelsius,
+      skinTempDelta: this.skinTempDelta,
+      spO2: this.spO2,
+      spO2NightlyAvg: this.getSpO2NightlyAvg(),
+      spO2DipsCount: this.spO2DipsCount,
       vo2Max: this.calculateVo2Max(),
       sd1: this.calculateSD1AndSD2().sd1,
       sd2: this.calculateSD1AndSD2().sd2,
@@ -592,6 +717,10 @@ export class BiometricEngine {
   public getInitialDisconnectedMetrics(): LiveMetrics {
     const todayStr = new Date().toISOString().split('T')[0];
     const saved = storageService.getRealDayState(todayStr);
+    const pedo = pedometerEngine.getState();
+    const bmrToday = this.getBmrCaloriesElapsedToday();
+    const totalCalories = Math.round(bmrToday + (saved?.activeCalories || 0));
+    const sleepMetrics = sleepEngine.getSleepMetrics(this.userSettings, saved?.dayStrain || 0);
 
     return {
       currentHr: null,
@@ -606,14 +735,24 @@ export class BiometricEngine {
       dailyStrain: saved?.dayStrain || 0,
       recoveryScore: saved?.recoveryScore || null,
       recoveryCategory: saved?.recoveryCategory || 'calibrating',
-      sleepPerformance: null,
+      sleepPerformance: sleepMetrics.sleepPerformance,
       activeCalories: saved?.activeCalories || 0,
+      bmrCalories: bmrToday,
+      totalCalories,
+      steps: pedo.steps,
+      cadence: pedo.cadence,
+      stepSource: pedo.source,
       currentZone: 0,
       zoneSeconds: saved?.zoneSeconds || { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
       optimalStrainTarget: { min: 8.0, max: 12.0 },
       respiratoryRate: null,
       stressScore: null,
       stressCategory: null,
+      skinTempCelsius: this.skinTempCelsius,
+      skinTempDelta: this.skinTempDelta,
+      spO2: this.spO2,
+      spO2NightlyAvg: this.getSpO2NightlyAvg(),
+      spO2DipsCount: this.spO2DipsCount,
       vo2Max: this.calculateVo2Max(),
       sd1: null,
       sd2: null,

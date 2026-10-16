@@ -132,10 +132,24 @@ export function generateHealthMonitorMetrics(
   ];
 }
 
+import { sleepEngine } from '../services/sleepEngine';
+
 /**
- * Generates official WHOOP Sleep metrics (from real logged sleep or null)
+ * Generates official WHOOP Sleep metrics (from real logged sleep or sleepEngine)
  */
-export function generateSleepMetrics(sleepPerformance: number | null): SleepMetrics {
+export function generateSleepMetrics(
+  sleepPerformance: number | null,
+  settings?: UserSettings,
+  dailyStrain = 0
+): SleepMetrics {
+  if (settings) {
+    const fromEngine = sleepEngine.getSleepMetrics(settings, dailyStrain);
+    if (sleepPerformance !== null) {
+      fromEngine.sleepPerformance = sleepPerformance;
+    }
+    return fromEngine;
+  }
+
   if (sleepPerformance === null) {
     return {
       hoursInBed: null,
@@ -145,6 +159,7 @@ export function generateSleepMetrics(sleepPerformance: number | null): SleepMetr
       efficiencyPercent: null,
       latencyMinutes: null,
       disturbancesCount: null,
+      sleepDebtHours: 0.65,
       stages: {
         awakePercent: 0,
         remPercent: 0,
@@ -162,6 +177,7 @@ export function generateSleepMetrics(sleepPerformance: number | null): SleepMetr
     efficiencyPercent: 94,
     latencyMinutes: 12,
     disturbancesCount: 2,
+    sleepDebtHours: 0.65,
     stages: {
       awakePercent: 6,
       remPercent: 24,

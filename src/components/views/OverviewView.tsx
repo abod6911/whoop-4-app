@@ -225,6 +225,52 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
         </button>
       </div>
 
+      {/* 4.5. Side-by-Side STEPS & CADENCE and TOTAL CALORIC BURN (BMR + ACTIVE) */}
+      <div className="grid grid-cols-2 gap-3">
+        {/* Left: STEPS & CADENCE */}
+        <div className="p-3.5 rounded-[22px] bg-[#12151A] border border-white/5 flex flex-col justify-between h-[106px]">
+          <div className="flex items-center justify-between text-xs font-black uppercase tracking-wider text-white font-condensed">
+            <span>{t('steps')}</span>
+            <span
+              className={`text-[9px] px-1.5 py-0.5 rounded font-mono font-bold ${
+                metrics.stepSource === 'imu_hardware'
+                  ? 'bg-[#00F0FF]/20 text-[#00F0FF] border border-[#00F0FF]/30'
+                  : 'bg-white/10 text-zinc-400'
+              }`}
+            >
+              {metrics.stepSource === 'imu_hardware' ? 'IMU SENSOR' : 'ESTIMATED'}
+            </span>
+          </div>
+
+          <div className="flex items-baseline gap-2">
+            <span className="text-2xl font-black font-condensed text-white tabular-nums">
+              {metrics.steps.toLocaleString()}
+            </span>
+            <span className="text-[11px] text-zinc-400 font-mono">
+              {metrics.cadence > 0 ? `${metrics.cadence} ${isRtl ? 'خ/د' : 'spm'}` : '--'}
+            </span>
+          </div>
+        </div>
+
+        {/* Right: TOTAL CALORIC BURN (BMR + ACTIVE) */}
+        <div className="p-3.5 rounded-[22px] bg-[#12151A] border border-white/5 flex flex-col justify-between h-[106px]">
+          <div className="flex items-center justify-between text-xs font-black uppercase tracking-wider text-white font-condensed">
+            <span>{t('totalCalories')}</span>
+            <Flame className="w-3.5 h-3.5 text-[#FF8A00]" />
+          </div>
+
+          <div>
+            <div className="text-2xl font-black font-condensed text-[#FF8A00] tabular-nums">
+              {metrics.totalCalories > 0 ? metrics.totalCalories.toLocaleString() : metrics.activeCalories.toLocaleString()}
+              <span className="text-xs text-zinc-400 font-normal ml-1">kcal</span>
+            </div>
+            <div className="text-[9px] text-zinc-500 font-mono mt-0.5">
+              BMR: {metrics.bmrCalories} + Act: {metrics.activeCalories}
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* 5. "My Day" Section (00:32 – 00:54) */}
       <div className="space-y-3">
         <h2 className="text-xl font-bold text-white tracking-tight px-1">{t('myDay')}</h2>

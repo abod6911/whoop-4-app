@@ -20,6 +20,7 @@ export const DEFAULT_SETTINGS: UserSettings = {
   name: 'Athlete',
   age: 28,
   weightKg: 75,
+  heightCm: 178,
   maxHr: 192,
   restingHrBaseline: 52,
   hrvBaseline: 65,

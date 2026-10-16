@@ -306,6 +306,7 @@ export const App: React.FC = () => {
     }
 
     // Historical day snapshot
+    const bmr = biometricEngine.calculateDailyBmr(settings);
     return {
       currentHr: null,
       currentHrv: currentDayRecord.hrv,
@@ -321,17 +322,27 @@ export const App: React.FC = () => {
       recoveryCategory: currentDayRecord.recoveryCategory,
       sleepPerformance: currentDayRecord.sleepPerformance,
       activeCalories: currentDayRecord.activeCalories,
+      bmrCalories: bmr,
+      totalCalories: currentDayRecord.activeCalories + bmr,
+      steps: 0,
+      cadence: 0,
+      stepSource: 'imu_hardware',
       currentZone: 0,
       zoneSeconds: { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
       optimalStrainTarget: calculateOptimalStrainTarget(currentDayRecord.recoveryScore),
       respiratoryRate: null,
       stressScore: null,
       stressCategory: null,
+      skinTempCelsius: null,
+      skinTempDelta: null,
+      spO2: null,
+      spO2NightlyAvg: null,
+      spO2DipsCount: 0,
       vo2Max: null,
       onWrist: null,
       timestamp: Date.now(),
     };
-  }, [selectedDateIndex, liveMetrics, currentDayRecord]);
+  }, [selectedDateIndex, liveMetrics, currentDayRecord, settings]);
 
   const effectiveSessions: SessionRecord[] = useMemo(() => {
     if (selectedDateIndex === 0) {
@@ -351,8 +362,8 @@ export const App: React.FC = () => {
   }, [effectiveMetrics.currentHrv, effectiveMetrics.restingHr, effectiveMetrics.respiratoryRate, settings]);
 
   const sleepData: SleepMetrics = useMemo(() => {
-    return generateSleepMetrics(effectiveMetrics.sleepPerformance);
-  }, [effectiveMetrics.sleepPerformance]);
+    return generateSleepMetrics(effectiveMetrics.sleepPerformance, settings, effectiveMetrics.dailyStrain);
+  }, [effectiveMetrics.sleepPerformance, settings, effectiveMetrics.dailyStrain]);
 
   const zones = biometricEngine.getZones();
   const maxDayIndex = Math.min(6, daysHistory.length - 1);

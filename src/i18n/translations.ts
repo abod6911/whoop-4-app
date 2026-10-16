@@ -30,6 +30,13 @@ export interface Translations {
   skinTemp: string;
   targetStrain: string;
   optimalTarget: string;
+  steps: string;
+  cadence: string;
+  bmr: string;
+  totalCalories: string;
+  habitImpact: string;
+  sleepDebtHoursLabel: string;
+  hypnogramTitle: string;
 
   // Status & Connection
   connected: string;
@@ -177,6 +184,13 @@ export const translations: Record<Language, Translations> = {
     skinTemp: 'SKIN TEMP',
     targetStrain: 'TARGET STRAIN',
     optimalTarget: 'OPTIMAL STRAIN',
+    steps: 'STEPS',
+    cadence: 'CADENCE',
+    bmr: 'BMR (BASAL)',
+    totalCalories: 'TOTAL CALORIES',
+    habitImpact: 'HABIT IMPACT ON RECOVERY',
+    sleepDebtHoursLabel: 'SLEEP DEBT',
+    hypnogramTitle: 'SLEEP ARCHITECTURE & HYPNOGRAM',
 
     // Status & Connection
     connected: 'CONNECTED',
@@ -323,6 +337,13 @@ export const translations: Record<Language, Translations> = {
     skinTemp: 'حرارة الجلد',
     targetStrain: 'الإجهاد المستهدف',
     optimalTarget: 'الإجهاد المثالي',
+    steps: 'الخطوات',
+    cadence: 'الإيقاع',
+    bmr: 'الأيض الأساسي BMR',
+    totalCalories: 'إجمالي السعرات',
+    habitImpact: 'تأثير العادات على التعافي',
+    sleepDebtHoursLabel: 'دين النوم المتراكم',
+    hypnogramTitle: 'مخطط بنية ومراحل النوم',
 
     // Status & Connection
     connected: 'متصل بالسوّار',

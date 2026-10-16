@@ -183,32 +183,54 @@ export const StrainView: React.FC<StrainViewProps> = ({
         </h3>
 
         <div className="divide-y divide-white/5">
+          {/* Real Steps & Cadence */}
           <div className="py-2.5 flex items-center justify-between text-xs font-condensed font-bold">
             <div className="flex items-center gap-2 text-zinc-400">
-              <Footprints className="w-3.5 h-3.5 text-zinc-300" />
-              <span className="uppercase">{isRtl ? 'الخطوات (تجريبي)' : 'STEPS (BETA)'}</span>
+              <Footprints className="w-3.5 h-3.5 text-[#0093E9]" />
+              <div className="flex items-center gap-1.5">
+                <span className="uppercase">{t('steps')}</span>
+                <span className="text-[9px] px-1.5 py-0.2 rounded bg-white/10 text-zinc-300 font-mono">
+                  {metrics.stepSource === 'imu_hardware' ? (isRtl ? 'حساس IMU' : 'IMU SENSOR') : (isRtl ? 'تقدير' : 'ESTIMATED')}
+                </span>
+              </div>
             </div>
-            <span className="text-white font-mono font-bold">8,420</span>
+            <div className="text-end">
+              <span className="text-white font-mono font-bold" dir="ltr">
+                {metrics.steps > 0 ? metrics.steps.toLocaleString() : '--'}
+              </span>
+              {metrics.cadence > 0 && (
+                <span className="text-[10px] text-zinc-400 font-mono block" dir="ltr">
+                  {metrics.cadence} spm
+                </span>
+              )}
+            </div>
           </div>
 
+          {/* Average Heart Rate */}
           <div className="py-2.5 flex items-center justify-between text-xs font-condensed font-bold">
             <div className="flex items-center gap-2 text-zinc-400">
-              <Heart className="w-3.5 h-3.5 text-zinc-300" />
+              <Heart className="w-3.5 h-3.5 text-rose-500" />
               <span className="uppercase">{t('avgHr')}</span>
             </div>
-            <span className="text-white font-mono font-bold">
-              {metrics.avgHr ?? 73} {t('bpm')}
+            <span className="text-white font-mono font-bold" dir="ltr">
+              {metrics.avgHr ? `${metrics.avgHr} ${t('bpm')}` : '--'}
             </span>
           </div>
 
+          {/* Caloric Expenditure with BMR + Active Burn Breakdown */}
           <div className="py-2.5 flex items-center justify-between text-xs font-condensed font-bold">
             <div className="flex items-center gap-2 text-zinc-400">
-              <Flame className="w-3.5 h-3.5 text-zinc-300" />
-              <span className="uppercase">{t('calories')}</span>
+              <Flame className="w-3.5 h-3.5 text-amber-500" />
+              <span className="uppercase">{isRtl ? 'إجمالي السعرات (BMR + حرق)' : 'Total Calories (BMR + Active)'}</span>
             </div>
-            <span className="text-white font-mono font-bold">
-              {metrics.activeCalories > 0 ? metrics.activeCalories : 2140} kcal
-            </span>
+            <div className="text-end">
+              <span className="text-white font-mono font-bold" dir="ltr">
+                {(metrics.totalCalories > 0 ? metrics.totalCalories : (metrics.bmrCalories + metrics.activeCalories)).toLocaleString()} kcal
+              </span>
+              <span className="text-[10px] text-zinc-400 font-mono block" dir="ltr">
+                {metrics.bmrCalories} BMR + {metrics.activeCalories} {isRtl ? 'نشط' : 'Active'}
+              </span>
+            </div>
           </div>
         </div>
       </div>

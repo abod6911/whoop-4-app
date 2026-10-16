@@ -8,6 +8,8 @@ import type {
 } from '../types/whoop';
 import { storageService } from './StorageService';
 import { notificationEngine } from './notificationEngine';
+import { pedometerEngine } from './pedometerEngine';
+import { biometricEngine } from '../utils/biometricEngine';
 
 // Standard 16-bit UUIDs normalized to 128-bit
 export const UUID_HEART_RATE_SERVICE = '0000180d-0000-1000-8000-00805f9b34fb';
@@ -20,6 +22,13 @@ export const UUID_FIRMWARE_REVISION = '00002a26-0000-1000-8000-00805f9b34fb';
 export const UUID_HARDWARE_REVISION = '00002a27-0000-1000-8000-00805f9b34fb';
 export const UUID_MANUFACTURER_NAME = '00002a29-0000-1000-8000-00805f9b34fb';
 export const UUID_MODEL_NUMBER = '00002a24-0000-1000-8000-00805f9b34fb';
+
+// Health Thermometer & Pulse Oximeter Services
+export const UUID_HEALTH_THERMOMETER_SERVICE = '00001809-0000-1000-8000-00805f9b34fb';
+export const UUID_TEMPERATURE_MEASUREMENT = '00002a1c-0000-1000-8000-00805f9b34fb';
+export const UUID_PULSE_OXIMETER_SERVICE = '00001822-0000-1000-8000-00805f9b34fb';
+export const UUID_PLX_CONTINUOUS = '00002a5f-0000-1000-8000-00805f9b34fb';
+export const UUID_PLX_SPOT_CHECK = '00002a5e-0000-1000-8000-00805f9b34fb';
 
 // WHOOP 4.0 Proprietary Gen4 128-bit Base UUIDs
 export const WHOOP_BASE_SERVICE_UUID = '61080001-8d6d-82b8-614a-1c8cb0f8dcc6';
@@ -342,9 +351,13 @@ export class WhoopBleEngine {
         'heart_rate',
         'battery_service',
         'device_information',
+        'health_thermometer',
+        'pulse_oximeter',
         UUID_HEART_RATE_SERVICE,
         UUID_BATTERY_SERVICE,
         UUID_DEVICE_INFO_SERVICE,
+        UUID_HEALTH_THERMOMETER_SERVICE,
+        UUID_PULSE_OXIMETER_SERVICE,
         WHOOP_BASE_SERVICE_UUID,
         NORDIC_DFU_SERVICE_UUID,
       ];
@@ -614,6 +627,52 @@ export class WhoopBleEngine {
     } catch (e) {
       console.warn('Could not read Device Info Service:', e);
     }
+
+    // D. Health Thermometer Service Setup (0x1809 -> 0x2A1C)
+    try {
+      const thermService = await this.server.getPrimaryService(UUID_HEALTH_THERMOMETER_SERVICE).catch(async () => {
+        return await this.server!.getPrimaryService('health_thermometer');
+      });
+      if (thermService) {
+        const thermChar = await thermService.getCharacteristic(UUID_TEMPERATURE_MEASUREMENT).catch(async () => {
+          return await thermService.getCharacteristic('temperature_measurement');
+        });
+        if (thermChar) {
+          await thermChar.startNotifications();
+          thermChar.addEventListener('characteristicvaluechanged', (e: Event) => {
+            const target = e.target as BluetoothRemoteGATTCharacteristic;
+            if (target.value) {
+              this.parseTemperaturePacket(target.value);
+            }
+          });
+          this.activeCharacteristics.set(UUID_TEMPERATURE_MEASUREMENT, thermChar);
+          console.log('Health Thermometer notifications started on 0x2A1C');
+        }
+      }
+    } catch { /* optional service */ }
+
+    // E. Pulse Oximeter Service Setup (0x1822 -> 0x2A5F / 0x2A5E)
+    try {
+      const oximService = await this.server.getPrimaryService(UUID_PULSE_OXIMETER_SERVICE).catch(async () => {
+        return await this.server!.getPrimaryService('pulse_oximeter');
+      });
+      if (oximService) {
+        const plxChar = await oximService.getCharacteristic(UUID_PLX_CONTINUOUS).catch(async () => {
+          return await oximService.getCharacteristic(UUID_PLX_SPOT_CHECK);
+        });
+        if (plxChar) {
+          await plxChar.startNotifications();
+          plxChar.addEventListener('characteristicvaluechanged', (e: Event) => {
+            const target = e.target as BluetoothRemoteGATTCharacteristic;
+            if (target.value) {
+              this.parsePulseOximeterPacket(target.value);
+            }
+          });
+          this.activeCharacteristics.set(UUID_PLX_CONTINUOUS, plxChar);
+          console.log('Pulse Oximeter notifications started on 0x2A5F');
+        }
+      }
+    } catch { /* optional service */ }
   }
 
   // --- 2. WHOOP 4.0 Proprietary Gen4 Telemetry Extraction ---
@@ -686,7 +745,52 @@ export class WhoopBleEngine {
           }
         }
       }
+
+      // Raw IMU / Accelerometer stream from DATA_FROM_STRAP
+      if (charUuid === WHOOP_DATA_FROM_STRAP_UUID && data.byteLength >= 6) {
+        try {
+          const rawX = data.getInt16(0, true);
+          const rawY = data.getInt16(2, true);
+          const rawZ = data.byteLength >= 6 ? data.getInt16(4, true) : 0;
+          const gX = rawX / 4096.0;
+          const gY = rawY / 4096.0;
+          const gZ = rawZ / 4096.0;
+          pedometerEngine.ingestRawAccel(gX, gY, gZ, Date.now());
+        } catch { /* ignore parse anomaly */ }
+      }
     }
+  }
+
+  // --- Health Thermometer Parser (IEEE-11073 32-bit Float) ---
+  private parseTemperaturePacket(data: DataView): void {
+    if (data.byteLength < 5) return;
+    try {
+      const flags = data.getUint8(0);
+      const isFahrenheit = (flags & 0x01) !== 0;
+      const rawVal = data.getUint32(1, true);
+      const exponent = (rawVal >> 24) << 24 >> 24;
+      let mantissa = rawVal & 0x00ffffff;
+      if ((mantissa & 0x00800000) !== 0) {
+        mantissa |= 0xff000000;
+      }
+      let temp = mantissa * Math.pow(10, exponent);
+      if (isFahrenheit) {
+        temp = (temp - 32) * (5 / 9);
+      }
+      biometricEngine.ingestSkinTemp(temp);
+    } catch { /* ignore */ }
+  }
+
+  // --- Pulse Oximeter Parser (0x2A5F / 0x2A5E) ---
+  private parsePulseOximeterPacket(data: DataView): void {
+    if (data.byteLength < 3) return;
+    try {
+      const rawSpo2 = data.getUint16(0, true);
+      const spo2 = (rawSpo2 & 0x0fff) / 10.0;
+      if (spo2 >= 70 && spo2 <= 100) {
+        biometricEngine.ingestSpO2(spo2);
+      }
+    } catch { /* ignore */ }
   }
 
   // --- Strict Bluetooth SIG Heart Rate Measurement (0x2A37) Byte Parser ---

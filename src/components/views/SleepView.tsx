@@ -147,7 +147,117 @@ export const SleepView: React.FC<SleepViewProps> = ({
         </button>
       </div>
 
-      {/* 2. SLEEP STATISTICS Rows */}
+      {/* 2. SLEEP NEED BREAKDOWN CARD */}
+      <div className="p-4 rounded-[24px] bg-[#12151A] border border-white/5 space-y-3">
+        <div className="flex items-center justify-between px-1">
+          <h3 className="text-xs font-black uppercase tracking-wider text-zinc-400 font-condensed">
+            {isRtl ? 'تفصيل احتياج النوم (SLEEP NEED)' : 'Sleep Need Breakdown'}
+          </h3>
+          <span className="text-[10px] text-[#16EC06] font-mono font-bold" dir="ltr">
+            {sleepNeed ? `${Math.floor(sleepNeed)}h ${Math.round((sleepNeed % 1) * 60)}m` : '7h 54m'}
+          </span>
+        </div>
+
+        <div className="space-y-2 pt-1 text-xs font-condensed">
+          <div className="flex items-center justify-between p-2.5 rounded-xl bg-[#16191E] border border-white/5">
+            <span className="text-zinc-300 font-bold uppercase">{isRtl ? 'الاحتياج الأساسي' : 'Baseline Sleep Need'}</span>
+            <span className="text-white font-mono font-bold" dir="ltr">
+              {sleepData.needBreakdown ? `${Math.floor(sleepData.needBreakdown.baselineNeedHours)}h ${Math.round((sleepData.needBreakdown.baselineNeedHours % 1) * 60)}m` : '7h 40m'}
+            </span>
+          </div>
+
+          <div className="flex items-center justify-between p-2.5 rounded-xl bg-[#16191E] border border-white/5">
+            <span className="text-zinc-300 font-bold uppercase">{isRtl ? 'دين النوم المتراكم' : 'Recent Sleep Debt'}</span>
+            <span className="text-[#FFDE00] font-mono font-bold" dir="ltr">
+              +{sleepData.needBreakdown ? Math.round(sleepData.needBreakdown.recentDebtHours * 60) : 39}m
+            </span>
+          </div>
+
+          <div className="flex items-center justify-between p-2.5 rounded-xl bg-[#16191E] border border-white/5">
+            <span className="text-zinc-300 font-bold uppercase">{isRtl ? 'طلب التعافي من الإجهاد' : 'Strain Sleep Demand'}</span>
+            <span className="text-[#0093E9] font-mono font-bold" dir="ltr">
+              +{sleepData.needBreakdown ? Math.round(sleepData.needBreakdown.strainNeedHours * 60) : Math.round((metrics.dailyStrain / 21) * 84)}m
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* 3. SLEEP ARCHITECTURE & HYPNOGRAM */}
+      <div className="p-4 rounded-[24px] bg-[#12151A] border border-white/5 space-y-3">
+        <div className="flex items-center justify-between px-1">
+          <h3 className="text-xs font-black uppercase tracking-wider text-zinc-400 font-condensed">
+            {isRtl ? 'هيكل مراحل النوم (HYPNOGRAM)' : 'Sleep Architecture Stages'}
+          </h3>
+          <span className="text-[10px] text-[#D946EF] font-mono font-bold" dir="ltr">
+            {sleepData.stages.deepPercent + sleepData.stages.remPercent}% {isRtl ? 'تعويضي' : 'Restorative'}
+          </span>
+        </div>
+
+        {/* Multi-Segment Stacked Stage Bar */}
+        <div className="w-full h-3.5 bg-black/40 rounded-full overflow-hidden flex border border-white/10">
+          <div
+            style={{ width: `${sleepData.stages.deepPercent}%` }}
+            className="bg-[#D946EF] h-full transition-all"
+            title="Deep Sleep"
+          />
+          <div
+            style={{ width: `${sleepData.stages.remPercent}%` }}
+            className="bg-[#7C3AED] h-full transition-all"
+            title="REM Sleep"
+          />
+          <div
+            style={{ width: `${sleepData.stages.lightPercent}%` }}
+            className="bg-[#7293B2] h-full transition-all"
+            title="Light Sleep"
+          />
+          <div
+            style={{ width: `${sleepData.stages.awakePercent}%` }}
+            className="bg-[#EF4444] h-full transition-all"
+            title="Awake"
+          />
+        </div>
+
+        {/* 4 Stages Legend */}
+        <div className="grid grid-cols-4 gap-1.5 pt-1 text-center">
+          <div className="p-2 rounded-xl bg-[#16191E] border border-white/5">
+            <div className="text-[9px] font-black uppercase text-[#D946EF] font-condensed">
+              {isRtl ? 'عميق SWS' : 'DEEP (SWS)'}
+            </div>
+            <div className="text-sm font-black font-condensed text-white tabular-nums mt-0.5">
+              {sleepData.stages.deepPercent}%
+            </div>
+          </div>
+
+          <div className="p-2 rounded-xl bg-[#16191E] border border-white/5">
+            <div className="text-[9px] font-black uppercase text-[#7C3AED] font-condensed">
+              REM
+            </div>
+            <div className="text-sm font-black font-condensed text-white tabular-nums mt-0.5">
+              {sleepData.stages.remPercent}%
+            </div>
+          </div>
+
+          <div className="p-2 rounded-xl bg-[#16191E] border border-white/5">
+            <div className="text-[9px] font-black uppercase text-[#7293B2] font-condensed">
+              {isRtl ? 'خفيف' : 'LIGHT'}
+            </div>
+            <div className="text-sm font-black font-condensed text-white tabular-nums mt-0.5">
+              {sleepData.stages.lightPercent}%
+            </div>
+          </div>
+
+          <div className="p-2 rounded-xl bg-[#16191E] border border-white/5">
+            <div className="text-[9px] font-black uppercase text-[#EF4444] font-condensed">
+              {isRtl ? 'استيقاظ' : 'AWAKE'}
+            </div>
+            <div className="text-sm font-black font-condensed text-white tabular-nums mt-0.5">
+              {sleepData.stages.awakePercent}%
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 4. SLEEP STATISTICS Rows */}
       <div className="p-4 rounded-[24px] bg-[#12151A] border border-white/5 space-y-3">
         <h3 className="text-xs font-black uppercase tracking-wider text-zinc-400 font-condensed px-1">
           {isRtl ? 'إحصائيات النوم' : 'Sleep Statistics'}
@@ -156,19 +266,29 @@ export const SleepView: React.FC<SleepViewProps> = ({
         <div className="divide-y divide-white/5">
           <div className="py-2.5 flex items-center justify-between text-xs font-condensed font-bold">
             <span className="text-zinc-400 uppercase">{t('timeInBed')}</span>
-            <span className="text-white font-mono font-bold" dir="ltr">8h 47m</span>
+            <span className="text-white font-mono font-bold" dir="ltr">
+              {sleepData.hoursInBed
+                ? `${Math.floor(sleepData.hoursInBed)}h ${Math.round((sleepData.hoursInBed % 1) * 60)}m`
+                : '--'}
+            </span>
           </div>
           <div className="py-2.5 flex items-center justify-between text-xs font-condensed font-bold">
-            <span className="text-zinc-400 uppercase">{isRtl ? 'اتساق النوم' : 'SLEEP CONSISTENCY'}</span>
-            <span className="text-[#16EC06] font-mono font-bold">{isRtl ? '88% مثالي' : '88% Optimal'}</span>
+            <span className="text-zinc-400 uppercase">{isRtl ? 'كفاءة النوم' : 'SLEEP EFFICIENCY'}</span>
+            <span className="text-[#16EC06] font-mono font-bold">
+              {sleepData.efficiencyPercent ? `${sleepData.efficiencyPercent}%` : '--'}
+            </span>
           </div>
           <div className="py-2.5 flex items-center justify-between text-xs font-condensed font-bold">
             <span className="text-zinc-400 uppercase">{t('restorativeSleep')}</span>
-            <span className="text-[#D946EF] font-mono font-bold" dir="ltr">51% (SWS + REM)</span>
+            <span className="text-[#D946EF] font-mono font-bold" dir="ltr">
+              {sleepData.stages.deepPercent + sleepData.stages.remPercent}% (SWS + REM)
+            </span>
           </div>
           <div className="py-2.5 flex items-center justify-between text-xs font-condensed font-bold">
             <span className="text-zinc-400 uppercase">{t('sleepDebt')}</span>
-            <span className="text-white font-mono font-bold" dir="ltr">0m</span>
+            <span className="text-white font-mono font-bold" dir="ltr">
+              {sleepData.sleepDebtHours > 0 ? `${Math.round(sleepData.sleepDebtHours * 60)}m` : '0m'}
+            </span>
           </div>
         </div>
       </div>

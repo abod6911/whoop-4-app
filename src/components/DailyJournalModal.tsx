@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { X, Check, TrendingUp, TrendingDown, BookOpen, Sparkles } from 'lucide-react';
-import type { LiveMetrics } from '../types/whoop';
+import { X, Check, TrendingUp, TrendingDown, BookOpen, Sparkles, Activity } from 'lucide-react';
+import type { LiveMetrics, HabitCorrelationStat } from '../types/whoop';
+import { journalEngine, WHOOP_STANDARD_HABITS } from '../services/journalEngine';
+import { useLanguage } from '../i18n/LanguageContext';
 
 interface DailyJournalModalProps {
   isOpen: boolean;
@@ -8,88 +10,89 @@ interface DailyJournalModalProps {
   metrics: LiveMetrics;
 }
 
-interface BehaviorItem {
-  id: string;
-  name: string;
-  category: 'nutrition' | 'recovery' | 'lifestyle';
-  icon: string;
-  impactPct: number; // e.g. +8% or -12% on recovery
-  selected: boolean;
-}
-
-const DEFAULT_BEHAVIORS: BehaviorItem[] = [
-  { id: 'sunlight', name: 'Morning Sunlight (15m)', category: 'lifestyle', icon: '☀️', impactPct: 6, selected: false },
-  { id: 'hydration', name: 'Hydration Target (3L+)', category: 'nutrition', icon: '💧', impactPct: 5, selected: false },
-  { id: 'magnesium', name: 'Magnesium L-Threonate', category: 'nutrition', icon: '💊', impactPct: 8, selected: false },
-  { id: 'creatine', name: 'Creatine Monohydrate', category: 'nutrition', icon: '⚡', impactPct: 3, selected: false },
-  { id: 'stretching', name: 'Mobility & Stretching', category: 'recovery', icon: '🧘', impactPct: 7, selected: false },
-  { id: 'sauna', name: 'Sauna Session (20m)', category: 'recovery', icon: '🧖', impactPct: 9, selected: false },
-  { id: 'cold_shower', name: 'Cold Plunge / Shower', category: 'recovery', icon: '❄️', impactPct: 4, selected: false },
-  { id: 'meditation', name: 'Mindfulness Breathwork', category: 'recovery', icon: '🧠', impactPct: 8, selected: false },
-  { id: 'reading', name: 'Reading in Bed (No Phone)', category: 'lifestyle', icon: '📖', impactPct: 7, selected: false },
-  { id: 'melatonin', name: 'Melatonin / Tart Cherry', category: 'nutrition', icon: '🍒', impactPct: 4, selected: false },
-  { id: 'caffeine_late', name: 'Caffeine after 2 PM', category: 'nutrition', icon: '☕', impactPct: -11, selected: false },
-  { id: 'late_meal', name: 'Late Meal (<2h to bed)', category: 'nutrition', icon: '🍕', impactPct: -9, selected: false },
-  { id: 'alcohol', name: 'Alcohol Consumption', category: 'nutrition', icon: '🍺', impactPct: -24, selected: false },
-  { id: 'screen_bed', name: 'Screen Time in Bed', category: 'lifestyle', icon: '📱', impactPct: -13, selected: false },
-  { id: 'shared_bed', name: 'Shared Bed / Disturbance', category: 'lifestyle', icon: '🛏️', impactPct: -5, selected: false },
-];
+const HABIT_ICONS: Record<string, string> = {
+  alcohol: '🍺',
+  caffeine_late: '☕',
+  late_meal: '🍕',
+  hydration_met: '💧',
+  magnesium: '💊',
+  screen_in_bed: '📱',
+  breathwork: '🧘',
+  cold_exposure: '❄️',
+  outdoor_sunlight: '☀️',
+  sleep_mask: '🥽',
+};
 
 export const DailyJournalModal: React.FC<DailyJournalModalProps> = ({
   isOpen,
   onClose,
   metrics,
 }) => {
-  const [behaviors, setBehaviors] = useState<BehaviorItem[]>(DEFAULT_BEHAVIORS);
+  const { t, isRtl } = useLanguage();
+  const [habitsMap, setHabitsMap] = useState<Record<string, boolean>>({});
+  const [correlations, setCorrelations] = useState<HabitCorrelationStat[]>([]);
   const [activeTab, setActiveTab] = useState<'log' | 'impact'>('log');
+  const [isSaving, setIsSaving] = useState(false);
+
+  const todayKey = journalEngine.getTodayKey();
 
   useEffect(() => {
-    try {
-      const todayStr = new Date().toISOString().split('T')[0];
-      const saved = localStorage.getItem(`whoop_journal_${todayStr}`);
-      if (saved) {
-        const selectedIds: string[] = JSON.parse(saved);
-        setBehaviors((prev) =>
-          prev.map((b) => ({ ...b, selected: selectedIds.includes(b.id) }))
-        );
+    if (!isOpen) return;
+
+    // Load today's logged habits
+    journalEngine.getEntry(todayKey).then((entry) => {
+      if (entry && entry.habits) {
+        const booleanMap: Record<string, boolean> = {};
+        Object.entries(entry.habits).forEach(([k, v]) => {
+          booleanMap[k] = Boolean(v);
+        });
+        setHabitsMap(booleanMap);
+      } else {
+        setHabitsMap({});
       }
-    } catch {
-      // Ignore
-    }
-  }, [isOpen]);
+    });
+
+    // Compute live statistical recovery correlations
+    journalEngine.computeCorrelations().then((stats) => {
+      setCorrelations(stats);
+    });
+  }, [isOpen, todayKey]);
 
   if (!isOpen) return null;
 
-  const toggleBehavior = (id: string) => {
-    const updated = behaviors.map((b) => (b.id === id ? { ...b, selected: !b.selected } : b));
-    setBehaviors(updated);
+  const toggleHabit = async (habitId: string) => {
+    const updated = {
+      ...habitsMap,
+      [habitId]: !habitsMap[habitId],
+    };
+    setHabitsMap(updated);
 
-    try {
-      const todayStr = new Date().toISOString().split('T')[0];
-      const selectedIds = updated.filter((b) => b.selected).map((b) => b.id);
-      localStorage.setItem(`whoop_journal_${todayStr}`, JSON.stringify(selectedIds));
-    } catch {
-      // Ignore
-    }
+    setIsSaving(true);
+    await journalEngine.saveEntry(todayKey, updated);
+    setIsSaving(false);
+
+    // Refresh correlations dynamically
+    const updatedCorrs = await journalEngine.computeCorrelations();
+    setCorrelations(updatedCorrs);
   };
 
-  const selectedCount = behaviors.filter((b) => b.selected).length;
+  const selectedCount = Object.values(habitsMap).filter(Boolean).length;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
       <div className="w-full max-w-[430px] bg-[#0B0D10] border-t sm:border border-white/10 rounded-t-[32px] sm:rounded-[32px] max-h-[90vh] flex flex-col overflow-hidden text-white shadow-2xl">
         {/* Header */}
         <div className="p-4 border-b border-white/5 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-[#16EC06]/15 border border-[#16EC06]/30 flex items-center justify-center text-[#16EC06]">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-2xl bg-[#16EC06]/15 border border-[#16EC06]/30 flex items-center justify-center text-[#16EC06]">
               <BookOpen className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-sm font-bold font-sans uppercase tracking-wider text-white">
-                WHOOP Daily Journal
+              <h3 className="text-sm font-black font-condensed uppercase tracking-wider text-white">
+                {isRtl ? 'يوميات WHOOP والسلوكيات' : 'WHOOP Daily Journal'}
               </h3>
-              <p className="text-[11px] text-zinc-400 font-condensed">
-                {selectedCount} Behaviors Tracked Today
+              <p className="text-[11px] text-zinc-400 font-mono">
+                {selectedCount} {isRtl ? 'سلوكيات مسجلة اليوم' : 'Behaviors Tracked Today'}
               </p>
             </div>
           </div>
@@ -102,7 +105,7 @@ export const DailyJournalModal: React.FC<DailyJournalModalProps> = ({
           </button>
         </div>
 
-        {/* View Mode Toggle */}
+        {/* Tab Toggle: Log Behaviors vs Recovery Impact Analysis */}
         <div className="flex border-b border-white/5 bg-[#12151A]">
           <button
             onClick={() => setActiveTab('log')}
@@ -110,7 +113,7 @@ export const DailyJournalModal: React.FC<DailyJournalModalProps> = ({
               activeTab === 'log' ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'
             }`}
           >
-            <span>Log Behaviors</span>
+            <span>{isRtl ? 'تسجيل العادات' : 'Log Behaviors'}</span>
             {activeTab === 'log' && (
               <div className="absolute bottom-0 left-6 right-6 h-[2px] bg-[#16EC06] rounded-full" />
             )}
@@ -121,101 +124,123 @@ export const DailyJournalModal: React.FC<DailyJournalModalProps> = ({
               activeTab === 'impact' ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'
             }`}
           >
-            <span>Recovery Impact Analysis</span>
+            <span>{isRtl ? 'تحليل تأثير التعافي' : 'Recovery Impact'}</span>
             {activeTab === 'impact' && (
               <div className="absolute bottom-0 left-6 right-6 h-[2px] bg-[#16EC06] rounded-full" />
             )}
           </button>
         </div>
 
-        {/* Body */}
+        {/* Body Content */}
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
           {activeTab === 'log' ? (
             <>
               <p className="text-xs text-zinc-400 font-sans leading-relaxed">
-                Select your behaviors from today to calibrate your personal autonomic recovery impact model.
+                {isRtl
+                  ? 'سجّل عاداتك اليومية لمعايرة نموذج الارتباط الذاتي بين سلوكياتك ودرجة تعافيك صباح الغد.'
+                  : 'Track your habits to calibrate your personalized biometric model of how behaviors impact your next-morning recovery.'}
               </p>
 
               <div className="space-y-2">
-                {behaviors.map((item) => (
-                  <button
-                    key={item.id}
-                    onClick={() => toggleBehavior(item.id)}
-                    className={`w-full flex items-center justify-between p-3 rounded-2xl border transition-all text-left active:scale-[0.98] ${
-                      item.selected
-                        ? 'bg-[#16EC06]/10 border-[#16EC06]/40 text-white'
-                        : 'bg-[#12151A] border-white/5 text-zinc-300 hover:border-zinc-700'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="text-lg">{item.icon}</span>
-                      <div>
-                        <span className="text-xs font-bold font-sans block text-white">
-                          {item.name}
-                        </span>
-                        <span className="text-[10px] text-zinc-500 font-condensed uppercase">
-                          {item.category}
-                        </span>
-                      </div>
-                    </div>
+                {WHOOP_STANDARD_HABITS.map((habit) => {
+                  const isChecked = Boolean(habitsMap[habit.id]);
+                  const icon = HABIT_ICONS[habit.id] || '⚡';
+                  const title = isRtl ? habit.titleAr : habit.titleEn;
 
-                    <div
-                      className={`w-6 h-6 rounded-full flex items-center justify-center transition-all ${
-                        item.selected
-                          ? 'bg-[#16EC06] text-black font-black'
-                          : 'bg-[#16191E] border border-white/10 text-transparent'
+                  return (
+                    <button
+                      key={habit.id}
+                      onClick={() => toggleHabit(habit.id)}
+                      className={`w-full flex items-center justify-between p-3 rounded-2xl border transition-all text-start active:scale-[0.98] ${
+                        isChecked
+                          ? 'bg-[#16EC06]/10 border-[#16EC06]/40 text-white'
+                          : 'bg-[#12151A] border-white/5 text-zinc-300 hover:border-zinc-700'
                       }`}
                     >
-                      <Check className="w-3.5 h-3.5" />
-                    </div>
-                  </button>
-                ))}
+                      <div className="flex items-center gap-3">
+                        <span className="text-xl">{icon}</span>
+                        <div>
+                          <span className="text-xs font-bold font-sans block text-white">
+                            {title}
+                          </span>
+                          <span className="text-[10px] text-zinc-500 font-condensed uppercase">
+                            {habit.category}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div
+                        className={`w-6 h-6 rounded-full flex items-center justify-center transition-all ${
+                          isChecked
+                            ? 'bg-[#16EC06] text-black font-black'
+                            : 'bg-[#16191E] border border-white/10 text-transparent'
+                        }`}
+                      >
+                        <Check className="w-3.5 h-3.5" />
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             </>
           ) : (
             <>
-              {/* Recovery Impact Analysis Chart */}
+              {/* Statistical Correlation Engine Outputs */}
               <div className="bg-[#12151A] border border-white/5 rounded-2xl p-4 space-y-3">
                 <div className="flex items-center gap-2">
                   <Sparkles className="w-4 h-4 text-[#16EC06]" />
                   <h4 className="text-xs font-bold text-white uppercase font-sans tracking-wide">
-                    Autonomic Correlation Model
+                    {isRtl ? 'نموذج الارتباط الذاتي المتقدم' : 'Autonomic Correlation Model'}
                   </h4>
                 </div>
                 <p className="text-[11px] text-zinc-400 font-sans leading-relaxed">
-                  Based on your longitudinal WHOOP recovery records, here is how each logged behavior influences your next-day Recovery score:
+                  {isRtl
+                    ? 'بناءً على سجلاتك الفسيولوجية، يوضح هذا الجدول متوسط الزيادة أو النقصان في درجة التعافي عند ممارسة كل سلوك:'
+                    : 'Derived from your longitudinal WHOOP recovery records, here is how each logged habit shifts your next-morning recovery score:'}
                 </p>
 
-                <div className="space-y-2.5 pt-2">
-                  {behaviors
-                    .sort((a, b) => b.impactPct - a.impactPct)
+                <div className="space-y-2 pt-2">
+                  {correlations
+                    .sort((a, b) => b.impactPercent - a.impactPercent)
                     .map((item) => {
-                      const isPositive = item.impactPct > 0;
+                      const isPositive = item.impactPercent > 0;
+                      const habitDef = WHOOP_STANDARD_HABITS.find((h) => h.id === item.habitId);
+                      const icon = HABIT_ICONS[item.habitId] || '⚡';
+                      const title = isRtl && habitDef ? habitDef.titleAr : item.title;
+
                       return (
                         <div
-                          key={item.id}
-                          className="flex items-center justify-between p-2.5 rounded-xl bg-[#16191E] border border-white/5"
+                          key={item.habitId}
+                          className="flex items-center justify-between p-3 rounded-xl bg-[#16191E] border border-white/5"
                         >
                           <div className="flex items-center gap-2.5 min-w-0">
-                            <span className="text-base">{item.icon}</span>
-                            <span className="text-xs font-bold text-white font-sans truncate">
-                              {item.name}
-                            </span>
+                            <span className="text-lg">{icon}</span>
+                            <div className="min-w-0">
+                              <span className="text-xs font-bold text-white font-sans block truncate">
+                                {title}
+                              </span>
+                              <span className="text-[10px] text-zinc-500 font-mono">
+                                {isRtl
+                                  ? `${item.withCount} أيام مسجلة`
+                                  : `${item.withCount} days logged`}
+                              </span>
+                            </div>
                           </div>
 
                           <div
-                            className={`flex items-center gap-1 font-condensed font-black text-xs tabular-nums px-2 py-0.5 rounded-full ${
+                            className={`flex items-center gap-1 font-condensed font-black text-xs tabular-nums px-2.5 py-1 rounded-full ${
                               isPositive
-                                ? 'bg-[#16EC06]/15 text-[#16EC06]'
-                                : 'bg-[#FF0026]/15 text-[#FF0026]'
+                                ? 'bg-[#16EC06]/15 text-[#16EC06] border border-[#16EC06]/30'
+                                : 'bg-[#FF0026]/15 text-[#FF0026] border border-[#FF0026]/30'
                             }`}
+                            dir="ltr"
                           >
                             {isPositive ? (
-                              <TrendingUp className="w-3 h-3" />
+                              <TrendingUp className="w-3.5 h-3.5" />
                             ) : (
-                              <TrendingDown className="w-3 h-3" />
+                              <TrendingDown className="w-3.5 h-3.5" />
                             )}
-                            <span>{isPositive ? `+${item.impactPct}%` : `${item.impactPct}%`}</span>
+                            <span>{isPositive ? `+${item.impactPercent}%` : `${item.impactPercent}%`}</span>
                           </div>
                         </div>
                       );
@@ -227,15 +252,15 @@ export const DailyJournalModal: React.FC<DailyJournalModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="p-3 border-t border-white/5 bg-[#0B0D10] flex items-center justify-between text-xs font-condensed">
-          <span className="text-zinc-500">
-            Recorded against live recovery baseline
+        <div className="p-3.5 border-t border-white/5 bg-[#0B0D10] flex items-center justify-between text-xs font-condensed">
+          <span className="text-zinc-500 font-mono">
+            {isRtl ? 'محفوظ محلياً في Dexie DB' : 'Persisted locally in Dexie DB'}
           </span>
           <button
             onClick={onClose}
-            className="px-5 py-1.5 rounded-full bg-white text-black font-black uppercase tracking-wider active:scale-95 transition-transform"
+            className="px-5 py-2 rounded-full bg-white hover:bg-zinc-200 text-black font-black uppercase tracking-wider active:scale-95 transition-transform"
           >
-            Save & Close
+            {isRtl ? 'حفظ وإغلاق' : 'Save & Close'}
           </button>
         </div>
       </div>
