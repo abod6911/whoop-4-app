@@ -2,12 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { notificationEngine } from '../services/notificationEngine';
 import type { WhoopNotification } from '../services/notificationEngine';
 import { Battery, Zap, HeartPulse, Activity, Moon, Bell, X, ArrowRight } from 'lucide-react';
+import { useLanguage } from '../i18n/LanguageContext';
 
 interface DynamicIslandBannerProps {
   onAction?: (actionType: string) => void;
 }
 
 export const DynamicIslandBanner: React.FC<DynamicIslandBannerProps> = ({ onAction }) => {
+  const { t, isRtl } = useLanguage();
   const [toast, setToast] = useState<WhoopNotification | null>(null);
 
   useEffect(() => {
@@ -53,10 +55,10 @@ export const DynamicIslandBanner: React.FC<DynamicIslandBannerProps> = ({ onActi
           </div>
 
           {/* Text Content */}
-          <div className="flex-1 min-w-0 pr-1">
+          <div className="flex-1 min-w-0 pr-1 text-start">
             <div className="flex items-center gap-1.5">
               <span className="text-[10px] font-black uppercase tracking-wider font-condensed text-zinc-400">
-                WHOOP SYSTEM ALERT
+                {isRtl ? 'تنبيه نظام WHOOP' : 'WHOOP SYSTEM ALERT'}
               </span>
               <span className="w-1.5 h-1.5 rounded-full bg-[#16EC06] animate-ping" />
             </div>
@@ -75,13 +77,13 @@ export const DynamicIslandBanner: React.FC<DynamicIslandBannerProps> = ({ onActi
                   className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white text-black font-condensed font-black text-[11px] uppercase tracking-wider active:scale-95 transition-transform"
                 >
                   <span>{toast.actionLabel}</span>
-                  <ArrowRight className="w-3 h-3" />
+                  <ArrowRight className={`w-3 h-3 ${isRtl ? 'rotate-180' : ''}`} />
                 </button>
                 <button
                   onClick={() => notificationEngine.dismissToast()}
                   className="text-[10px] text-zinc-400 font-condensed font-bold uppercase tracking-wider hover:text-white px-1.5 py-1"
                 >
-                  Dismiss
+                  {isRtl ? 'تجاهل' : 'Dismiss'}
                 </button>
               </div>
             )}

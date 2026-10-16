@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import type { LiveMetrics } from '../types/whoop';
 import { biometricEngine } from '../utils/biometricEngine';
 import { notificationEngine } from '../services/notificationEngine';
+import { useLanguage } from '../i18n/LanguageContext';
 import {
   X,
   Play,
@@ -72,6 +73,7 @@ export const StrengthTrainerModal: React.FC<StrengthTrainerModalProps> = ({
   onClose,
   metrics,
 }) => {
+  const { t, isRtl } = useLanguage();
   const [activeTab, setActiveTab] = useState<'strength' | 'cardio_hiit'>('strength');
 
   // Strength Trainer State
@@ -235,10 +237,10 @@ export const StrengthTrainerModal: React.FC<StrengthTrainerModalProps> = ({
             </div>
             <div>
               <h3 className="text-sm font-bold font-sans uppercase tracking-wider text-white">
-                Strength Trainer & Coach
+                {isRtl ? 'مدرب القوة والجهد' : 'Strength Trainer & Coach'}
               </h3>
               <p className="text-[11px] text-zinc-400 font-condensed">
-                Live Cardio + Muscular Load Engine
+                {isRtl ? 'محرك الجهد العضلي والقلبي المباشر' : 'Live Cardio + Muscular Load Engine'}
               </p>
             </div>
           </div>
@@ -259,7 +261,7 @@ export const StrengthTrainerModal: React.FC<StrengthTrainerModalProps> = ({
               activeTab === 'strength' ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'
             }`}
           >
-            <span>WHOOP Strength Trainer</span>
+            <span>{isRtl ? 'مدرب القوة WHOOP' : 'WHOOP Strength Trainer'}</span>
             {activeTab === 'strength' && (
               <div className="absolute bottom-0 left-4 right-4 h-[2px] bg-[#0093E9] rounded-full" />
             )}
@@ -270,7 +272,7 @@ export const StrengthTrainerModal: React.FC<StrengthTrainerModalProps> = ({
               activeTab === 'cardio_hiit' ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'
             }`}
           >
-            <span>HIIT & Cardio Coach</span>
+            <span>{isRtl ? 'مدرب تمارين HIIT والتمارين الهوائية' : 'HIIT & Cardio Coach'}</span>
             {activeTab === 'cardio_hiit' && (
               <div className="absolute bottom-0 left-4 right-4 h-[2px] bg-[#0093E9] rounded-full" />
             )}
@@ -285,26 +287,26 @@ export const StrengthTrainerModal: React.FC<StrengthTrainerModalProps> = ({
               <div className="grid grid-cols-3 gap-2 bg-[#16191E] border border-white/5 p-3 rounded-2xl">
                 <div>
                   <span className="text-[10px] font-condensed uppercase text-zinc-400">
-                    Live Heart Rate
+                    {isRtl ? 'النبض المباشر' : 'Live Heart Rate'}
                   </span>
-                  <div className="text-xl font-black font-condensed text-white flex items-baseline gap-1 mt-0.5">
+                  <div className="text-xl font-black font-condensed text-white flex items-baseline gap-1 mt-0.5" dir="ltr">
                     {metrics.currentHr ? `${metrics.currentHr}` : '--'}
                     <span className="text-[10px] text-[#0093E9] font-normal">BPM</span>
                   </div>
                 </div>
                 <div>
                   <span className="text-[10px] font-condensed uppercase text-zinc-400">
-                    Sets Logged
+                    {isRtl ? 'المجموعات' : 'Sets Logged'}
                   </span>
-                  <div className="text-xl font-black font-condensed text-white mt-0.5">
+                  <div className="text-xl font-black font-condensed text-white mt-0.5" dir="ltr">
                     {totalCompletedSets}
                   </div>
                 </div>
                 <div>
                   <span className="text-[10px] font-condensed uppercase text-zinc-400">
-                    Total Volume
+                    {isRtl ? 'إجمالي الحجم' : 'Total Volume'}
                   </span>
-                  <div className="text-xl font-black font-condensed text-[#16EC06] mt-0.5">
+                  <div className="text-xl font-black font-condensed text-[#16EC06] mt-0.5" dir="ltr">
                     {totalVolumeTonnage > 0 ? `${(totalVolumeTonnage / 1000).toFixed(1)}t` : '0 kg'}
                   </div>
                 </div>
@@ -337,10 +339,10 @@ export const StrengthTrainerModal: React.FC<StrengthTrainerModalProps> = ({
                     {/* Sets Table */}
                     <div className="space-y-1.5">
                       <div className="grid grid-cols-12 text-[10px] font-condensed uppercase text-zinc-500 px-2">
-                        <span className="col-span-2">Set</span>
-                        <span className="col-span-4">Weight (kg)</span>
-                        <span className="col-span-3">Reps</span>
-                        <span className="col-span-3 text-right">Log</span>
+                        <span className="col-span-2">{isRtl ? 'المجموعة' : 'Set'}</span>
+                        <span className="col-span-4">{isRtl ? 'الوزن (كغ)' : 'Weight (kg)'}</span>
+                        <span className="col-span-3">{isRtl ? 'التكرار' : 'Reps'}</span>
+                        <span className="col-span-3 text-end">{isRtl ? 'تسجيل' : 'Log'}</span>
                       </div>
 
                       {ex.sets.map((s, sIdx) => (
@@ -402,7 +404,7 @@ export const StrengthTrainerModal: React.FC<StrengthTrainerModalProps> = ({
                       className="w-full py-1 text-[11px] font-condensed font-bold text-zinc-400 hover:text-white bg-[#16191E] rounded-lg border border-dashed border-white/10 flex items-center justify-center gap-1"
                     >
                       <Plus className="w-3 h-3" />
-                      <span>Add Set</span>
+                      <span>{isRtl ? 'إضافة مجموعة' : 'Add Set'}</span>
                     </button>
                   </div>
                 ))}
@@ -411,14 +413,14 @@ export const StrengthTrainerModal: React.FC<StrengthTrainerModalProps> = ({
               {/* Add New Exercise Quick Selector */}
               <div className="pt-2">
                 <span className="text-[11px] font-black uppercase tracking-wider font-condensed text-zinc-400 block mb-2">
-                  + Add Movement to Workout
+                  {isRtl ? '+ إضافة تمرين للجلسة' : '+ Add Movement to Workout'}
                 </span>
                 <div className="grid grid-cols-2 gap-1.5">
                   {COMMON_EXERCISES.slice(0, 6).map((item) => (
                     <button
                       key={item.name}
                       onClick={() => handleAddExercise(item.name, item.targetMuscle)}
-                      className="text-left p-2 rounded-xl bg-[#16191E] border border-white/5 hover:border-zinc-700 active:scale-95 transition-all"
+                      className="text-start p-2 rounded-xl bg-[#16191E] border border-white/5 hover:border-zinc-700 active:scale-95 transition-all"
                     >
                       <span className="text-xs font-bold text-white font-sans block truncate">
                         {item.name}
@@ -437,7 +439,7 @@ export const StrengthTrainerModal: React.FC<StrengthTrainerModalProps> = ({
               <div className="bg-[#12151A] border border-white/5 rounded-2xl p-4 text-center space-y-4">
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] font-condensed font-bold uppercase tracking-wider text-zinc-400">
-                    Sport Mode
+                    {isRtl ? 'نوع التمرين' : 'Sport Mode'}
                   </span>
                   <select
                     value={selectedSport}
@@ -467,13 +469,13 @@ export const StrengthTrainerModal: React.FC<StrengthTrainerModalProps> = ({
                         intervalPhase === 'work' ? 'text-[#0093E9]' : 'text-[#16EC06]'
                       }`}
                     >
-                      {intervalPhase === 'work' ? 'WORK HARD' : 'REST & RECOVER'}
+                      {intervalPhase === 'work' ? (isRtl ? 'جهد أقصى' : 'WORK HARD') : (isRtl ? 'استراحة واستشفاء' : 'REST & RECOVER')}
                     </span>
-                    <div className="text-5xl font-black font-condensed text-white tabular-nums my-1">
+                    <div className="text-5xl font-black font-condensed text-white tabular-nums my-1" dir="ltr">
                       {secondsLeft}s
                     </div>
                     <span className="text-[11px] text-zinc-400 font-condensed">
-                      Round {round} / {totalRounds}
+                      {isRtl ? `جولة ${round} / ${totalRounds}` : `Round ${round} / ${totalRounds}`}
                     </span>
                   </div>
                 </div>
@@ -488,7 +490,7 @@ export const StrengthTrainerModal: React.FC<StrengthTrainerModalProps> = ({
                       setRound(1);
                     }}
                     className="p-3 rounded-full bg-[#16191E] text-zinc-400 hover:text-white border border-white/10 active:scale-95 transition-transform"
-                    title="Reset"
+                    title={isRtl ? 'إعادة ضبط' : 'Reset'}
                   >
                     <RotateCcw className="w-5 h-5" />
                   </button>
@@ -502,15 +504,15 @@ export const StrengthTrainerModal: React.FC<StrengthTrainerModalProps> = ({
                     }`}
                   >
                     {isTimerRunning ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-                    <span>{isTimerRunning ? 'Pause Interval' : 'Start Interval'}</span>
+                    <span>{isTimerRunning ? (isRtl ? 'إيقاف مؤقت' : 'Pause Interval') : (isRtl ? 'بدء الفترة' : 'Start Interval')}</span>
                   </button>
                 </div>
 
                 {/* Config Work / Rest Times */}
                 <div className="grid grid-cols-2 gap-2 pt-2 border-t border-white/5">
-                  <div className="bg-[#16191E] p-2 rounded-xl text-left">
+                  <div className="bg-[#16191E] p-2 rounded-xl text-start">
                     <span className="text-[10px] text-zinc-400 font-condensed block">
-                      Work Interval (s)
+                      {isRtl ? 'فترة الجهد (ثانية)' : 'Work Interval (s)'}
                     </span>
                     <input
                       type="number"
@@ -518,11 +520,12 @@ export const StrengthTrainerModal: React.FC<StrengthTrainerModalProps> = ({
                       value={workDuration}
                       onChange={(e) => setWorkDuration(Math.max(10, Number(e.target.value)))}
                       className="w-full bg-[#0B0D10] border border-white/10 rounded px-2 py-1 text-sm font-black text-white mt-1"
+                      dir="ltr"
                     />
                   </div>
-                  <div className="bg-[#16191E] p-2 rounded-xl text-left">
+                  <div className="bg-[#16191E] p-2 rounded-xl text-start">
                     <span className="text-[10px] text-zinc-400 font-condensed block">
-                      Rest Interval (s)
+                      {isRtl ? 'فترة الراحة (ثانية)' : 'Rest Interval (s)'}
                     </span>
                     <input
                       type="number"
@@ -530,6 +533,7 @@ export const StrengthTrainerModal: React.FC<StrengthTrainerModalProps> = ({
                       value={restDuration}
                       onChange={(e) => setRestDuration(Math.max(5, Number(e.target.value)))}
                       className="w-full bg-[#0B0D10] border border-white/10 rounded px-2 py-1 text-sm font-black text-white mt-1"
+                      dir="ltr"
                     />
                   </div>
                 </div>
@@ -542,13 +546,13 @@ export const StrengthTrainerModal: React.FC<StrengthTrainerModalProps> = ({
         <div className="p-3 border-t border-white/5 bg-[#0B0D10] flex items-center justify-between text-xs font-condensed">
           <div className="flex items-center gap-1.5 text-zinc-400">
             <Zap className="w-3.5 h-3.5 text-[#0093E9]" />
-            <span>Cumulative Day Strain: {metrics.dailyStrain.toFixed(1)} / 21.0</span>
+            <span dir="ltr">{isRtl ? `الجهد التراكمي: ${metrics.dailyStrain.toFixed(1)} / 21.0` : `Cumulative Day Strain: ${metrics.dailyStrain.toFixed(1)} / 21.0`}</span>
           </div>
           <button
             onClick={onClose}
             className="px-4 py-1.5 rounded-full bg-white text-black font-black uppercase tracking-wider active:scale-95 transition-transform"
           >
-            Done
+            {t('done')}
           </button>
         </div>
       </div>

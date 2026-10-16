@@ -10,6 +10,7 @@ import {
   X,
   CheckCircle2,
 } from 'lucide-react';
+import { useLanguage } from '../i18n/LanguageContext';
 
 interface WhoopHealthMonitorProps {
   metrics: HealthMonitorMetric[];
@@ -24,9 +25,27 @@ export const WhoopHealthMonitor: React.FC<WhoopHealthMonitorProps> = ({
   onClose,
   isModal = false,
 }) => {
+  const { t, isRtl } = useLanguage();
   const [selectedMetric, setSelectedMetric] = useState<HealthMonitorMetric | null>(null);
 
   const activeCount = metrics.filter((m) => m.value !== null).length;
+
+  const getMetricName = (key: string, defaultLabel: string) => {
+    switch (key) {
+      case 'respiratoryRate':
+        return t('respiratoryRate');
+      case 'bloodOxygen':
+        return t('bloodOxygen');
+      case 'restingHeartRate':
+        return t('restingHeartRate');
+      case 'hrv':
+        return t('hrv');
+      case 'skinTemp':
+        return t('skinTemp');
+      default:
+        return defaultLabel;
+    }
+  };
 
   const getMetricIcon = (key: string) => {
     switch (key) {
@@ -52,7 +71,7 @@ export const WhoopHealthMonitor: React.FC<WhoopHealthMonitorProps> = ({
         <div className="flex items-center gap-2">
           <ShieldCheck className="w-4 h-4 text-[#16EC06]" />
           <h3 className="text-xs font-black uppercase tracking-wider text-white font-condensed">
-            Health Monitor
+            {t('healthMonitor')}
           </h3>
         </div>
 
@@ -70,10 +89,10 @@ export const WhoopHealthMonitor: React.FC<WhoopHealthMonitorProps> = ({
             {activeCount > 0 ? (
               <>
                 <span className="w-1.5 h-1.5 rounded-full bg-[#16EC06] animate-pulse" />
-                <span className="text-[#16EC06]">{activeCount}/5 METRICS IN RANGE</span>
+                <span className="text-[#16EC06]">{activeCount}/5 {t('withinRange')}</span>
               </>
             ) : (
-              <span className="text-zinc-500">CALIBRATING</span>
+              <span className="text-zinc-500">{t('calibrating')}</span>
             )}
           </div>
         )}
@@ -91,8 +110,8 @@ export const WhoopHealthMonitor: React.FC<WhoopHealthMonitorProps> = ({
             <div className="w-2/5 flex items-center gap-2.5">
               <div className="flex-shrink-0 text-zinc-400">{getMetricIcon(m.key)}</div>
               <div className="truncate">
-                <div className="text-xs font-bold text-white font-sans truncate">{m.label}</div>
-                <div className="text-[10px] text-zinc-500 font-mono">{m.typicalRange}</div>
+                <div className="text-xs font-bold text-white font-sans truncate">{getMetricName(m.key, m.label)}</div>
+                <div className="text-[10px] text-zinc-500 font-mono" dir="ltr">{m.typicalRange}</div>
               </div>
             </div>
 
@@ -108,7 +127,7 @@ export const WhoopHealthMonitor: React.FC<WhoopHealthMonitorProps> = ({
 
             {/* Right: Value & Status */}
             <div className="w-1/3 flex items-center justify-end gap-2 text-right">
-              <div className="text-sm font-black font-condensed text-white tabular-nums tracking-wide">
+              <div className="text-sm font-black font-condensed text-white tabular-nums tracking-wide" dir="ltr">
                 {m.value !== null ? m.value : '--'}{' '}
                 {m.value !== null && (
                   <span className="text-[10px] font-normal text-zinc-400 uppercase font-sans">
@@ -126,7 +145,7 @@ export const WhoopHealthMonitor: React.FC<WhoopHealthMonitorProps> = ({
                 </div>
               ) : (
                 <span className="text-[9px] font-mono text-zinc-500 bg-[#222730] px-1.5 py-0.5 rounded">
-                  CALIBRATING
+                  {t('calibrating')}
                 </span>
               )}
             </div>
@@ -138,18 +157,18 @@ export const WhoopHealthMonitor: React.FC<WhoopHealthMonitorProps> = ({
       {selectedMetric && (
         <div className="p-3 bg-[#0B0D10] border-t border-white/5 flex items-center justify-between text-xs font-condensed">
           <div>
-            <span className="font-bold text-white">{selectedMetric.label}: </span>
+            <span className="font-bold text-white">{getMetricName(selectedMetric.key, selectedMetric.label)}: </span>
             <span className="text-zinc-400">
               {selectedMetric.value !== null
                 ? `${selectedMetric.value} ${selectedMetric.unit} (${selectedMetric.statusText})`
-                : 'Sensor acquiring clean baseline data.'}
+                : (isRtl ? 'الحساس يقوم بجمع بيانات خط الأساس...' : 'Sensor acquiring clean baseline data.')}
             </span>
           </div>
           <button
             onClick={() => setSelectedMetric(null)}
             className="text-zinc-400 hover:text-white px-2 py-0.5 rounded bg-[#16191E]"
           >
-            Close
+            {t('close')}
           </button>
         </div>
       )}

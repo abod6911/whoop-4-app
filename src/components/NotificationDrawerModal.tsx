@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { notificationEngine } from '../services/notificationEngine';
 import type { WhoopNotification, NotificationType } from '../services/notificationEngine';
 import { X, Bell, Trash2, CheckCircle2, Battery, Zap, HeartPulse, Activity, Moon, ShieldCheck } from 'lucide-react';
+import { useLanguage } from '../i18n/LanguageContext';
 
 interface NotificationDrawerModalProps {
   isOpen: boolean;
@@ -14,6 +15,7 @@ export const NotificationDrawerModal: React.FC<NotificationDrawerModalProps> = (
   onClose,
   onOpenAction,
 }) => {
+  const { t, isRtl } = useLanguage();
   const [notifications, setNotifications] = useState<WhoopNotification[]>([]);
   const [isPushEnabled, setIsPushEnabled] = useState(false);
 
@@ -32,8 +34,10 @@ export const NotificationDrawerModal: React.FC<NotificationDrawerModalProps> = (
     if (granted) {
       notificationEngine.dispatch({
         type: 'system',
-        title: 'Push Notifications Enabled',
-        message: 'You will now receive urgent low-battery and optimal strain alerts in browser.',
+        title: isRtl ? 'تم تفعيل الإشعارات الفورية' : 'Push Notifications Enabled',
+        message: isRtl
+          ? 'ستتلقى الآن تنبيهات فورية في المتصفح عند انخفاض البطارية أو تحقيق الجهد المستهدف.'
+          : 'You will now receive urgent low-battery and optimal strain alerts in browser.',
       });
     }
   };
@@ -55,6 +59,8 @@ export const NotificationDrawerModal: React.FC<NotificationDrawerModalProps> = (
     }
   };
 
+  const unreadCount = notifications.filter((n) => !n.read).length;
+
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="w-full max-w-[430px] bg-[#0B0D10] border-t sm:border border-white/10 rounded-t-[28px] sm:rounded-[28px] max-h-[85vh] flex flex-col overflow-hidden text-white shadow-2xl">
@@ -66,10 +72,10 @@ export const NotificationDrawerModal: React.FC<NotificationDrawerModalProps> = (
             </div>
             <div>
               <h3 className="text-sm font-bold font-sans uppercase tracking-wider text-white">
-                Notifications
+                {isRtl ? 'التنبيهات' : 'Notifications'}
               </h3>
               <p className="text-[11px] text-zinc-400 font-condensed">
-                {notifications.filter((n) => !n.read).length} Unread Alerts
+                {isRtl ? `${unreadCount} تنبيهات غير مقروءة` : `${unreadCount} Unread Alerts`}
               </p>
             </div>
           </div>
@@ -79,7 +85,7 @@ export const NotificationDrawerModal: React.FC<NotificationDrawerModalProps> = (
               <button
                 onClick={() => notificationEngine.clearAll()}
                 className="p-1.5 text-zinc-500 hover:text-red-400 transition-colors"
-                title="Clear all"
+                title={isRtl ? 'مسح الكل' : 'Clear all'}
               >
                 <Trash2 className="w-4 h-4" />
               </button>
@@ -104,14 +110,14 @@ export const NotificationDrawerModal: React.FC<NotificationDrawerModalProps> = (
             }`}
           >
             <ShieldCheck className="w-3.5 h-3.5" />
-            <span>{isPushEnabled ? 'Push Active' : 'Enable Push'}</span>
+            <span>{isPushEnabled ? (isRtl ? 'الإشعارات مفعلة' : 'Push Active') : (isRtl ? 'تفعيل الإشعارات' : 'Enable Push')}</span>
           </button>
 
           <button
             onClick={() => notificationEngine.triggerTestNotification()}
             className="px-3 py-1.5 rounded-full bg-[#16191E] border border-white/10 text-xs font-condensed font-bold text-zinc-300 hover:text-white hover:border-zinc-500 active:scale-95 transition-all"
           >
-            Test Alert
+            {isRtl ? 'تنبيه اختباري' : 'Test Alert'}
           </button>
         </div>
 
@@ -121,10 +127,10 @@ export const NotificationDrawerModal: React.FC<NotificationDrawerModalProps> = (
             <div className="py-12 text-center text-zinc-500">
               <CheckCircle2 className="w-8 h-8 mx-auto mb-2 opacity-30 text-[#16EC06]" />
               <p className="text-xs font-condensed uppercase tracking-wider text-zinc-400">
-                All caught up
+                {isRtl ? 'لا توجد تنبيهات جديدة' : 'All caught up'}
               </p>
               <p className="text-[11px] text-zinc-600 mt-1">
-                Real biometric & hardware alerts will appear here in real-time.
+                {isRtl ? 'تنبيهات الحساسات والبطارية ستظهر هنا فورياً.' : 'Real biometric & hardware alerts will appear here in real-time.'}
               </p>
             </div>
           ) : (
@@ -140,12 +146,12 @@ export const NotificationDrawerModal: React.FC<NotificationDrawerModalProps> = (
                   {getTypeIcon(item.type)}
                 </div>
 
-                <div className="flex-1 min-w-0">
+                <div className="flex-1 min-w-0 text-start">
                   <div className="flex items-center justify-between gap-1">
                     <h4 className="text-xs font-bold text-white font-sans truncate">
                       {item.title}
                     </h4>
-                    <span className="text-[10px] text-zinc-500 font-condensed whitespace-nowrap">
+                    <span className="text-[10px] text-zinc-500 font-condensed whitespace-nowrap" dir="ltr">
                       {new Date(item.timestamp).toLocaleTimeString([], {
                         hour: '2-digit',
                         minute: '2-digit',
@@ -187,7 +193,7 @@ export const NotificationDrawerModal: React.FC<NotificationDrawerModalProps> = (
             onClick={() => notificationEngine.markAllAsRead()}
             className="text-xs font-condensed font-bold text-zinc-400 hover:text-white uppercase tracking-wider"
           >
-            Mark All As Read
+            {isRtl ? 'تحديد الكل كمقروء' : 'Mark All As Read'}
           </button>
         </div>
       </div>

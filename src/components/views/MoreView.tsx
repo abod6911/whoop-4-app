@@ -73,7 +73,7 @@ export const MoreView: React.FC<MoreViewProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSaveSettings(form);
-    setSaveStatus('Biometrics updated successfully!');
+    setSaveStatus(t('savedSuccessfully'));
     setTimeout(() => setSaveStatus(null), 2500);
   };
 
@@ -435,10 +435,10 @@ export const MoreView: React.FC<MoreViewProps> = ({
         <div className="p-5 rounded-[24px] bg-[#12151A] border border-white/5 space-y-4">
           <div className="border-b border-white/5 pb-2">
             <h3 className="text-sm font-black uppercase tracking-wider text-white font-condensed">
-              Biometric Profile & Physiology
+              {t('biometricProfile')}
             </h3>
             <p className="text-xs text-zinc-400 font-sans mt-0.5">
-              These baselines calibrate your daily Strain brackets and normal CDF Recovery.
+              {t('biometricProfileDesc')}
             </p>
           </div>
 
@@ -446,7 +446,7 @@ export const MoreView: React.FC<MoreViewProps> = ({
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-[11px] font-black uppercase text-zinc-400 font-condensed block mb-1">
-                  {isRtl ? 'اسم الرياضي' : 'Athlete Name'}
+                  {t('athleteName')}
                 </label>
                 <input
                   type="text"
@@ -458,15 +458,15 @@ export const MoreView: React.FC<MoreViewProps> = ({
 
               <div>
                 <label className="text-[11px] font-black uppercase text-zinc-400 font-condensed block mb-1">
-                  {isRtl ? 'الجنس (حساب BMR)' : 'Gender (BMR Formula)'}
+                  {t('genderLabel')}
                 </label>
                 <select
                   value={form.gender}
                   onChange={(e) => setForm({ ...form, gender: e.target.value as 'male' | 'female' })}
                   className="w-full bg-[#0B0D10] border border-white/10 rounded-xl px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-[#0093E9]"
                 >
-                  <option value="male">{isRtl ? 'ذكر (Male)' : 'Male'}</option>
-                  <option value="female">{isRtl ? 'أنثى (Female)' : 'Female'}</option>
+                  <option value="male">{t('male')}</option>
+                  <option value="female">{t('female')}</option>
                 </select>
               </div>
             </div>
@@ -474,7 +474,7 @@ export const MoreView: React.FC<MoreViewProps> = ({
             <div className="grid grid-cols-3 gap-2">
               <div>
                 <label className="text-[11px] font-black uppercase text-zinc-400 font-condensed block mb-1">
-                  {isRtl ? 'العمر' : 'Age (Yrs)'}
+                  {t('ageYears')}
                 </label>
                 <input
                   type="number"
@@ -486,7 +486,7 @@ export const MoreView: React.FC<MoreViewProps> = ({
 
               <div>
                 <label className="text-[11px] font-black uppercase text-zinc-400 font-condensed block mb-1">
-                  {isRtl ? 'الوزن (كغ)' : 'Weight (kg)'}
+                  {t('weightKg')}
                 </label>
                 <input
                   type="number"
@@ -498,7 +498,7 @@ export const MoreView: React.FC<MoreViewProps> = ({
 
               <div>
                 <label className="text-[11px] font-black uppercase text-zinc-400 font-condensed block mb-1">
-                  {isRtl ? 'الطول (سم)' : 'Height (cm)'}
+                  {t('heightCm')}
                 </label>
                 <input
                   type="number"
@@ -512,7 +512,7 @@ export const MoreView: React.FC<MoreViewProps> = ({
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-[11px] font-black uppercase text-zinc-400 font-condensed block mb-1">
-                  Resting HR Baseline
+                  {t('restingHrBaseline')}
                 </label>
                 <input
                   type="number"
@@ -524,7 +524,7 @@ export const MoreView: React.FC<MoreViewProps> = ({
 
               <div>
                 <label className="text-[11px] font-black uppercase text-zinc-400 font-condensed block mb-1">
-                  HRV Baseline (ms)
+                  {t('hrvBaseline')}
                 </label>
                 <input
                   type="number"
@@ -538,7 +538,7 @@ export const MoreView: React.FC<MoreViewProps> = ({
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <label className="text-[11px] font-black uppercase text-zinc-400 font-condensed">
-                  Max HR (BPM): {form.maxHr}
+                  {t('maxHrBpm')}: {form.maxHr}
                 </label>
                 <div className="flex gap-2">
                   <button
@@ -546,14 +546,14 @@ export const MoreView: React.FC<MoreViewProps> = ({
                     onClick={handleTanaka}
                     className="text-[9px] bg-[#222730] text-zinc-300 px-2 py-0.5 rounded font-mono hover:text-white"
                   >
-                    Tanaka (208 - 0.7*Age)
+                    {t('tanakaFormula')}
                   </button>
                   <button
                     type="button"
                     onClick={handleFox}
                     className="text-[9px] bg-[#222730] text-zinc-300 px-2 py-0.5 rounded font-mono hover:text-white"
                   >
-                    Fox (220 - Age)
+                    {t('foxFormula')}
                   </button>
                 </div>
               </div>
@@ -570,7 +570,7 @@ export const MoreView: React.FC<MoreViewProps> = ({
               className="w-full py-3 rounded-xl bg-white hover:bg-zinc-200 text-black font-condensed font-black uppercase tracking-wider text-xs flex items-center justify-center gap-2 shadow-lg transition-colors"
             >
               <Save className="w-4 h-4" />
-              <span>Save Biometrics</span>
+              <span>{t('saveBiometrics')}</span>
             </button>
 
             {saveStatus && (
@@ -743,10 +743,10 @@ export const MoreView: React.FC<MoreViewProps> = ({
         <div className="p-5 rounded-[24px] bg-[#12151A] border border-white/5 space-y-3">
           <div className="flex items-center gap-2 text-sm font-black uppercase tracking-wider text-white font-condensed">
             <ShieldCheck className="w-5 h-5 text-[#16EC06]" />
-            <span>Privacy & Local Storage</span>
+            <span>{t('privacyTitle')}</span>
           </div>
           <p className="text-xs text-zinc-300 font-sans leading-relaxed">
-            This WHOOP 4.0 application is 100% offline-first. All optical photoplethysmography (PPG) samples, beat-to-beat RR intervals, and sleep records are processed on your device CPU and stored inside browser IndexedDB/LocalStorage. No health data ever leaves your computer.
+            {t('privacySubtitle')}
           </p>
         </div>
       )}
@@ -755,15 +755,23 @@ export const MoreView: React.FC<MoreViewProps> = ({
       {subScreen === 'tutorials' && (
         <div className="space-y-3">
           <div className="p-4 rounded-2xl bg-[#12151A] border border-white/5 space-y-1.5">
-            <h4 className="text-xs font-bold text-white font-sans uppercase">1. Proper Strap Placement</h4>
+            <h4 className="text-xs font-bold text-white font-sans uppercase">
+              {isRtl ? '1. طريقة الارتداء الصحيحة للسوار' : '1. Proper Strap Placement'}
+            </h4>
             <p className="text-xs text-zinc-400 font-sans leading-relaxed">
-              Wear the WHOOP 4.0 one inch above your wrist bone. Keep the band snug so green/infrared optical LEDs remain firmly against skin during heavy movement.
+              {isRtl
+                ? 'ارتدِ سوار WHOOP 4.0 على مسافة بوصة واحدة فوق عظمة المعصم. اجعل الحزام محكماً حتى تظل أضواء الحساسات الخضراء وتحت الحمراء ملامسة للجلد بثبات أثناء الحركة.'
+                : 'Wear the WHOOP 4.0 one inch above your wrist bone. Keep the band snug so green/infrared optical LEDs remain firmly against skin during heavy movement.'}
             </p>
           </div>
           <div className="p-4 rounded-2xl bg-[#12151A] border border-white/5 space-y-1.5">
-            <h4 className="text-xs font-bold text-white font-sans uppercase">2. Understanding HRV vs. RHR</h4>
+            <h4 className="text-xs font-bold text-white font-sans uppercase">
+              {isRtl ? '2. فهم العلاقة بين HRV ونبض الراحة RHR' : '2. Understanding HRV vs. RHR'}
+            </h4>
             <p className="text-xs text-zinc-400 font-sans leading-relaxed">
-              HRV reflects autonomic resilience. When resting heart rate drops and HRV rises, your body is ready for peak training exertion.
+              {isRtl
+                ? 'يعكس تباين معدل ضربات القلب (HRV) مرونة جهازك العصبي الذاتي. عندما ينخفض نبض الراحة ويرتفع HRV، يكون جسمك في أوج الاستعداد للجهد والتدريب المكثف.'
+                : 'HRV reflects autonomic resilience. When resting heart rate drops and HRV rises, your body is ready for peak training exertion.'}
             </p>
           </div>
         </div>
@@ -776,10 +784,10 @@ export const MoreView: React.FC<MoreViewProps> = ({
             W
           </div>
           <h3 className="text-sm font-bold text-white font-sans uppercase">
-            WHOOP 4.0 Local Web Bluetooth
+            {t('aboutTitle')}
           </h3>
           <p className="text-xs text-zinc-400 font-sans leading-relaxed">
-            An independent, 100% local, subscription-free web platform designed to extract and visualize clinical telemetry directly from your physical WHOOP 4.0 strap.
+            {t('aboutDesc')}
           </p>
           <div className="pt-2 text-[10px] text-zinc-500 font-mono">
             APP VERSION: 4.6.312 (BUILD 340289)

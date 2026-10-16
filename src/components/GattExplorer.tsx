@@ -22,6 +22,7 @@ import {
   ChevronDown,
   Terminal,
 } from 'lucide-react';
+import { useLanguage } from '../i18n/LanguageContext';
 
 interface GattExplorerProps {
   services: GattServiceInfo[];
@@ -38,6 +39,7 @@ export const GattExplorer: React.FC<GattExplorerProps> = ({
   onClearPackets,
   onRefreshGattTree,
 }) => {
+  const { t, isRtl } = useLanguage();
   const [selectedChar, setSelectedChar] = useState<GattCharacteristicInfo | null>(null);
   const [expandedServices, setExpandedServices] = useState<Record<string, boolean>>({
     '0000180d-0000-1000-8000-00805f9b34fb': true,
@@ -115,10 +117,10 @@ export const GattExplorer: React.FC<GattExplorerProps> = ({
           <Cpu className="w-5 h-5 text-zinc-400" />
           <div>
             <h3 className="text-xs font-black uppercase tracking-wider text-white font-condensed">
-              WHOOP 4.0 GATT & Telemetry Sniffer
+              {isRtl ? 'مستكشف بروتوكول GATT وسجل الحزم' : 'WHOOP 4.0 GATT & Telemetry Sniffer'}
             </h3>
             <p className="text-[10px] text-zinc-500 font-sans">
-              Live BLE characteristic inspector & raw packet stream
+              {isRtl ? 'فاحص خصائص البلوتوث المباشرة وتيار الحزم' : 'Live BLE characteristic inspector & raw packet stream'}
             </p>
           </div>
         </div>
@@ -130,7 +132,7 @@ export const GattExplorer: React.FC<GattExplorerProps> = ({
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#181C23] hover:bg-[#202530] text-zinc-300 text-[11px] font-bold font-condensed uppercase border border-[#262B35] transition-all disabled:opacity-40"
           >
             <RefreshCw className="w-3.5 h-3.5" />
-            <span>Rescan</span>
+            <span>{isRtl ? 'إعادة الفحص' : 'Rescan'}</span>
           </button>
           <button
             onClick={exportPacketsJson}
@@ -138,7 +140,7 @@ export const GattExplorer: React.FC<GattExplorerProps> = ({
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#181C23] hover:bg-[#202530] text-[#00B4D8] text-[11px] font-bold font-condensed uppercase border border-[#262B35] transition-all disabled:opacity-40"
           >
             <Download className="w-3.5 h-3.5" />
-            <span>Export ({packets.length})</span>
+            <span>{isRtl ? `تصدير (${packets.length})` : `Export (${packets.length})`}</span>
           </button>
           <button
             onClick={onClearPackets}
@@ -146,7 +148,7 @@ export const GattExplorer: React.FC<GattExplorerProps> = ({
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-whoop-red text-[11px] font-bold font-condensed uppercase border border-rose-500/30 transition-all disabled:opacity-40"
           >
             <Trash2 className="w-3.5 h-3.5" />
-            <span>Clear</span>
+            <span>{isRtl ? 'مسح' : 'Clear'}</span>
           </button>
         </div>
       </div>
@@ -155,19 +157,21 @@ export const GattExplorer: React.FC<GattExplorerProps> = ({
       <div className="p-4 rounded-2xl bg-[#101318] border border-[#1E232D] space-y-3">
         <div className="flex items-center justify-between border-b border-[#1E232D] pb-2">
           <h4 className="text-xs font-black uppercase tracking-wider text-white font-condensed">
-            Discovered Services & Characteristics
+            {isRtl ? 'الخدمات والخصائص المكتشفة' : 'Discovered Services & Characteristics'}
           </h4>
-          <span className="font-mono text-zinc-400 text-[11px]">{services.length} Services</span>
+          <span className="font-mono text-zinc-400 text-[11px]">
+            {services.length} {isRtl ? 'خدمات' : 'Services'}
+          </span>
         </div>
 
         {services.length === 0 ? (
           <div className="p-6 text-center text-xs text-zinc-500 rounded-xl bg-[#0C0E12] border border-dashed border-[#1E232D]">
             <Radio className="w-6 h-6 text-zinc-600 mx-auto mb-2 animate-pulse" />
-            <p>No GATT services discovered yet.</p>
+            <p>{isRtl ? 'لم يتم اكتشاف خدمات GATT بعد.' : 'No GATT services discovered yet.'}</p>
             <p className="text-[11px] text-zinc-600 mt-1">
               {isConnected
-                ? 'Click "Rescan" above to enumerate characteristics.'
-                : 'Connect your physical Whoop 4.0 or toggle Simulator Mode.'}
+                ? (isRtl ? 'انقر على "إعادة الفحص" أعلاه لسرد الخصائص.' : 'Click "Rescan" above to enumerate characteristics.')
+                : (isRtl ? 'قم بتوصيل سوار WHOOP 4.0 عبر البلوتوث.' : 'Connect your physical Whoop 4.0 strap.')}
             </p>
           </div>
         ) : (
@@ -315,7 +319,7 @@ export const GattExplorer: React.FC<GattExplorerProps> = ({
                   className="px-2.5 py-1 text-xs font-bold font-condensed rounded-lg bg-[#181C23] hover:bg-[#202530] text-[#00B4D8] border border-[#262B35] transition-all flex items-center gap-1"
                 >
                   <Eye className="w-3 h-3" />
-                  <span>Read</span>
+                  <span>{isRtl ? 'قراءة' : 'Read'}</span>
                 </button>
               )}
               {selectedChar.properties.notify && (
@@ -328,7 +332,7 @@ export const GattExplorer: React.FC<GattExplorerProps> = ({
                   }`}
                 >
                   {selectedChar.isNotifying ? <Bell className="w-3 h-3" /> : <BellOff className="w-3 h-3" />}
-                  <span>{selectedChar.isNotifying ? 'Subscribed' : 'Subscribe'}</span>
+                  <span>{isRtl ? (selectedChar.isNotifying ? 'مشترك' : 'اشتراك') : (selectedChar.isNotifying ? 'Subscribed' : 'Subscribe')}</span>
                 </button>
               )}
             </div>
@@ -339,7 +343,7 @@ export const GattExplorer: React.FC<GattExplorerProps> = ({
               <div className="flex items-center justify-between text-xs">
                 <span className="font-bold text-zinc-400 font-condensed uppercase flex items-center gap-1">
                   <PenTool className="w-3 h-3 text-amber-400" />
-                  <span>Send Command Bytes</span>
+                  <span>{isRtl ? 'إرسال بايتات الأوامر' : 'Send Command Bytes'}</span>
                 </span>
                 <div className="flex items-center gap-1 text-[10px] font-mono">
                   <button
@@ -369,7 +373,7 @@ export const GattExplorer: React.FC<GattExplorerProps> = ({
                   onClick={handleWriteChar}
                   className="px-4 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-black text-xs font-bold font-condensed uppercase transition-all"
                 >
-                  Write
+                  {isRtl ? 'إرسال' : 'Write'}
                 </button>
               </div>
 
@@ -387,10 +391,10 @@ export const GattExplorer: React.FC<GattExplorerProps> = ({
           <div className="flex items-center gap-2">
             <Terminal className="w-4 h-4 text-zinc-400" />
             <h4 className="text-xs font-black uppercase tracking-wider text-white font-condensed">
-              Live Hex Telemetry Stream
+              {isRtl ? 'تيار البيانات المباشر (Hex Sniffer)' : 'Live Hex Telemetry Stream'}
             </h4>
             <span className="text-[10px] font-mono bg-[#181C23] px-1.5 py-0.5 rounded text-zinc-400">
-              {filteredPackets.length} pkts
+              {filteredPackets.length} {isRtl ? 'حزم' : 'pkts'}
             </span>
           </div>
 
@@ -400,7 +404,7 @@ export const GattExplorer: React.FC<GattExplorerProps> = ({
               type="text"
               value={filterQuery}
               onChange={(e) => setFilterQuery(e.target.value)}
-              placeholder="Filter HEX / UUID..."
+              placeholder={isRtl ? 'تصفية HEX / UUID...' : 'Filter HEX / UUID...'}
               className="pl-8 pr-2.5 py-1 rounded-lg bg-[#080A0E] border border-[#262B35] text-xs font-mono text-white placeholder-zinc-700 focus:outline-none focus:border-[#00B4D8] w-40"
             />
           </div>
@@ -410,8 +414,10 @@ export const GattExplorer: React.FC<GattExplorerProps> = ({
         <div className="p-3 rounded-xl bg-[#080A0E] border border-[#1A1F29] h-80 overflow-y-auto space-y-2 font-mono text-xs">
           {filteredPackets.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-zinc-600 text-center text-xs">
-              <p>Waiting for BLE telemetry packets...</p>
-              <p className="text-[10px] text-zinc-700 mt-1">Packets stream here upon live BLE notifications.</p>
+              <p>{isRtl ? 'بانتظار حزم القياسات الحيوية من البلوتوث...' : 'Waiting for BLE telemetry packets...'}</p>
+              <p className="text-[10px] text-zinc-700 mt-1">
+                {isRtl ? 'تتدفق الحزم هنا تلقائياً عند استلام إشعارات BLE.' : 'Packets stream here upon live BLE notifications.'}
+              </p>
             </div>
           ) : (
             filteredPackets.map((pkt) => {

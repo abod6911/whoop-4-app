@@ -22,6 +22,7 @@ import {
 } from 'recharts';
 import type { LiveMetrics, UserSettings } from '../types/whoop';
 import { biometricEngine } from '../utils/biometricEngine';
+import { useLanguage } from '../i18n/LanguageContext';
 
 interface StressMonitorModalProps {
   isOpen: boolean;
@@ -36,6 +37,7 @@ export const StressMonitorModal: React.FC<StressMonitorModalProps> = ({
   metrics,
   settings,
 }) => {
+  const { t, isRtl } = useLanguage();
   const [zoomLevel, setZoomLevel] = useState(1);
 
   if (!isOpen) return null;
@@ -43,13 +45,13 @@ export const StressMonitorModal: React.FC<StressMonitorModalProps> = ({
   const stressScore = metrics.stressScore ?? 0.3;
   const stressTime = new Date(metrics.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-  let category = 'LOW';
+  let categoryKey = 'low';
   let badgeColor = 'bg-[#0D3528] text-[#16EC06] border-[#16EC06]/30';
   if (stressScore >= 2.0) {
-    category = 'HIGH';
+    categoryKey = 'high';
     badgeColor = 'bg-[#351515] text-[#FF8A00] border-[#FF8A00]/30';
   } else if (stressScore >= 1.0) {
-    category = 'MEDIUM';
+    categoryKey = 'medium';
     badgeColor = 'bg-[#3A2E14] text-[#FFDE00] border-[#FFDE00]/30';
   }
 
@@ -63,7 +65,7 @@ export const StressMonitorModal: React.FC<StressMonitorModalProps> = ({
     { timeLabel: '12 PM', score: 0.8 },
     { timeLabel: '3 PM', score: 0.4 },
     { timeLabel: '6 PM', score: 0.6 },
-    { timeLabel: 'Now', score: stressScore },
+    { timeLabel: isRtl ? 'الآن' : 'Now', score: stressScore },
   ];
 
   // SVG Gauge calculations for half-circle (0.0 to 3.0)
@@ -87,7 +89,7 @@ export const StressMonitorModal: React.FC<StressMonitorModalProps> = ({
           </button>
 
           <h2 className="text-sm font-black uppercase tracking-wider font-condensed text-white">
-            STRESS MONITOR
+            {t('stressMonitor')}
           </h2>
 
           <button
@@ -101,13 +103,13 @@ export const StressMonitorModal: React.FC<StressMonitorModalProps> = ({
         {/* Date Selector Row */}
         <div className="flex items-center justify-center gap-2 py-2 border-b border-white/5 bg-[#0B0D10]">
           <button className="text-zinc-500 hover:text-white p-1">
-            <ChevronLeft className="w-4 h-4" />
+            <ChevronLeft className={`w-4 h-4 ${isRtl ? 'rotate-180' : ''}`} />
           </button>
           <span className="text-xs font-black uppercase tracking-widest font-condensed text-white">
-            TODAY
+            {t('today')}
           </span>
           <button className="text-zinc-500 hover:text-white p-1">
-            <ChevronRight className="w-4 h-4" />
+            <ChevronRight className={`w-4 h-4 ${isRtl ? 'rotate-180' : ''}`} />
           </button>
         </div>
 
@@ -147,28 +149,28 @@ export const StressMonitorModal: React.FC<StressMonitorModalProps> = ({
 
               {/* Gauge Center Text */}
               <div className="absolute bottom-0 inset-x-0 flex flex-col items-center">
-                <span className="text-4xl font-black font-condensed text-white tabular-nums tracking-tight">
+                <span className="text-4xl font-black font-condensed text-white tabular-nums tracking-tight" dir="ltr">
                   {stressScore.toFixed(1)}
                 </span>
                 <span className={`text-[10px] font-black uppercase tracking-wider font-condensed px-2 py-0.5 rounded-full border mt-1 ${badgeColor}`}>
-                  {category}
+                  {t(categoryKey)}
                 </span>
               </div>
             </div>
 
-            <div className="text-[11px] text-zinc-400 font-mono mt-2">
-              As of {stressTime}
+            <div className="text-[11px] text-zinc-400 font-mono mt-2" dir="ltr">
+              {isRtl ? `حتى ${stressTime}` : `As of ${stressTime}`}
             </div>
 
             {/* Dynamic Insight Box */}
-            <div className="mt-3 w-full p-3 rounded-2xl bg-[#12151A] border border-white/5 text-xs text-zinc-300 leading-relaxed text-left flex items-start gap-2.5">
+            <div className="mt-3 w-full p-3 rounded-2xl bg-[#12151A] border border-white/5 text-xs text-zinc-300 leading-relaxed text-start flex items-start gap-2.5">
               <Info className="w-4 h-4 text-[#00F0FF] flex-shrink-0 mt-0.5" />
               <p>
-                {category === 'LOW'
-                  ? 'Your autonomic nervous system is in a relaxed parasympathetic state. Heart rate oscillations show healthy vagal tone.'
-                  : category === 'MEDIUM'
-                  ? 'Moderate sympathetic arousal. Normal for daily cognitive tasks, light movement, and active routines.'
-                  : 'Elevated sympathetic tone. Consider a 3-minute guided breathwork exercise to restore physiological balance.'}
+                {categoryKey === 'low'
+                  ? (isRtl ? 'جهازك العصبي اللاإرادي في حالة استرخاء وتوازن لاودي. تباين ضربات القلب يظهر كفاءة ممتازة للعصب المبهم.' : 'Your autonomic nervous system is in a relaxed parasympathetic state. Heart rate oscillations show healthy vagal tone.')
+                  : categoryKey === 'medium'
+                  ? (isRtl ? 'استثارة ودية معتدلة. طبيعية مع المهام الإدراكية والنشاط اليومي الخفيف.' : 'Moderate sympathetic arousal. Normal for daily cognitive tasks, light movement, and active routines.')
+                  : (isRtl ? 'نشاط ودي مرتفع (توتر عالٍ). ينصح بجلسة تنفس موجهة لمدة 3 دقائق لاستعادة التوازن الفسيولوجي.' : 'Elevated sympathetic tone. Consider a 3-minute guided breathwork exercise to restore physiological balance.')}
               </p>
             </div>
           </div>
@@ -178,7 +180,7 @@ export const StressMonitorModal: React.FC<StressMonitorModalProps> = ({
             <div className="flex items-center justify-between text-xs font-black uppercase tracking-wider font-condensed text-white">
               <div className="flex items-center gap-1.5">
                 <Moon className="w-3.5 h-3.5 text-[#7293B2]" />
-                <span>24-Hour Continuous Stress</span>
+                <span>{isRtl ? 'مخطط التوتر المستمر (24 ساعة)' : '24-Hour Continuous Stress'}</span>
               </div>
               <button
                 onClick={() => setZoomLevel((z) => (z === 1 ? 1.5 : 1))}
@@ -218,14 +220,14 @@ export const StressMonitorModal: React.FC<StressMonitorModalProps> = ({
           {/* 3 Stacked Breakdown Cards (00:27 in Video) */}
           <div className="space-y-3">
             <h3 className="text-xs font-black uppercase tracking-wider text-zinc-400 font-condensed px-1">
-              Stress Breakdown
+              {isRtl ? 'تفصيل مستويات التوتر' : 'Stress Breakdown'}
             </h3>
 
             {/* Card 1: TOTAL DAY */}
             <div className="p-3.5 rounded-2xl bg-[#12151A] border border-white/5 space-y-2.5">
               <div className="flex items-center justify-between text-xs font-black uppercase text-white font-condensed">
-                <span>TOTAL DAY</span>
-                <span className="text-[10px] text-zinc-400 font-mono">VS TYPICAL DAY: -12%</span>
+                <span>{isRtl ? 'إجمالي اليوم' : 'TOTAL DAY'}</span>
+                <span className="text-[10px] text-zinc-400 font-mono">{isRtl ? 'مقارنة باليوم المعتاد: -12%' : 'VS TYPICAL DAY: -12%'}</span>
               </div>
 
               {/* Stacked Bar */}
@@ -237,16 +239,16 @@ export const StressMonitorModal: React.FC<StressMonitorModalProps> = ({
 
               <div className="grid grid-cols-3 gap-2 text-center text-[10px] font-mono pt-1">
                 <div>
-                  <div className="text-zinc-500 uppercase font-sans text-[9px]">LOW</div>
-                  <div className="text-white font-bold">14h 10m</div>
+                  <div className="text-zinc-500 uppercase font-sans text-[9px]">{t('low')}</div>
+                  <div className="text-white font-bold" dir="ltr">14h 10m</div>
                 </div>
                 <div>
-                  <div className="text-zinc-500 uppercase font-sans text-[9px]">MEDIUM</div>
-                  <div className="text-white font-bold">2h 45m</div>
+                  <div className="text-zinc-500 uppercase font-sans text-[9px]">{t('medium')}</div>
+                  <div className="text-white font-bold" dir="ltr">2h 45m</div>
                 </div>
                 <div>
-                  <div className="text-zinc-500 uppercase font-sans text-[9px]">HIGH</div>
-                  <div className="text-white font-bold">45m</div>
+                  <div className="text-zinc-500 uppercase font-sans text-[9px]">{t('high')}</div>
+                  <div className="text-white font-bold" dir="ltr">45m</div>
                 </div>
               </div>
             </div>
@@ -254,22 +256,22 @@ export const StressMonitorModal: React.FC<StressMonitorModalProps> = ({
             {/* Card 2: NON ACTIVITY */}
             <div className="p-3.5 rounded-2xl bg-[#12151A] border border-white/5 space-y-2">
               <div className="flex items-center justify-between text-xs font-black uppercase text-white font-condensed">
-                <span>NON ACTIVITY</span>
-                <span className="text-[10px] text-[#16EC06] font-mono">0.4 AVG</span>
+                <span>{isRtl ? 'خارج أوقات النشاط' : 'NON ACTIVITY'}</span>
+                <span className="text-[10px] text-[#16EC06] font-mono">{isRtl ? 'المتوسط: 0.4' : '0.4 AVG'}</span>
               </div>
               <p className="text-[11px] text-zinc-400 font-sans leading-relaxed">
-                Stress experienced outside of recorded Strain activities and sleep.
+                {isRtl ? 'التوتر المُسجل خارج فترات التمارين الرياضية والنوم.' : 'Stress experienced outside of recorded Strain activities and sleep.'}
               </p>
             </div>
 
             {/* Card 3: SLEEP */}
             <div className="p-3.5 rounded-2xl bg-[#12151A] border border-white/5 space-y-2">
               <div className="flex items-center justify-between text-xs font-black uppercase text-white font-condensed">
-                <span>SLEEP</span>
-                <span className="text-[10px] text-[#7293B2] font-mono">0.1 AVG</span>
+                <span>{t('sleep')}</span>
+                <span className="text-[10px] text-[#7293B2] font-mono">{isRtl ? 'المتوسط: 0.1' : '0.1 AVG'}</span>
               </div>
               <p className="text-[11px] text-zinc-400 font-sans leading-relaxed">
-                Stress experienced during sleep. Reflects nocturnal autonomic recovery.
+                {isRtl ? 'مستوى التوتر أثناء النوم، يعكس كفاءة الاستشفاء العصبي الليلي.' : 'Stress experienced during sleep. Reflects nocturnal autonomic recovery.'}
               </p>
             </div>
           </div>

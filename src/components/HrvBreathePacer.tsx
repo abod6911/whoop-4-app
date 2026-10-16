@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Wind, Play, Pause, RotateCcw, Heart, Sparkles, CheckCircle2 } from 'lucide-react';
 import type { LiveMetrics } from '../types/whoop';
+import { useLanguage } from '../i18n/LanguageContext';
 
 interface HrvBreathePacerProps {
   metrics: LiveMetrics;
@@ -46,6 +47,7 @@ const PATTERNS: Record<PacerPattern, PatternConfig> = {
 };
 
 export const HrvBreathePacer: React.FC<HrvBreathePacerProps> = ({ metrics }) => {
+  const { t, isRtl } = useLanguage();
   const [patternKey, setPatternKey] = useState<PacerPattern>('coherence');
   const [isActive, setIsActive] = useState(false);
   const [phase, setPhase] = useState<'inhale' | 'holdIn' | 'exhale' | 'holdOut'>('inhale');
@@ -125,11 +127,11 @@ export const HrvBreathePacer: React.FC<HrvBreathePacerProps> = ({ metrics }) => 
   };
 
   const getPhaseInstruction = () => {
-    if (!isActive) return 'TAP TO START BREATHE';
-    if (phase === 'inhale') return 'INHALE DEEPLY...';
-    if (phase === 'holdIn') return 'HOLD...';
-    if (phase === 'exhale') return 'EXHALE SLOWLY...';
-    return 'REST...';
+    if (!isActive) return isRtl ? 'اضغط لبدء جلسة التنفس' : 'TAP TO START BREATHE';
+    if (phase === 'inhale') return isRtl ? 'شهيق عميق...' : 'INHALE DEEPLY...';
+    if (phase === 'holdIn') return isRtl ? 'حبس النفس...' : 'HOLD...';
+    if (phase === 'exhale') return isRtl ? 'زفير بطيء...' : 'EXHALE SLOWLY...';
+    return isRtl ? 'استرخاء...' : 'REST...';
   };
 
   const getPhaseColor = () => {
@@ -148,12 +150,12 @@ export const HrvBreathePacer: React.FC<HrvBreathePacerProps> = ({ metrics }) => 
         <div className="flex items-center gap-2">
           <Wind className="w-4 h-4 text-[#00F0FF]" />
           <h3 className="text-xs font-black uppercase tracking-wider text-white font-condensed">
-            HRV Biofeedback Breathe Pacer
+            {isRtl ? 'منظم التنفس والتوافق الحيوي (HRV)' : 'HRV Biofeedback Breathe Pacer'}
           </h3>
         </div>
 
-        <span className="text-[10px] font-mono text-[#00F0FF] uppercase">
-          Coherence: {coherencePercent}%
+        <span className="text-[10px] font-mono text-[#00F0FF] uppercase" dir="ltr">
+          {isRtl ? 'التوافق: ' : 'Coherence: '}{coherencePercent}%
         </span>
       </div>
 
@@ -174,7 +176,11 @@ export const HrvBreathePacer: React.FC<HrvBreathePacerProps> = ({ metrics }) => 
               patternKey === p ? 'bg-white text-black' : 'text-zinc-400 hover:text-white'
             }`}
           >
-            {p === 'coherence' ? '5.5s Resonant' : p === 'relax' ? '4-6 Relax' : '4-4-4-4 Box'}
+            {p === 'coherence'
+              ? (isRtl ? '5.5ث رنين' : '5.5s Resonant')
+              : p === 'relax'
+              ? (isRtl ? '4-6ث استرخاء' : '4-6 Relax')
+              : (isRtl ? 'مربع 4-4' : '4-4-4-4 Box')}
           </button>
         ))}
       </div>
@@ -201,7 +207,7 @@ export const HrvBreathePacer: React.FC<HrvBreathePacerProps> = ({ metrics }) => 
           >
             {getPhaseInstruction()}
           </span>
-          <div className="flex items-center gap-1 text-white font-mono text-xs mt-1">
+          <div className="flex items-center gap-1 text-white font-mono text-xs mt-1" dir="ltr">
             <Heart className="w-3 h-3 text-[#FF0026] fill-[#FF0026]" />
             <span className="font-bold tabular-nums">
               {metrics.currentHr ? `${metrics.currentHr}` : '--'}
@@ -213,7 +219,8 @@ export const HrvBreathePacer: React.FC<HrvBreathePacerProps> = ({ metrics }) => 
       {/* Timer & Controls */}
       <div className="flex items-center justify-between pt-1 text-xs font-condensed">
         <div className="text-zinc-400">
-          Session Time: <span className="text-white font-bold">{Math.ceil(sessionSeconds)}s</span>
+          {isRtl ? 'مدة الجلسة: ' : 'Session Time: '}
+          <span className="text-white font-bold" dir="ltr">{Math.ceil(sessionSeconds)}s</span>
         </div>
 
         <div className="flex items-center gap-2">
@@ -226,7 +233,7 @@ export const HrvBreathePacer: React.FC<HrvBreathePacerProps> = ({ metrics }) => 
               setCompleted(false);
             }}
             className="p-2 rounded-full bg-[#16191E] border border-white/10 text-zinc-400 hover:text-white active:scale-95"
-            title="Reset"
+            title={isRtl ? 'إعادة ضبط' : 'Reset'}
           >
             <RotateCcw className="w-3.5 h-3.5" />
           </button>
@@ -240,7 +247,7 @@ export const HrvBreathePacer: React.FC<HrvBreathePacerProps> = ({ metrics }) => 
             }`}
           >
             {isActive ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
-            <span>{isActive ? 'Pause' : 'Start Pacer'}</span>
+            <span>{isActive ? (isRtl ? 'إيقاف مؤقت' : 'Pause') : (isRtl ? 'بدء التنفس' : 'Start Pacer')}</span>
           </button>
         </div>
       </div>

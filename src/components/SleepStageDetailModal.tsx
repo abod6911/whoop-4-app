@@ -17,6 +17,7 @@ import {
   Tooltip,
 } from 'recharts';
 import type { LiveMetrics, SleepMetrics } from '../types/whoop';
+import { useLanguage } from '../i18n/LanguageContext';
 
 interface SleepStageDetailModalProps {
   isOpen: boolean;
@@ -39,6 +40,7 @@ export const SleepStageDetailModal: React.FC<SleepStageDetailModalProps> = ({
   metrics,
   sleepData,
 }) => {
+  const { t, isRtl } = useLanguage();
   const [selectedStage, setSelectedStage] = useState<StageType>('all');
 
   if (!isOpen) return null;
@@ -74,17 +76,17 @@ export const SleepStageDetailModal: React.FC<SleepStageDetailModalProps> = ({
   };
 
   const STAGE_NAMES = {
-    awake: 'AWAKE',
-    light: 'LIGHT',
-    deep: 'SWS (DEEP)',
+    awake: isRtl ? 'استيقاظ' : 'AWAKE',
+    light: isRtl ? 'نوم خفيف' : 'LIGHT',
+    deep: isRtl ? 'نوم عميق (SWS)' : 'SWS (DEEP)',
     rem: 'REM',
   };
 
   const stagesSummary = {
-    awake: { duration: '0h 42m', pct: '8%', typical: '5% - 10%' },
-    light: { duration: '3h 52m', pct: '46%', typical: '40% - 55%' },
-    deep: { duration: '1h 50m', pct: '22%', typical: '15% - 25%' },
-    rem: { duration: '2h 01m', pct: '24%', typical: '20% - 25%' },
+    awake: { duration: isRtl ? '42 دقيقة' : '0h 42m', pct: '8%', typical: '5% - 10%' },
+    light: { duration: isRtl ? '3س 52د' : '3h 52m', pct: '46%', typical: '40% - 55%' },
+    deep: { duration: isRtl ? '1س 50د' : '1h 50m', pct: '22%', typical: '15% - 25%' },
+    rem: { duration: isRtl ? '2س 01د' : '2h 01m', pct: '24%', typical: '20% - 25%' },
   };
 
   const getFilteredChartData = () => {
@@ -115,9 +117,9 @@ export const SleepStageDetailModal: React.FC<SleepStageDetailModalProps> = ({
           <div className="text-center">
             <div className="flex items-center justify-center gap-1.5 text-xs font-black uppercase tracking-wider font-condensed text-white">
               <Moon className="w-3.5 h-3.5 text-[#7293B2]" />
-              <span>SLEEP</span>
+              <span>{t('sleep')}</span>
             </div>
-            <div className="text-[10px] text-zinc-400 font-mono">
+            <div className="text-[10px] text-zinc-400 font-mono" dir="ltr">
               11:15 PM – 7:35 AM
             </div>
           </div>
@@ -133,47 +135,49 @@ export const SleepStageDetailModal: React.FC<SleepStageDetailModalProps> = ({
           <div className="grid grid-cols-2 gap-3">
             <div className="p-3.5 rounded-2xl bg-[#12151A] border border-white/5">
               <span className="text-[10px] font-black uppercase tracking-wider text-zinc-400 font-condensed">
-                HOURS OF SLEEP
+                {isRtl ? 'ساعات النوم' : 'HOURS OF SLEEP'}
               </span>
-              <div className="text-3xl font-black font-condensed text-white tabular-nums mt-1">
+              <div className="text-3xl font-black font-condensed text-white tabular-nums mt-1" dir="ltr">
                 8:20
               </div>
               <span className="text-[10px] text-zinc-500 font-mono">
-                100% of Sleep Need
+                {isRtl ? '100% من الاحتياج' : '100% of Sleep Need'}
               </span>
             </div>
 
             <div className="p-3.5 rounded-2xl bg-[#12151A] border border-white/5">
               <span className="text-[10px] font-black uppercase tracking-wider text-zinc-400 font-condensed">
-                RESTORATIVE SLEEP
+                {t('restorativeSleep')}
               </span>
-              <div className="text-3xl font-black font-condensed text-[#D946EF] tabular-nums mt-1">
+              <div className="text-3xl font-black font-condensed text-[#D946EF] tabular-nums mt-1" dir="ltr">
                 4:15
               </div>
               <span className="text-[10px] text-zinc-500 font-mono">
-                51% (SWS Deep + REM)
+                {isRtl ? '51% (عميق SWS + حركة سريعة)' : '51% (SWS Deep + REM)'}
               </span>
             </div>
           </div>
 
           {/* Insight Box */}
-          <div className="p-3 rounded-2xl bg-[#12151A] border border-white/5 text-xs text-zinc-300 leading-relaxed flex items-start gap-2.5">
+          <div className="p-3 rounded-2xl bg-[#12151A] border border-white/5 text-xs text-zinc-300 leading-relaxed flex items-start gap-2.5 text-start">
             <Info className="w-4 h-4 text-[#7293B2] flex-shrink-0 mt-0.5" />
             <p>
-              Optimal sleep architecture. Restorative sleep (SWS Deep + REM) was 51% of total sleep time, ensuring complete cellular tissue repair and neural memory consolidation.
+              {isRtl
+                ? 'هيكل نوم مثالي. بلغ النوم التعويضي (العميق + REM) نسبة 51% من إجمالي وقت النوم، مما يعزز الاستشفاء العضلي الخلوي وترسيخ الذاكرة العصبية.'
+                : 'Optimal sleep architecture. Restorative sleep (SWS Deep + REM) was 51% of total sleep time, ensuring complete cellular tissue repair and neural memory consolidation.'}
             </p>
           </div>
 
           {/* Interactive Overnight Heart Rate Graph */}
           <div className="rounded-2xl bg-[#12151A] border border-white/5 p-4 space-y-2">
             <div className="flex items-center justify-between text-xs font-black uppercase tracking-wider font-condensed text-white">
-              <span>Overnight Heart Rate & Stages</span>
+              <span>{isRtl ? 'نبض القلب ومراحل النوم الليلية' : 'Overnight Heart Rate & Stages'}</span>
               {selectedStage !== 'all' && (
                 <button
                   onClick={() => setSelectedStage('all')}
                   className="text-[10px] text-[#00F0FF] hover:underline"
                 >
-                  Reset Filter
+                  {isRtl ? 'إلغاء التصفية' : 'Reset Filter'}
                 </button>
               )}
             </div>
@@ -223,7 +227,7 @@ export const SleepStageDetailModal: React.FC<SleepStageDetailModalProps> = ({
           {/* 4 Interactive Striped Stage Bars (00:40 in Video) */}
           <div className="space-y-2.5">
             <div className="text-xs font-black uppercase tracking-wider text-zinc-400 font-condensed px-1">
-              Sleep Stages (Tap to filter graph)
+              {isRtl ? 'مراحل النوم (اضغط لتصفية المخطط)' : 'Sleep Stages (Tap to filter graph)'}
             </div>
 
             {(['awake', 'light', 'deep', 'rem'] as (keyof typeof stagesSummary)[]).map((stageKey) => {
@@ -235,7 +239,7 @@ export const SleepStageDetailModal: React.FC<SleepStageDetailModalProps> = ({
                 <button
                   key={stageKey}
                   onClick={() => setSelectedStage(isSelected ? 'all' : stageKey)}
-                  className={`w-full p-3 rounded-2xl bg-[#12151A] border transition-all text-left active:scale-98 ${
+                  className={`w-full p-3 rounded-2xl bg-[#12151A] border transition-all text-start active:scale-98 ${
                     isSelected ? 'border-white/40 ring-1 ring-white/20' : 'border-white/5 hover:border-zinc-700'
                   }`}
                 >
@@ -260,8 +264,8 @@ export const SleepStageDetailModal: React.FC<SleepStageDetailModalProps> = ({
                       }}
                     />
                   </div>
-                  <div className="text-[9px] text-zinc-500 font-mono mt-1 text-right">
-                    TYPICAL: {summary.typical}
+                  <div className="text-[9px] text-zinc-500 font-mono mt-1 text-end" dir="ltr">
+                    {isRtl ? 'المعدل الطبيعي: ' : 'TYPICAL: '}{summary.typical}
                   </div>
                 </button>
               );
@@ -271,43 +275,43 @@ export const SleepStageDetailModal: React.FC<SleepStageDetailModalProps> = ({
           {/* Bottom Horizontal Scrollable Sleep Metrics (00:47 in Video) */}
           <div className="space-y-2 pt-1">
             <div className="text-xs font-black uppercase tracking-wider text-zinc-400 font-condensed px-1">
-              Additional Sleep Vitals
+              {isRtl ? 'مؤشرات حيوية إضافية للنوم' : 'Additional Sleep Vitals'}
             </div>
 
             <div className="overflow-x-auto flex gap-3 no-scrollbar pb-2">
               {/* Card 1: Wake Events */}
               <div className="min-w-[150px] p-3.5 rounded-2xl bg-[#12151A] border border-white/5 space-y-1">
                 <span className="text-[10px] font-black uppercase text-zinc-400 font-condensed">
-                  WAKE EVENTS
+                  {isRtl ? 'مرات الاستيقاظ' : 'WAKE EVENTS'}
                 </span>
-                <div className="text-2xl font-black font-condensed text-white tabular-nums">
+                <div className="text-2xl font-black font-condensed text-white tabular-nums" dir="ltr">
                   1.2
-                  <span className="text-xs font-sans text-zinc-400 font-normal ml-1">/ hr</span>
+                  <span className="text-xs font-sans text-zinc-400 font-normal ml-1">{isRtl ? '/ س' : '/ hr'}</span>
                 </div>
-                <span className="text-[9px] text-[#16EC06] font-mono">Low disturbance</span>
+                <span className="text-[9px] text-[#16EC06] font-mono">{isRtl ? 'اضطراب منخفض' : 'Low disturbance'}</span>
               </div>
 
               {/* Card 2: Sleep Efficiency */}
               <div className="min-w-[150px] p-3.5 rounded-2xl bg-[#12151A] border border-white/5 space-y-1">
                 <span className="text-[10px] font-black uppercase text-zinc-400 font-condensed">
-                  EFFICIENCY
+                  {t('sleepEfficiency')}
                 </span>
-                <div className="text-2xl font-black font-condensed text-white tabular-nums">
+                <div className="text-2xl font-black font-condensed text-white tabular-nums" dir="ltr">
                   92%
                 </div>
-                <span className="text-[9px] text-[#16EC06] font-mono">Restful duration</span>
+                <span className="text-[9px] text-[#16EC06] font-mono">{isRtl ? 'كفاءة ممتازة' : 'Restful duration'}</span>
               </div>
 
               {/* Card 3: Respiratory Rate */}
               <div className="min-w-[150px] p-3.5 rounded-2xl bg-[#12151A] border border-white/5 space-y-1">
                 <span className="text-[10px] font-black uppercase text-zinc-400 font-condensed">
-                  RESPIRATORY RATE
+                  {t('respiratoryRate')}
                 </span>
-                <div className="text-2xl font-black font-condensed text-white tabular-nums">
+                <div className="text-2xl font-black font-condensed text-white tabular-nums" dir="ltr">
                   {metrics.respiratoryRate ?? '14.2'}
                   <span className="text-xs font-sans text-zinc-400 font-normal ml-1">rpm</span>
                 </div>
-                <span className="text-[9px] text-[#16EC06] font-mono">Baseline consistent</span>
+                <span className="text-[9px] text-[#16EC06] font-mono">{isRtl ? 'مستقر ومتناسق' : 'Baseline consistent'}</span>
               </div>
             </div>
           </div>

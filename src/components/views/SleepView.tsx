@@ -33,14 +33,11 @@ export const SleepView: React.FC<SleepViewProps> = ({
   daysHistory,
   onActivateOledNightLock,
 }) => {
-  const { t, isRtl } = useLanguage();
+  const { t, isRtl, dayNames } = useLanguage();
   const perf = sleepData.sleepPerformance;
   const hoursAsleep = sleepData.hoursAsleep;
   const sleepNeed = sleepData.sleepNeedHours;
 
-  const dayNames = isRtl
-    ? ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت']
-    : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const recentDays = (daysHistory || []).slice(0, 7).reverse();
 
   // 7-day chart data derived from real records (Zero Fake Data)
@@ -48,7 +45,7 @@ export const SleepView: React.FC<SleepViewProps> = ({
     const dateObj = new Date(d.date + 'T12:00:00');
     const day = isNaN(dateObj.getTime()) ? d.label : dayNames[dateObj.getDay()];
     return {
-      day: d.offset === 0 ? (isRtl ? 'اليوم' : 'Today') : day,
+      day: d.offset === 0 ? t('today') : day,
       perf: d.offset === 0 ? perf : d.sleepPerformance,
     };
   });
@@ -57,7 +54,7 @@ export const SleepView: React.FC<SleepViewProps> = ({
     const dateObj = new Date(d.date + 'T12:00:00');
     const day = isNaN(dateObj.getTime()) ? d.label : dayNames[dateObj.getDay()];
     return {
-      day: d.offset === 0 ? (isRtl ? 'اليوم' : 'Today') : day,
+      day: d.offset === 0 ? t('today') : day,
       hours: d.offset === 0 ? hoursAsleep : null,
       need: sleepNeed,
     };
@@ -69,7 +66,7 @@ export const SleepView: React.FC<SleepViewProps> = ({
     const deepHours = hoursAsleep ? (hoursAsleep * (sleepData.stages.deepPercent / 100)) : null;
     const remHours = hoursAsleep ? (hoursAsleep * (sleepData.stages.remPercent / 100)) : null;
     return {
-      day: d.offset === 0 ? (isRtl ? 'اليوم' : 'Today') : day,
+      day: d.offset === 0 ? t('today') : day,
       deep: deepHours ? Number(deepHours.toFixed(1)) : null,
       rem: remHours ? Number(remHours.toFixed(1)) : null,
     };
@@ -79,7 +76,7 @@ export const SleepView: React.FC<SleepViewProps> = ({
     const dateObj = new Date(d.date + 'T12:00:00');
     const day = isNaN(dateObj.getTime()) ? d.label : dayNames[dateObj.getDay()];
     return {
-      day: d.offset === 0 ? (isRtl ? 'اليوم' : 'Today') : day,
+      day: d.offset === 0 ? t('today') : day,
       eff: d.offset === 0 ? sleepData.efficiencyPercent : null,
     };
   });
@@ -88,7 +85,7 @@ export const SleepView: React.FC<SleepViewProps> = ({
     const dateObj = new Date(d.date + 'T12:00:00');
     const day = isNaN(dateObj.getTime()) ? d.label : dayNames[dateObj.getDay()];
     return {
-      day: d.offset === 0 ? (isRtl ? 'اليوم' : 'Today') : day,
+      day: d.offset === 0 ? t('today') : day,
       bed: sleepData.hoursInBed ? '11:15 PM' : '--',
       wake: sleepData.hoursInBed ? '07:30 AM' : '--',
       height: d.offset === 0 ? (sleepData.hoursInBed ?? 0) : 0,

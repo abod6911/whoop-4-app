@@ -61,20 +61,30 @@ body {
 
 /* Arabic (RTL) Typography & Bidirectional Support */
 html[dir="rtl"], body.rtl-mode {
-  font-family: 'Readex Pro', 'IBM Plex Sans Arabic', 'Cairo', 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: 'Readex Pro', 'Cairo', 'IBM Plex Sans Arabic', 'Inter', system-ui, -apple-system, sans-serif;
   letter-spacing: normal;
+  line-height: 1.55;
 }
 
 html[dir="rtl"] .font-condensed {
   font-family: 'Readex Pro', 'Cairo', 'Barlow Condensed', sans-serif;
   letter-spacing: 0;
+  font-feature-settings: "cv05", "cv08", "cv11";
 }
 
 html[dir="rtl"] .font-mono {
   font-family: 'JetBrains Mono', 'Readex Pro', monospace;
+  direction: ltr;
+  unicode-bidi: isolate;
 }
 
 html[dir="rtl"] .rtl-flip {
   transform: scaleX(-1);
+}
+
+/* Ensure numbers in metrics always display cleanly LTR */
+[dir="rtl"] .tabular-nums,
+[dir="rtl"] .font-mono {
+  font-variant-numeric: tabular-nums;
 }
 

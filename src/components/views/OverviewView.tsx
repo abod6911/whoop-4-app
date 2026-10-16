@@ -68,7 +68,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   onOpenJournal,
   onOpenSleepPlanner,
 }) => {
-  const { t, isRtl } = useLanguage();
+  const { t, isRtl, dayNames, formatNumber } = useLanguage();
   const [isOutlookModalOpen, setIsOutlookModalOpen] = useState(false);
 
   // 100% Real Stress formatting from WHOOP 4.0 telemetry
@@ -96,13 +96,12 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   const activeHealthCount = healthMetrics.filter((m) => m.value !== null).length;
 
   // 7-Day Strain & Recovery Dual-Axis Chart Data derived from real records (Zero Fake Data)
-  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const dualAxisData = (daysHistory || []).slice(0, 7).reverse().map((d) => {
     const dateObj = new Date(d.date + 'T12:00:00');
     const dayLabel = isNaN(dateObj.getTime()) ? d.label : dayNames[dateObj.getDay()];
     const isToday = d.offset === 0;
     return {
-      day: isToday ? 'Today' : dayLabel,
+      day: isToday ? t('today') : dayLabel,
       strain: isToday ? Number(metrics.dailyStrain.toFixed(1)) : Number(d.dayStrain.toFixed(1)),
       recovery: isToday ? metrics.recoveryScore : d.recoveryScore,
     };
@@ -238,7 +237,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                   : 'bg-white/10 text-zinc-400'
               }`}
             >
-              {metrics.stepSource === 'imu_hardware' ? 'IMU SENSOR' : 'ESTIMATED'}
+              {metrics.stepSource === 'imu_hardware' ? t('imuHardware') : t('activityInference')}
             </span>
           </div>
 
@@ -265,7 +264,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
               <span className="text-xs text-zinc-400 font-normal ml-1">kcal</span>
             </div>
             <div className="text-[9px] text-zinc-500 font-mono mt-0.5">
-              BMR: {metrics.bmrCalories} + Act: {metrics.activeCalories}
+              {t('bmr')}: {metrics.bmrCalories} + {t('activeCalories')}: {metrics.activeCalories}
             </div>
           </div>
         </div>
@@ -419,10 +418,10 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
       <div className="space-y-3 pt-1">
         <div className="flex items-center justify-between px-1">
           <h3 className="text-xl font-bold text-white tracking-tight">
-            My Dashboard
+            {t('myDashboard')}
           </h3>
           <button className="text-xs font-black uppercase tracking-wider font-condensed text-zinc-400 hover:text-white flex items-center gap-1">
-            <span>CUSTOMIZE</span>
+            <span>{t('customize')}</span>
             <Edit3 className="w-3 h-3" />
           </button>
         </div>
@@ -431,7 +430,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
         <div className="p-4 rounded-[22px] bg-[#12151A] border border-white/5 flex items-center justify-between">
           <div>
             <div className="text-xs font-black uppercase tracking-wider text-zinc-400 font-condensed">
-              HEART RATE VARIABILITY
+              {t('hrvFull')}
             </div>
             <div className="flex items-baseline gap-2 mt-0.5">
               <span className="text-3xl font-black font-condensed text-white tabular-nums">
@@ -440,17 +439,17 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
               <span className="text-xs text-zinc-400 font-sans">ms</span>
             </div>
             <div className="text-[10px] text-zinc-500 font-mono mt-0.5">
-              30-Day Baseline: {settings.hrvBaseline} ms
+              {t('baseline')}: {settings.hrvBaseline} ms
             </div>
           </div>
-          <ChevronRight className="w-4 h-4 text-zinc-600" />
+          <ChevronRight className={`w-4 h-4 text-zinc-600 ${isRtl ? 'rotate-180' : ''}`} />
         </div>
 
         {/* Metric Row 2: SLEEP PERFORMANCE */}
         <div className="p-4 rounded-[22px] bg-[#12151A] border border-white/5 flex items-center justify-between">
           <div>
             <div className="text-xs font-black uppercase tracking-wider text-zinc-400 font-condensed">
-              SLEEP PERFORMANCE
+              {t('sleepPerformance')}
             </div>
             <div className="flex items-baseline gap-2 mt-0.5">
               <span className="text-3xl font-black font-condensed text-white tabular-nums">
@@ -458,21 +457,21 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
               </span>
             </div>
             <div className="text-[10px] text-zinc-500 font-mono mt-0.5">
-              Target: {settings.sleepNeedHours}h • Sleep Need
+              {t('target')}: {settings.sleepNeedHours}h • {t('sleepNeed')}
             </div>
           </div>
-          <ChevronRight className="w-4 h-4 text-zinc-600" />
+          <ChevronRight className={`w-4 h-4 text-zinc-600 ${isRtl ? 'rotate-180' : ''}`} />
         </div>
 
         {/* Embedded STRESS MONITOR Card (00:58 in Video) */}
         <button
           onClick={onOpenStressMonitorModal}
-          className="w-full p-4 rounded-[24px] bg-[#12151A] border border-white/5 hover:border-zinc-700 text-left space-y-2 transition-all active:scale-98"
+          className="w-full p-4 rounded-[24px] bg-[#12151A] border border-white/5 hover:border-zinc-700 text-start space-y-2 transition-all active:scale-98"
         >
           <div className="flex items-center justify-between text-xs font-black uppercase tracking-wider font-condensed text-white">
             <div className="flex items-center gap-1.5">
               <Moon className="w-3.5 h-3.5 text-[#7293B2]" />
-              <span>STRESS MONITOR</span>
+              <span>{t('stressMonitor')}</span>
             </div>
             <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full border ${stressBadgeColor}`}>
               {stressText} {stressScore !== null ? `(${stressScore.toFixed(1)})` : ''}
@@ -499,11 +498,11 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
         <div className="p-4 rounded-[24px] bg-[#12151A] border border-white/5 space-y-3">
           <div className="flex items-center justify-between">
             <div className="text-xs font-black uppercase tracking-wider font-condensed text-white">
-              STRAIN & RECOVERY (7 DAYS)
+              {t('strainAndRecovery7Days')}
             </div>
             <div className="flex items-center gap-3 text-[10px] font-mono font-bold">
-              <span className="text-[#0093E9]">● Strain</span>
-              <span className="text-[#16EC06]">● Recovery</span>
+              <span className="text-[#0093E9]">● {t('dayStrain')}</span>
+              <span className="text-[#16EC06]">● {t('recoveryScore')}</span>
             </div>
           </div>
 
@@ -528,23 +527,23 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
           {/* Steps */}
           <div className="p-3.5 rounded-[20px] bg-[#12151A] border border-white/5 space-y-1">
             <div className="text-[10px] font-black uppercase text-zinc-400 font-condensed">
-              👟 STEPS (BETA)
+              👟 {t('steps')}
             </div>
             <div className="text-2xl font-black font-condensed text-white tabular-nums">
-              8,420
+              {metrics.steps > 0 ? metrics.steps.toLocaleString() : '--'}
             </div>
             <div className="text-[9px] text-[#16EC06] font-mono">
-              Target: 10,000
+              {t('target')}: 10,000
             </div>
           </div>
 
           {/* Calories */}
           <div className="p-3.5 rounded-[20px] bg-[#12151A] border border-white/5 space-y-1">
             <div className="text-[10px] font-black uppercase text-zinc-400 font-condensed">
-              🔥 CALORIES
+              🔥 {t('calories')}
             </div>
             <div className="text-2xl font-black font-condensed text-white tabular-nums">
-              {metrics.activeCalories > 0 ? metrics.activeCalories : '2,140'}
+              {(metrics.totalCalories > 0 ? metrics.totalCalories : metrics.activeCalories).toLocaleString()}
               <span className="text-xs font-normal text-zinc-400 ml-1">kcal</span>
             </div>
             <div className="text-[9px] text-zinc-500 font-mono">
@@ -555,28 +554,28 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
           {/* Respiratory Rate */}
           <div className="p-3.5 rounded-[20px] bg-[#12151A] border border-white/5 space-y-1">
             <div className="text-[10px] font-black uppercase text-zinc-400 font-condensed">
-              🫁 RESPIRATORY RATE
+              🫁 {t('respiratoryRate')}
             </div>
             <div className="text-2xl font-black font-condensed text-white tabular-nums">
-              {metrics.respiratoryRate ?? '14.2'}
+              {metrics.respiratoryRate ?? '--'}
               <span className="text-xs font-normal text-zinc-400 ml-1">rpm</span>
             </div>
             <div className="text-[9px] text-[#16EC06] font-mono">
-              RSA Derived Optimal
+              {t('withinRange')}
             </div>
           </div>
 
           {/* Lean Body Mass */}
           <div className="p-3.5 rounded-[20px] bg-[#12151A] border border-white/5 space-y-1">
             <div className="text-[10px] font-black uppercase text-zinc-400 font-condensed">
-              ⚖️ LEAN BODY MASS
+              ⚖️ {t('leanBodyMass')}
             </div>
             <div className="text-2xl font-black font-condensed text-white tabular-nums">
-              64.8
+              {(settings.weightKg * 0.82).toFixed(1)}
               <span className="text-xs font-normal text-zinc-400 ml-1">kg</span>
             </div>
             <div className="text-[9px] text-zinc-500 font-mono">
-              86.2% of Total Weight
+              {isRtl ? '82% من إجمالي الوزن' : '82% of Total Weight'}
             </div>
           </div>
         </div>

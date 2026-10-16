@@ -185,7 +185,7 @@ export const StrapLabView: React.FC<StrapLabViewProps> = ({
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-black uppercase font-condensed tracking-wider text-zinc-400 flex items-center gap-1.5">
                 <Terminal className="w-3 h-3 text-[#0093E9]" />
-                Proprietary Command Triggers (Gen4 Framed)
+                {isRtl ? 'أوامر التحكم الحصرية في السوار (الجيل الرابع)' : 'Proprietary Command Triggers (Gen4 Framed)'}
               </span>
               {commandFeedback && (
                 <span className="text-[10px] font-condensed font-bold text-[#16EC06] animate-pulse">
@@ -197,44 +197,44 @@ export const StrapLabView: React.FC<StrapLabViewProps> = ({
             <div className="grid grid-cols-2 gap-2">
               <button
                 onClick={() => handleCommand('Realtime Stream (0x11)', () => whoopBleEngine.sendToggleRealtimeHr(true))}
-                className="p-2 rounded-xl bg-[#0B0D10] border border-white/5 hover:border-zinc-700 active:scale-95 text-left transition-all"
+                className="p-2 rounded-xl bg-[#0B0D10] border border-white/5 hover:border-zinc-700 active:scale-95 text-start transition-all"
               >
                 <div className="flex items-center gap-1.5 text-xs font-bold text-white font-condensed">
                   <Radio className="w-3.5 h-3.5 text-[#00F0FF]" />
-                  <span>Realtime Stream</span>
+                  <span>{isRtl ? 'بث النبض المباشر' : 'Realtime Stream'}</span>
                 </div>
                 <span className="text-[9px] text-zinc-500 font-mono block">Opcode 0x11</span>
               </button>
 
               <button
                 onClick={() => handleCommand('Haptic Vibration (0x25)', () => whoopBleEngine.sendTriggerHapticAlarm())}
-                className="p-2 rounded-xl bg-[#0B0D10] border border-white/5 hover:border-zinc-700 active:scale-95 text-left transition-all"
+                className="p-2 rounded-xl bg-[#0B0D10] border border-white/5 hover:border-zinc-700 active:scale-95 text-start transition-all"
               >
                 <div className="flex items-center gap-1.5 text-xs font-bold text-white font-condensed">
                   <Vibrate className="w-3.5 h-3.5 text-[#FFDE00]" />
-                  <span>Trigger Haptic</span>
+                  <span>{isRtl ? 'تشغيل الاهتزاز' : 'Trigger Haptic'}</span>
                 </div>
                 <span className="text-[9px] text-zinc-500 font-mono block">Opcode 0x25</span>
               </button>
 
               <button
                 onClick={() => handleCommand('Battery & Fuel Gauge (0x14)', () => whoopBleEngine.sendRequestBatteryTemp())}
-                className="p-2 rounded-xl bg-[#0B0D10] border border-white/5 hover:border-zinc-700 active:scale-95 text-left transition-all"
+                className="p-2 rounded-xl bg-[#0B0D10] border border-white/5 hover:border-zinc-700 active:scale-95 text-start transition-all"
               >
                 <div className="flex items-center gap-1.5 text-xs font-bold text-white font-condensed">
                   <Battery className="w-3.5 h-3.5 text-[#16EC06]" />
-                  <span>Poll Battery/Temp</span>
+                  <span>{isRtl ? 'فحص البطارية والحرارة' : 'Poll Battery/Temp'}</span>
                 </div>
                 <span className="text-[9px] text-zinc-500 font-mono block">Opcode 0x14</span>
               </button>
 
               <button
                 onClick={() => handleCommand('Sync Flash Buffer (0x08)', () => whoopBleEngine.sendSyncHistoryBuffer())}
-                className="p-2 rounded-xl bg-[#0B0D10] border border-white/5 hover:border-zinc-700 active:scale-95 text-left transition-all"
+                className="p-2 rounded-xl bg-[#0B0D10] border border-white/5 hover:border-zinc-700 active:scale-95 text-start transition-all"
               >
                 <div className="flex items-center gap-1.5 text-xs font-bold text-white font-condensed">
                   <Database className="w-3.5 h-3.5 text-[#0093E9]" />
-                  <span>Sync Flash Chunks</span>
+                  <span>{isRtl ? 'مزامنة ذاكرة الفلاش' : 'Sync Flash Chunks'}</span>
                 </div>
                 <span className="text-[9px] text-zinc-500 font-mono block">Opcode 0x08</span>
               </button>
@@ -249,32 +249,40 @@ export const StrapLabView: React.FC<StrapLabViewProps> = ({
           <div className="flex items-center gap-2">
             <Activity className="w-4 h-4 text-[#00F0FF]" />
             <h3 className="text-xs font-black uppercase tracking-wider text-white font-condensed">
-              Live RR-Interval Poincaré Plot (RRₙ vs RRₙ₊₁)
+              {isRtl ? 'مخطط بوانكاريه الحي لنبضات القلب (RRₙ مقابل RRₙ₊₁)' : 'Live RR-Interval Poincaré Plot (RRₙ vs RRₙ₊₁)'}
             </h3>
           </div>
           <span className="text-[10px] font-mono text-zinc-500">
-            {poincarePoints.length} BEATS
+            {poincarePoints.length} {isRtl ? 'نبضة' : 'BEATS'}
           </span>
         </div>
 
         {/* SD1, SD2, and Baevsky Metrics */}
         <div className="grid grid-cols-3 gap-2 pt-1 text-center font-condensed">
           <div className="p-2 bg-[#0B0D10] rounded-xl border border-white/5">
-            <span className="text-[10px] text-zinc-400 block uppercase">SD1 (Vagal)</span>
+            <span className="text-[10px] text-zinc-400 block uppercase">
+              {isRtl ? 'SD1 (الباراسمبثاوي)' : 'SD1 (Vagal)'}
+            </span>
             <span className="text-sm font-black text-[#16EC06]">{sd1 !== null ? `${sd1} ms` : '--'}</span>
           </div>
           <div className="p-2 bg-[#0B0D10] rounded-xl border border-white/5">
-            <span className="text-[10px] text-zinc-400 block uppercase">SD2 (Sympathetic)</span>
+            <span className="text-[10px] text-zinc-400 block uppercase">
+              {isRtl ? 'SD2 (السمبثاوي)' : 'SD2 (Sympathetic)'}
+            </span>
             <span className="text-sm font-black text-[#0093E9]">{sd2 !== null ? `${sd2} ms` : '--'}</span>
           </div>
           <div className="p-2 bg-[#0B0D10] rounded-xl border border-white/5">
-            <span className="text-[10px] text-zinc-400 block uppercase">Baevsky Stress</span>
+            <span className="text-[10px] text-zinc-400 block uppercase">
+              {isRtl ? 'مؤشر بايفسكي للضغط' : 'Baevsky Stress'}
+            </span>
             <span className="text-sm font-black text-[#FFDE00]">{baevsky !== null ? `${baevsky}` : '--'}</span>
           </div>
         </div>
 
         <p className="text-[11px] text-zinc-400 font-sans leading-relaxed">
-          Visualizes autonomic nervous system tone. An elongated comet scatter demonstrates strong parasympathetic vagal recovery.
+          {isRtl
+            ? 'تصوير بياني لنغمة الجهاز العصبي الذاتي. يوضح الانتشار المذنب الطويل تعافياً باراسمبثاوياً ممتازاً عبر العصب الحائر.'
+            : 'Visualizes autonomic nervous system tone. An elongated comet scatter demonstrates strong parasympathetic vagal recovery.'}
         </p>
 
         <div className="h-44 w-full bg-[#080A0E] rounded-xl border border-white/5 p-2">
@@ -315,8 +323,10 @@ export const StrapLabView: React.FC<StrapLabViewProps> = ({
             </ResponsiveContainer>
           ) : (
             <div className="h-full flex flex-col items-center justify-center text-xs text-zinc-500 text-center font-sans">
-              <p>Waiting for beat-to-beat intervals from WHOOP 4.0...</p>
-              <p className="text-[10px] text-zinc-600 mt-1">Wear the strap securely to record RR points.</p>
+              <p>{isRtl ? 'بانتظار قراءات النبض اللحظية من سوار WHOOP 4.0...' : 'Waiting for beat-to-beat intervals from WHOOP 4.0...'}</p>
+              <p className="text-[10px] text-zinc-600 mt-1">
+                {isRtl ? 'ارتدِ السوار بإحكام لتسجيل نقاط RR.' : 'Wear the strap securely to record RR points.'}
+              </p>
             </div>
           )}
         </div>

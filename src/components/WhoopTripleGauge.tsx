@@ -1,5 +1,6 @@
 import React from 'react';
 import type { LiveMetrics, HomeSubTab } from '../types/whoop';
+import { useLanguage } from '../i18n/LanguageContext';
 
 interface WhoopTripleGaugeProps {
   metrics: LiveMetrics;
@@ -11,6 +12,7 @@ export const WhoopTripleGauge: React.FC<WhoopTripleGaugeProps> = ({
   metrics,
   onSelectTab,
 }) => {
+  const { t, isRtl } = useLanguage();
   const recoveryColor =
     metrics.recoveryCategory === 'green'
       ? '#16EC06'
@@ -77,7 +79,7 @@ export const WhoopTripleGauge: React.FC<WhoopTripleGaugeProps> = ({
           </div>
         </div>
         <span className="text-[11px] font-black uppercase tracking-wider text-zinc-400 mt-2 font-condensed group-hover:text-white transition-colors">
-          SLEEP ›
+          {t('sleep')} {isRtl ? '‹' : '›'}
         </span>
       </button>
 
@@ -122,7 +124,7 @@ export const WhoopTripleGauge: React.FC<WhoopTripleGaugeProps> = ({
           </div>
         </div>
         <span className="text-[11px] font-black uppercase tracking-wider text-zinc-400 mt-2 font-condensed group-hover:text-white transition-colors">
-          RECOVERY ›
+          {t('recoveryScore')} {isRtl ? '‹' : '›'}
         </span>
       </button>
 
@@ -162,7 +164,7 @@ export const WhoopTripleGauge: React.FC<WhoopTripleGaugeProps> = ({
           </div>
         </div>
         <span className="text-[11px] font-black uppercase tracking-wider text-zinc-400 mt-2 font-condensed group-hover:text-white transition-colors">
-          STRAIN ›
+          {t('strain')} {isRtl ? '‹' : '›'}
         </span>
       </button>
     </div>

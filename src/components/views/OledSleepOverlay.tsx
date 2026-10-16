@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import type { LiveMetrics, DeviceMetadata } from '../../types/whoop';
 import { Moon, Battery, Heart, Unlock } from 'lucide-react';
+import { useLanguage } from '../../i18n/LanguageContext';
 
 interface OledSleepOverlayProps {
   isOpen: boolean;
@@ -15,6 +16,7 @@ export const OledSleepOverlay: React.FC<OledSleepOverlayProps> = ({
   metrics,
   metadata,
 }) => {
+  const { t, isRtl } = useLanguage();
   const [timeStr, setTimeStr] = useState('');
   const [dateStr, setDateStr] = useState('');
   const [wakeLockActive, setWakeLockActive] = useState(false);
@@ -29,14 +31,14 @@ export const OledSleepOverlay: React.FC<OledSleepOverlayProps> = ({
         now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
       );
       setDateStr(
-        now.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })
+        now.toLocaleDateString(isRtl ? 'ar-SA' : 'en-US', { weekday: 'short', month: 'short', day: 'numeric' })
       );
     };
 
     updateClock();
     const interval = setInterval(updateClock, 1000);
     return () => clearInterval(interval);
-  }, [isOpen]);
+  }, [isOpen, isRtl]);
 
   // Request screen Wake Lock on mobile devices
   useEffect(() => {
@@ -72,14 +74,14 @@ export const OledSleepOverlay: React.FC<OledSleepOverlayProps> = ({
       <div className="flex items-center justify-between text-[11px] font-mono text-zinc-600">
         <div className="flex items-center gap-1.5">
           <Moon className="w-3.5 h-3.5 text-zinc-600" />
-          <span>OLED NIGHT LOCK</span>
-          {wakeLockActive && <span className="text-emerald-700">• WAKELOCK ON</span>}
+          <span>{isRtl ? 'قفل النوم الليلي OLED' : 'OLED NIGHT LOCK'}</span>
+          {wakeLockActive && <span className="text-emerald-700">• {isRtl ? 'منع إطفاء الشاشة' : 'WAKELOCK ON'}</span>}
         </div>
 
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1 text-zinc-600">
             <Battery className="w-3.5 h-3.5" />
-            <span>{metadata.batteryLevel !== null ? `${metadata.batteryLevel}%` : '--'}</span>
+            <span dir="ltr">{metadata.batteryLevel !== null ? `${metadata.batteryLevel}%` : '--'}</span>
           </div>
         </div>
       </div>
@@ -89,20 +91,22 @@ export const OledSleepOverlay: React.FC<OledSleepOverlayProps> = ({
         <div className="text-zinc-600 font-mono text-xs uppercase tracking-widest">
           {dateStr}
         </div>
-        <div className="text-6xl font-black font-condensed tracking-wider text-zinc-400 tabular-nums">
+        <div className="text-6xl font-black font-condensed tracking-wider text-zinc-400 tabular-nums" dir="ltr">
           {timeStr}
         </div>
 
         <div className="flex items-center gap-2 pt-4">
           <Heart className="w-4 h-4 text-rose-900 fill-rose-950 animate-pulse" />
-          <span className="text-xl font-black font-mono text-zinc-400 tabular-nums">
+          <span className="text-xl font-black font-mono text-zinc-400 tabular-nums" dir="ltr">
             {metrics.currentHr !== null ? metrics.currentHr : '--'}
           </span>
-          <span className="text-[10px] uppercase font-bold text-zinc-600 font-mono">BPM</span>
+          <span className="text-[10px] uppercase font-bold text-zinc-600 font-mono">{t('bpm')}</span>
         </div>
 
         <p className="text-[10px] text-zinc-700 max-w-xs pt-4 font-mono leading-relaxed">
-          Tracking nocturnal HRV & HR dips directly over Web Bluetooth. Screen brightness minimized to preserve battery.
+          {isRtl
+            ? 'تتبع HRV ونبضات القلب الليلية مباشرة عبر البلوتوث. سطوع الشاشة في أدنى مستوى للحفاظ على البطارية.'
+            : 'Tracking nocturnal HRV & HR dips directly over Web Bluetooth. Screen brightness minimized to preserve battery.'}
         </p>
       </div>
 
@@ -113,7 +117,7 @@ export const OledSleepOverlay: React.FC<OledSleepOverlayProps> = ({
           className="py-3 px-8 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-800 text-xs font-black uppercase tracking-widest font-condensed flex items-center gap-2 transition-all active:scale-95 shadow-lg"
         >
           <Unlock className="w-4 h-4" />
-          <span>Slide / Tap to Wake</span>
+          <span>{isRtl ? 'انقر لإلغاء القفل والاستيقاظ' : 'Slide / Tap to Wake'}</span>
         </button>
       </div>
     </div>

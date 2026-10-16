@@ -45,7 +45,7 @@ export const StrainView: React.FC<StrainViewProps> = ({
   isWorkoutActive,
   workoutElapsedSec,
 }) => {
-  const { t, isRtl } = useLanguage();
+  const { t, isRtl, dayNames } = useLanguage();
   const [selectedSport, setSelectedSport] = useState('Running');
 
   const sports = [
@@ -74,7 +74,6 @@ export const StrainView: React.FC<StrainViewProps> = ({
   const strainRatio = Math.min(1, Math.max(0, strainScore / 21.0));
   const strainOffset = circ - strainRatio * circ;
 
-  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const recentDays = (daysHistory || []).slice(0, 7).reverse();
 
   // 7-day chart data derived strictly from real records (Zero Fake Data)
@@ -82,7 +81,7 @@ export const StrainView: React.FC<StrainViewProps> = ({
     const dateObj = new Date(d.date + 'T12:00:00');
     const day = isNaN(dateObj.getTime()) ? d.label : dayNames[dateObj.getDay()];
     return {
-      day: d.offset === 0 ? 'Today' : day,
+      day: d.offset === 0 ? t('today') : day,
       strain: d.offset === 0 ? Number(metrics.dailyStrain.toFixed(1)) : Number(d.dayStrain.toFixed(1)),
     };
   });
@@ -91,7 +90,7 @@ export const StrainView: React.FC<StrainViewProps> = ({
     const dateObj = new Date(d.date + 'T12:00:00');
     const day = isNaN(dateObj.getTime()) ? d.label : dayNames[dateObj.getDay()];
     return {
-      day: d.offset === 0 ? 'Today' : day,
+      day: d.offset === 0 ? t('today') : day,
       hr: d.offset === 0 ? metrics.avgHr : null,
     };
   });
@@ -100,7 +99,7 @@ export const StrainView: React.FC<StrainViewProps> = ({
     const dateObj = new Date(d.date + 'T12:00:00');
     const day = isNaN(dateObj.getTime()) ? d.label : dayNames[dateObj.getDay()];
     return {
-      day: d.offset === 0 ? 'Today' : day,
+      day: d.offset === 0 ? t('today') : day,
       cal: d.offset === 0 ? metrics.activeCalories : d.activeCalories,
     };
   });
@@ -289,7 +288,7 @@ export const StrainView: React.FC<StrainViewProps> = ({
         {/* Chart 1: STRAIN Bright Blue Vertical Bars */}
         <div className="p-4 rounded-[24px] bg-[#12151A] border border-white/5 space-y-2">
           <div className="flex items-center justify-between text-xs font-black uppercase font-condensed text-white">
-            <span>{isRtl ? 'الإجهاد (7 أيام)' : 'STRAIN (7 DAYS)'}</span>
+            <span>{t('strain7Days')}</span>
             <span className="text-[10px] text-[#0093E9] font-mono">{isRtl ? 'المتوسط: 12.8' : 'AVG: 12.8'}</span>
           </div>
           <div className="h-32 w-full pt-2">
@@ -323,7 +322,7 @@ export const StrainView: React.FC<StrainViewProps> = ({
         {/* Chart 3: CALORIES Bar Chart */}
         <div className="p-4 rounded-[24px] bg-[#12151A] border border-white/5 space-y-2">
           <div className="flex items-center justify-between text-xs font-black uppercase font-condensed text-white">
-            <span>{isRtl ? 'السعرات (7 أيام)' : 'CALORIES (7 DAYS)'}</span>
+            <span>{t('calories7Days')}</span>
             <span className="text-[10px] text-[#0093E9] font-mono">{isRtl ? 'المتوسط: 2,550 سعرة' : 'AVG: 2,550 kcal'}</span>
           </div>
           <div className="h-32 w-full pt-2">

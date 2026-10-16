@@ -47,8 +47,11 @@ import { WhoopCoachChatSheet } from './components/WhoopCoachChatSheet';
 import { notificationEngine } from './services/notificationEngine';
 
 import { AlertCircle, X, Plus } from 'lucide-react';
+import { useLanguage } from './i18n/LanguageContext';
 
 export const App: React.FC = () => {
+  const { t, isRtl } = useLanguage();
+
   // --- User Settings & Biometrics ---
   const [settings, setSettings] = useState<UserSettings>(() => {
     return storageService.getUserSettings();
@@ -502,8 +505,8 @@ export const App: React.FC = () => {
         {/* Floating Action Button (+) */}
         <button
           onClick={() => setIsQuickActionOpen(true)}
-          className="w-14 h-14 rounded-full bg-white text-black shadow-2xl fixed bottom-24 right-5 z-40 flex items-center justify-center hover:scale-105 active:scale-95 transition-transform"
-          title="Start Live Workout or Sleep"
+          className={`w-14 h-14 rounded-full bg-white text-black shadow-2xl fixed bottom-24 ${isRtl ? 'left-5' : 'right-5'} z-40 flex items-center justify-center hover:scale-105 active:scale-95 transition-transform`}
+          title={isRtl ? 'بدء تمرين مباشر أو نوم' : 'Start Live Workout or Sleep'}
         >
           <Plus className="w-7 h-7 stroke-[2.5]" />
         </button>

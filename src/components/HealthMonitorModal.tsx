@@ -13,6 +13,7 @@ import {
   Download,
 } from 'lucide-react';
 import type { LiveMetrics, HealthMonitorMetric, UserSettings, DeviceMetadata } from '../types/whoop';
+import { useLanguage } from '../i18n/LanguageContext';
 
 interface HealthMonitorModalProps {
   isOpen: boolean;
@@ -31,6 +32,7 @@ export const HealthMonitorModal: React.FC<HealthMonitorModalProps> = ({
   settings,
   metadata,
 }) => {
+  const { t, isRtl, language } = useLanguage();
   const [downloadSuccess, setDownloadSuccess] = useState(false);
 
   if (!isOpen) return null;
@@ -156,7 +158,7 @@ export const HealthMonitorModal: React.FC<HealthMonitorModalProps> = ({
           </button>
 
           <h2 className="text-sm font-black uppercase tracking-wider font-condensed text-white">
-            HEALTH MONITOR
+            {t('healthMonitor')}
           </h2>
 
           <div className="w-8" />
@@ -175,16 +177,16 @@ export const HealthMonitorModal: React.FC<HealthMonitorModalProps> = ({
               >
                 <Heart className="w-6 h-6 text-[#FF0026] fill-[#FF0026]" />
               </div>
-              <div className="text-5xl font-black font-condensed text-white tabular-nums tracking-tight">
+              <div className="text-5xl font-black font-condensed text-white tabular-nums tracking-tight" dir="ltr">
                 {currentBpm !== null ? currentBpm : '--'}
               </div>
               <div className="text-[11px] font-black uppercase tracking-widest text-zinc-400 font-condensed">
-                BPM
+                {t('bpm')}
               </div>
             </div>
 
             <div className="mt-3 flex items-center gap-1 text-[11px] font-black uppercase tracking-wider text-zinc-400 font-condensed">
-              <span>LAST NIGHT'S READINGS</span>
+              <span>{isRtl ? 'قراءات الليلة الماضية' : "LAST NIGHT'S READINGS"}</span>
               <Info className="w-3.5 h-3.5 text-zinc-500" />
             </div>
           </div>
@@ -195,15 +197,15 @@ export const HealthMonitorModal: React.FC<HealthMonitorModalProps> = ({
             <div className="p-3.5 rounded-2xl bg-[#12151A] border border-white/5 space-y-2">
               <div className="flex items-center gap-1.5 text-[11px] font-black uppercase text-zinc-400 font-condensed">
                 <Wind className="w-3.5 h-3.5 text-zinc-300" />
-                <span>RESPIRATORY RATE</span>
+                <span>{t('respiratoryRate')}</span>
               </div>
-              <div className="text-2xl font-black font-condensed text-white tabular-nums">
+              <div className="text-2xl font-black font-condensed text-white tabular-nums" dir="ltr">
                 {metrics.respiratoryRate !== null ? `${metrics.respiratoryRate}` : '--'}
                 <span className="text-xs font-sans text-zinc-400 font-normal ml-1">rpm</span>
               </div>
               <div className="flex items-center gap-1.5 text-[10px] text-[#16EC06] font-mono">
                 <span className="w-2 h-2 rounded-full bg-[#16EC06]" />
-                <span>Within range</span>
+                <span>{t('withinRange')}</span>
               </div>
             </div>
 
@@ -211,12 +213,12 @@ export const HealthMonitorModal: React.FC<HealthMonitorModalProps> = ({
             <div className="p-3.5 rounded-2xl bg-[#12151A] border border-white/5 space-y-2">
               <div className="flex items-center gap-1.5 text-[11px] font-black uppercase text-zinc-400 font-condensed">
                 <Droplet className="w-3.5 h-3.5 text-zinc-300" />
-                <span>BLOOD OXYGEN</span>
+                <span>{t('bloodOxygen')}</span>
               </div>
-              <div className="text-2xl font-black font-condensed text-white tabular-nums">
+              <div className="text-2xl font-black font-condensed text-white tabular-nums" dir="ltr">
                 {metadata.connected ? '98%' : '--'}
               </div>
-              <div className="flex items-center gap-1.5 text-[10px] text-[#16EC06] font-mono">
+              <div className="flex items-center gap-1.5 text-[10px] text-[#16EC06] font-mono" dir="ltr">
                 <span className="w-2 h-2 rounded-full bg-[#16EC06]" />
                 <span>95% - 100%</span>
               </div>
@@ -226,15 +228,15 @@ export const HealthMonitorModal: React.FC<HealthMonitorModalProps> = ({
             <div className="p-3.5 rounded-2xl bg-[#12151A] border border-white/5 space-y-2">
               <div className="flex items-center gap-1.5 text-[11px] font-black uppercase text-zinc-400 font-condensed">
                 <Heart className="w-3.5 h-3.5 text-zinc-300" />
-                <span>RESTING HEART RATE</span>
+                <span>{t('restingHeartRate')}</span>
               </div>
-              <div className="text-2xl font-black font-condensed text-white tabular-nums">
+              <div className="text-2xl font-black font-condensed text-white tabular-nums" dir="ltr">
                 {metrics.restingHr ?? settings.restingHrBaseline}
-                <span className="text-xs font-sans text-zinc-400 font-normal ml-1">bpm</span>
+                <span className="text-xs font-sans text-zinc-400 font-normal ml-1">{t('bpm')}</span>
               </div>
               <div className="flex items-center gap-1.5 text-[10px] text-[#16EC06] font-mono">
                 <span className="w-2 h-2 rounded-full bg-[#16EC06]" />
-                <span>Within range</span>
+                <span>{t('withinRange')}</span>
               </div>
             </div>
 
@@ -242,15 +244,15 @@ export const HealthMonitorModal: React.FC<HealthMonitorModalProps> = ({
             <div className="p-3.5 rounded-2xl bg-[#12151A] border border-white/5 space-y-2">
               <div className="flex items-center gap-1.5 text-[11px] font-black uppercase text-zinc-400 font-condensed">
                 <Activity className="w-3.5 h-3.5 text-zinc-300" />
-                <span>HEART RATE VARIABILITY</span>
+                <span>{t('hrvFull')}</span>
               </div>
-              <div className="text-2xl font-black font-condensed text-white tabular-nums">
+              <div className="text-2xl font-black font-condensed text-white tabular-nums" dir="ltr">
                 {metrics.currentHrv ?? settings.hrvBaseline}
                 <span className="text-xs font-sans text-zinc-400 font-normal ml-1">ms</span>
               </div>
               <div className="flex items-center gap-1.5 text-[10px] text-[#16EC06] font-mono">
                 <span className="w-2 h-2 rounded-full bg-[#16EC06]" />
-                <span>Optimal</span>
+                <span>{isRtl ? 'مثالي' : 'Optimal'}</span>
               </div>
             </div>
 
@@ -258,12 +260,12 @@ export const HealthMonitorModal: React.FC<HealthMonitorModalProps> = ({
             <div className="p-3.5 rounded-2xl bg-[#12151A] border border-white/5 space-y-2">
               <div className="flex items-center gap-1.5 text-[11px] font-black uppercase text-zinc-400 font-condensed">
                 <Thermometer className="w-3.5 h-3.5 text-zinc-300" />
-                <span>SKIN TEMP (DELTA)</span>
+                <span>{t('skinTemp')}</span>
               </div>
-              <div className="text-2xl font-black font-condensed text-white tabular-nums">
+              <div className="text-2xl font-black font-condensed text-white tabular-nums" dir="ltr">
                 {metadata.connected ? '+0.2°C' : '--'}
               </div>
-              <div className="flex items-center gap-1.5 text-[10px] text-[#16EC06] font-mono">
+              <div className="flex items-center gap-1.5 text-[10px] text-[#16EC06] font-mono" dir="ltr">
                 <span className="w-2 h-2 rounded-full bg-[#16EC06]" />
                 <span>-0.5° to +0.5°</span>
               </div>
@@ -272,18 +274,18 @@ export const HealthMonitorModal: React.FC<HealthMonitorModalProps> = ({
             {/* Card 6: Share Health Report */}
             <button
               onClick={generateDoctorReport}
-              className="p-3.5 rounded-2xl bg-gradient-to-br from-[#161C24] to-[#12151A] border border-[#0093E9]/30 hover:border-[#0093E9] space-y-2 text-left transition-all active:scale-95 group"
+              className="p-3.5 rounded-2xl bg-gradient-to-br from-[#161C24] to-[#12151A] border border-[#0093E9]/30 hover:border-[#0093E9] space-y-2 text-start transition-all active:scale-95 group"
             >
               <div className="flex items-center gap-1.5 text-[11px] font-black uppercase text-[#0093E9] font-condensed group-hover:underline">
                 <FileText className="w-3.5 h-3.5 text-[#0093E9]" />
-                <span>SHARE REPORT →</span>
+                <span>{t('shareDoctorsReport')} →</span>
               </div>
               <div className="text-[11px] text-zinc-300 leading-snug font-sans">
-                Clinical report for doctor, physician or trainer.
+                {isRtl ? 'تقرير سريري للطبيب أو الأخصائي أو المدرب.' : 'Clinical report for doctor, physician or trainer.'}
               </div>
               <div className="text-[10px] text-[#00F0FF] font-mono flex items-center gap-1 pt-1">
                 <Download className="w-3 h-3" />
-                <span>{downloadSuccess ? 'Report Generated!' : 'Export / Print PDF'}</span>
+                <span>{downloadSuccess ? (isRtl ? 'تم إنشاء التقرير!' : 'Report Generated!') : (isRtl ? 'تصدير / طباعة PDF' : 'Export / Print PDF')}</span>
               </div>
             </button>
           </div>

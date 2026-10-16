@@ -7,6 +7,7 @@ import {
   Square,
   ChevronDown,
 } from 'lucide-react';
+import { useLanguage } from '../../i18n/LanguageContext';
 
 interface WorkoutHudModalProps {
   isOpen: boolean;
@@ -33,7 +34,20 @@ export const WorkoutHudModal: React.FC<WorkoutHudModalProps> = ({
   settings,
   onEndAndSave,
 }) => {
+  const { t, isRtl } = useLanguage();
   if (!isOpen) return null;
+
+  const sportsMap: Record<string, string> = {
+    Running: isRtl ? 'الجري' : 'Running',
+    Weightlifting: isRtl ? 'رفع الأثقال' : 'Weightlifting',
+    Cycling: isRtl ? 'الدراجة' : 'Cycling',
+    'Functional Fitness': isRtl ? 'اللياقة الوظيفية' : 'Functional Fitness',
+    HIIT: 'HIIT',
+    Walking: isRtl ? 'المشي' : 'Walking',
+    Swimming: isRtl ? 'السباحة' : 'Swimming',
+    Rowing: isRtl ? 'التجديف' : 'Rowing',
+    Yoga: isRtl ? 'اليوغا' : 'Yoga',
+  };
 
   const formatSec = (totalSec: number) => {
     const hrs = Math.floor(totalSec / 3600);
@@ -62,18 +76,18 @@ export const WorkoutHudModal: React.FC<WorkoutHudModalProps> = ({
           <div className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-[#0093E9] animate-ping" />
             <span className="text-xs font-black uppercase tracking-widest text-[#00B4D8] font-condensed">
-              LIVE ACTIVITY
+              {isRtl ? 'نشاط مباشر' : 'LIVE ACTIVITY'}
             </span>
           </div>
 
           <div className="text-sm font-black uppercase tracking-wider text-white font-condensed">
-            {sport}
+            {sportsMap[sport] || sport}
           </div>
 
           <button
             onClick={onClose}
             className="p-1.5 rounded-full bg-[#16191E] text-zinc-400 hover:text-white"
-            title="Minimize HUD"
+            title={isRtl ? 'تصغير' : 'Minimize HUD'}
           >
             <ChevronDown className="w-4 h-4" />
           </button>
@@ -84,13 +98,13 @@ export const WorkoutHudModal: React.FC<WorkoutHudModalProps> = ({
           {/* Main Activity Strain Meter */}
           <div className="text-center space-y-1">
             <div className="text-[11px] font-black uppercase tracking-widest text-zinc-400 font-condensed">
-              Activity Strain
+              {t('activityStrain')}
             </div>
-            <div className="text-7xl font-black font-condensed text-[#0093E9] tracking-tight tabular-nums">
+            <div className="text-7xl font-black font-condensed text-[#0093E9] tracking-tight tabular-nums" dir="ltr">
               {liveSessionStrain}
             </div>
-            <div className="text-[11px] text-zinc-500 font-mono">
-              DAY TOTAL: {(metrics.dailyStrain + liveSessionStrain * 0.4).toFixed(1)} / 21.0
+            <div className="text-[11px] text-zinc-500 font-mono" dir="ltr">
+              {isRtl ? 'إجمالي اليوم: ' : 'DAY TOTAL: '}{(metrics.dailyStrain + liveSessionStrain * 0.4).toFixed(1)} / 21.0
             </div>
           </div>
 
@@ -106,36 +120,36 @@ export const WorkoutHudModal: React.FC<WorkoutHudModalProps> = ({
                 >
                   <Activity className="w-3.5 h-3.5 text-[#FF0026] fill-[#FF0026]" />
                 </div>
-                <span>Heart Rate</span>
+                <span>{t('heartRate')}</span>
               </div>
-              <div className="text-3xl font-black font-condensed text-white tabular-nums">
+              <div className="text-3xl font-black font-condensed text-white tabular-nums" dir="ltr">
                 {currentHr !== null ? currentHr : '--'}
               </div>
-              <div className="text-[10px] font-mono text-zinc-500">BPM</div>
+              <div className="text-[10px] font-mono text-zinc-500">{t('bpm')}</div>
             </div>
 
             {/* Elapsed Time */}
             <div className="p-3.5 rounded-2xl bg-[#16191E] border border-white/5 space-y-1">
               <div className="flex items-center justify-center gap-1 text-[10px] font-black uppercase text-zinc-400 font-condensed">
                 <Clock className="w-3.5 h-3.5 text-zinc-400" />
-                <span>Duration</span>
+                <span>{t('duration')}</span>
               </div>
-              <div className="text-2xl font-black font-mono text-white tabular-nums pt-1">
+              <div className="text-2xl font-black font-mono text-white tabular-nums pt-1" dir="ltr">
                 {formatSec(elapsedSec)}
               </div>
-              <div className="text-[10px] font-mono text-zinc-500">TIME</div>
+              <div className="text-[10px] font-mono text-zinc-500">{isRtl ? 'الوقت' : 'TIME'}</div>
             </div>
 
             {/* Active Calories */}
             <div className="p-3.5 rounded-2xl bg-[#16191E] border border-white/5 space-y-1">
               <div className="flex items-center justify-center gap-1 text-[10px] font-black uppercase text-zinc-400 font-condensed">
                 <Flame className="w-3.5 h-3.5 text-orange-400 fill-orange-400" />
-                <span>Calories</span>
+                <span>{t('calories')}</span>
               </div>
-              <div className="text-3xl font-black font-condensed text-white tabular-nums">
+              <div className="text-3xl font-black font-condensed text-white tabular-nums" dir="ltr">
                 {Math.round(activeCalories + (elapsedSec * 0.12))}
               </div>
-              <div className="text-[10px] font-mono text-zinc-500">KCAL</div>
+              <div className="text-[10px] font-mono text-zinc-500">{isRtl ? 'سعرة' : 'KCAL'}</div>
             </div>
           </div>
 
@@ -143,10 +157,10 @@ export const WorkoutHudModal: React.FC<WorkoutHudModalProps> = ({
           <div className="p-4 rounded-2xl bg-[#16191E] border border-white/5 space-y-2.5">
             <div className="flex items-center justify-between text-xs font-condensed">
               <span className="font-bold text-zinc-400 uppercase tracking-wider">
-                Current Intensity Zone
+                {isRtl ? 'نطاق الشدة الحالي' : 'Current Intensity Zone'}
               </span>
-              <span className="font-black text-[#0093E9] uppercase">
-                Zone {metrics.currentZone}: {zones.find((z) => z.zone === metrics.currentZone)?.name || 'Rest'}
+              <span className="font-black text-[#0093E9] uppercase" dir="ltr">
+                Zone {metrics.currentZone}: {zones.find((z) => z.zone === metrics.currentZone)?.name || (isRtl ? 'راحة' : 'Rest')}
               </span>
             </div>
 
@@ -167,7 +181,7 @@ export const WorkoutHudModal: React.FC<WorkoutHudModalProps> = ({
               })}
             </div>
 
-            <div className="flex justify-between text-[10px] font-mono text-zinc-500 pt-1">
+            <div className="flex justify-between text-[10px] font-mono text-zinc-500 pt-1" dir="ltr">
               <span>50%</span>
               <span>60%</span>
               <span>70%</span>
@@ -184,7 +198,7 @@ export const WorkoutHudModal: React.FC<WorkoutHudModalProps> = ({
             className="w-full py-4 rounded-2xl bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/50 text-[#FF0026] font-black text-sm uppercase tracking-widest font-condensed flex items-center justify-center gap-2 transition-all active:scale-98 shadow-lg shadow-rose-950/40"
           >
             <Square className="w-4 h-4 fill-current" />
-            <span>End & Save Workout</span>
+            <span>{isRtl ? 'إنهاء وحفظ التمرين' : 'End & Save Workout'}</span>
           </button>
         </div>
       </div>

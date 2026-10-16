@@ -44,7 +44,7 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
   daysHistory,
   onOpenRecoveryTest,
 }) => {
-  const { t, isRtl } = useLanguage();
+  const { t, isRtl, dayNames } = useLanguage();
   const recoveryScore = metrics.recoveryScore;
   const recoveryColor = getRecoveryColor(recoveryScore);
 
@@ -54,7 +54,6 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
   const circ = 2 * Math.PI * radius;
   const offset = recoveryScore !== null ? circ - (recoveryScore / 100) * circ : circ;
 
-  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const recentDays = (daysHistory || []).slice(0, 7).reverse();
 
   // 7-day data derived strictly from real persisted records (Zero Mock Data)
@@ -62,7 +61,7 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
     const dateObj = new Date(d.date + 'T12:00:00');
     const day = isNaN(dateObj.getTime()) ? d.label : dayNames[dateObj.getDay()];
     return {
-      day: d.offset === 0 ? 'Today' : day,
+      day: d.offset === 0 ? t('today') : day,
       score: d.offset === 0 ? metrics.recoveryScore : d.recoveryScore,
     };
   });
@@ -71,7 +70,7 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
     const dateObj = new Date(d.date + 'T12:00:00');
     const day = isNaN(dateObj.getTime()) ? d.label : dayNames[dateObj.getDay()];
     return {
-      day: d.offset === 0 ? 'Today' : day,
+      day: d.offset === 0 ? t('today') : day,
       hrv: d.offset === 0 ? metrics.currentHrv : d.hrv,
     };
   });
@@ -80,7 +79,7 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
     const dateObj = new Date(d.date + 'T12:00:00');
     const day = isNaN(dateObj.getTime()) ? d.label : dayNames[dateObj.getDay()];
     return {
-      day: d.offset === 0 ? 'Today' : day,
+      day: d.offset === 0 ? t('today') : day,
       rhr: d.offset === 0 ? metrics.restingHr : d.rhr,
     };
   });
@@ -89,7 +88,7 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
     const dateObj = new Date(d.date + 'T12:00:00');
     const day = isNaN(dateObj.getTime()) ? d.label : dayNames[dateObj.getDay()];
     return {
-      day: d.offset === 0 ? 'Today' : day,
+      day: d.offset === 0 ? t('today') : day,
       resp: d.offset === 0 ? metrics.respiratoryRate : null,
     };
   });
@@ -239,8 +238,8 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
         {/* Chart 1: RECOVERY Vertical Bars */}
         <div className="p-4 rounded-[24px] bg-[#12151A] border border-white/5 space-y-2">
           <div className="flex items-center justify-between text-xs font-black uppercase font-condensed text-white">
-            <span>RECOVERY (7 DAYS)</span>
-            <span className="text-[10px] text-[#16EC06] font-mono">AVG: 79%</span>
+            <span>{t('recovery7Days')}</span>
+            <span className="text-[10px] text-[#16EC06] font-mono">{t('average')}: 79%</span>
           </div>
           <div className="h-32 w-full pt-2">
             <ResponsiveContainer width="100%" height="100%">
@@ -260,8 +259,8 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
         {/* Chart 2: HEART RATE VARIABILITY Line Chart */}
         <div className="p-4 rounded-[24px] bg-[#12151A] border border-white/5 space-y-2">
           <div className="flex items-center justify-between text-xs font-black uppercase font-condensed text-white">
-            <span>HEART RATE VARIABILITY (HRV RMSSD)</span>
-            <span className="text-[10px] text-[#16EC06] font-mono">30D BASELINE: {settings.hrvBaseline} ms</span>
+            <span>{t('hrv7Days')}</span>
+            <span className="text-[10px] text-[#16EC06] font-mono">{t('baseline')}: {settings.hrvBaseline} ms</span>
           </div>
           <div className="h-32 w-full pt-2">
             <ResponsiveContainer width="100%" height="100%">
@@ -277,8 +276,8 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
         {/* Chart 3: RESTING HEART RATE Line Chart */}
         <div className="p-4 rounded-[24px] bg-[#12151A] border border-white/5 space-y-2">
           <div className="flex items-center justify-between text-xs font-black uppercase font-condensed text-white">
-            <span>RESTING HEART RATE</span>
-            <span className="text-[10px] text-zinc-400 font-mono">TYPICAL: {settings.restingHrBaseline} bpm</span>
+            <span>{t('restingHeartRate')}</span>
+            <span className="text-[10px] text-zinc-400 font-mono">{t('typicalRange')}: {settings.restingHrBaseline} {t('bpm')}</span>
           </div>
           <div className="h-32 w-full pt-2">
             <ResponsiveContainer width="100%" height="100%">
@@ -294,8 +293,8 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
         {/* Chart 4: RESPIRATORY RATE Line Chart */}
         <div className="p-4 rounded-[24px] bg-[#12151A] border border-white/5 space-y-2">
           <div className="flex items-center justify-between text-xs font-black uppercase font-condensed text-white">
-            <span>RESPIRATORY RATE (RPM)</span>
-            <span className="text-[10px] text-[#7293B2] font-mono">AVG: 14.1 rpm</span>
+            <span>{t('respiratoryRate')}</span>
+            <span className="text-[10px] text-[#7293B2] font-mono">{t('average')}: 14.1 {t('rpm')}</span>
           </div>
           <div className="h-32 w-full pt-2">
             <ResponsiveContainer width="100%" height="100%">
