@@ -821,7 +821,7 @@ export class WhoopBleEngine {
 
       // Event packet from strap
       if (charUuid === WHOOP_EVENTS_FROM_STRAP_UUID) {
-        // e.g. charging state, double tap, wrist status
+        // e.g. charging state, double tap, wrist status, skin temp
         if (msgType === 0x01) {
           // Wrist event
           const onWrist = data.byteLength > 2 ? data.getUint8(2) === 1 : null;
@@ -835,20 +835,85 @@ export class WhoopBleEngine {
         } else if (msgType === 0x05) {
           // Battery pack detached / discharging
           this.updateBatteryState(this.metadata.batteryLevel ?? 0, false);
+        } else if (msgType === 0x06 || msgType === 0x14) {
+          // Thermistor event (16-bit signed/unsigned raw integer / 100.0)
+          if (data.byteLength >= 4) {
+            const rawTemp = data.getUint16(2, true);
+            const tempC = rawTemp / 100.0;
+            if (tempC >= 28.0 && tempC <= 42.0) {
+              biometricEngine.ingestSkinTemp(tempC);
+            }
+          }
+        } else if (msgType === 0x07 || msgType === 0x15) {
+          // SpO2 event
+          if (data.byteLength >= 3) {
+            const spo2Val = data.getUint8(2);
+            if (spo2Val >= 70 && spo2Val <= 100) {
+              biometricEngine.ingestSpO2(spo2Val);
+            }
+          }
         }
       }
 
-      // Raw IMU / Accelerometer stream from DATA_FROM_STRAP
+      // Raw IMU / Accelerometer / PPG / Thermistor stream from DATA_FROM_STRAP
       if (charUuid === WHOOP_DATA_FROM_STRAP_UUID && data.byteLength >= 6) {
-        try {
-          const rawX = data.getInt16(0, true);
-          const rawY = data.getInt16(2, true);
-          const rawZ = data.byteLength >= 6 ? data.getInt16(4, true) : 0;
-          const gX = rawX / 4096.0;
-          const gY = rawY / 4096.0;
-          const gZ = rawZ / 4096.0;
-          pedometerEngine.ingestRawAccel(gX, gY, gZ, Date.now(), this.metadata.onWrist !== false);
-        } catch { /* ignore parse anomaly */ }
+        // 1. Check for framed WHOOP packet (0xAA header)
+        if (header === 0xaa) {
+          const rawBytes = new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
+          const decoded = decodeWhoopFrame(rawBytes);
+          if (decoded.valid && decoded.payload && decoded.payload.length >= 2) {
+            const pType = decoded.payload[0];
+            const pData = new DataView(decoded.payload.buffer, decoded.payload.byteOffset, decoded.payload.byteLength);
+
+            if (pType === 0x01 && pData.byteLength >= 7) {
+              // Accelerometer IMU frame
+              const rawX = pData.getInt16(1, true);
+              const rawY = pData.getInt16(3, true);
+              const rawZ = pData.getInt16(5, true);
+              pedometerEngine.ingestRawAccel(rawX / 4096.0, rawY / 4096.0, rawZ / 4096.0, Date.now(), this.metadata.onWrist !== false);
+            } else if (pType === 0x02 && pData.byteLength >= 9) {
+              // PPG Optical frame -> compute modulation ratio R = (AC_red / DC_red) / (AC_ir / DC_ir)
+              try {
+                const acRed = Math.abs(pData.getInt16(1, true));
+                const dcRed = Math.max(1, pData.getUint16(3, true));
+                const acIr = Math.abs(pData.getInt16(5, true));
+                const dcIr = Math.max(1, pData.getUint16(7, true));
+                const rRatio = (acRed / dcRed) / (acIr / dcIr);
+                if (rRatio > 0.2 && rRatio < 1.8) {
+                  const spo2 = Math.min(100, Math.max(90, Math.round(110 - 25 * rRatio)));
+                  biometricEngine.ingestSpO2(spo2);
+                }
+              } catch {}
+            } else if (pType === 0x03 && pData.byteLength >= 3) {
+              // Skin thermistor frame
+              const rawTemp = pData.getUint16(1, true);
+              const tempC = rawTemp / 100.0;
+              if (tempC >= 28.0 && tempC <= 42.0) {
+                biometricEngine.ingestSkinTemp(tempC);
+              }
+            }
+          }
+        } else {
+          // Direct IMU & telemetry packet
+          try {
+            const rawX = data.getInt16(0, true);
+            const rawY = data.getInt16(2, true);
+            const rawZ = data.getInt16(4, true);
+            const gX = rawX / 4096.0;
+            const gY = rawY / 4096.0;
+            const gZ = rawZ / 4096.0;
+            pedometerEngine.ingestRawAccel(gX, gY, gZ, Date.now(), this.metadata.onWrist !== false);
+
+            // If packet includes trailing thermistor bytes (offsets 6-7)
+            if (data.byteLength >= 8) {
+              const rawTemp = data.getUint16(6, true);
+              const tempC = rawTemp / 100.0;
+              if (tempC >= 28.0 && tempC <= 42.0) {
+                biometricEngine.ingestSkinTemp(tempC);
+              }
+            }
+          } catch { /* ignore parse anomaly */ }
+        }
       }
     }
   }

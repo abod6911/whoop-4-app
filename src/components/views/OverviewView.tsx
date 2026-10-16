@@ -335,34 +335,46 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
         </div>
 
         {/* TONIGHT'S SLEEP Card */}
-        <button
-          onClick={onOpenSleepPlanner}
-          className="w-full p-4 rounded-[24px] bg-[#12151A] border border-white/5 hover:border-zinc-700 flex items-center justify-between text-start transition-all active:scale-98"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-[#7293B2]/15 flex items-center justify-center text-[#7293B2]">
-              <Moon className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="text-2xl font-black font-condensed text-white tabular-nums">
-                23:11
-              </div>
-              <div className="text-[10px] font-black uppercase tracking-wider text-zinc-400 font-condensed">
-                {isRtl ? 'موعد النوم الموصى به' : 'RECOMMENDED BEDTIME'}
-              </div>
-            </div>
-          </div>
+        {(() => {
+          const targetWakeMin = 7 * 60 + 30; // 07:30 wake target
+          const needMin = Math.round((settings.sleepNeedHours || 7.9) * 60) + 15;
+          let bedMin = targetWakeMin - needMin;
+          while (bedMin < 0) bedMin += 24 * 60;
+          const bedH = Math.floor(bedMin / 60);
+          const bedM = bedMin % 60;
+          const recommendedBedtime = `${bedH.toString().padStart(2, '0')}:${bedM.toString().padStart(2, '0')}`;
 
-          <div className="text-end">
-            <div className="flex items-center justify-end gap-1.5 text-xs font-mono font-bold text-white">
-              <span className="w-2 h-2 rounded-full bg-[#16EC06]" />
-              <span>07:30</span>
-            </div>
-            <div className="text-[10px] font-black uppercase tracking-wider text-[#16EC06] font-condensed">
-              {isRtl ? 'المنبه الذكي مفعل' : 'ALARM ON (EXACT)'}
-            </div>
-          </div>
-        </button>
+          return (
+            <button
+              onClick={onOpenSleepPlanner}
+              className="w-full p-4 rounded-[24px] bg-[#12151A] border border-white/5 hover:border-zinc-700 flex items-center justify-between text-start transition-all active:scale-98"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-[#7293B2]/15 flex items-center justify-center text-[#7293B2]">
+                  <Moon className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="text-2xl font-black font-condensed text-white tabular-nums">
+                    {recommendedBedtime}
+                  </div>
+                  <div className="text-[10px] font-black uppercase tracking-wider text-zinc-400 font-condensed">
+                    {isRtl ? 'موعد النوم الموصى به' : 'RECOMMENDED BEDTIME'}
+                  </div>
+                </div>
+              </div>
+
+              <div className="text-end">
+                <div className="flex items-center justify-end gap-1.5 text-xs font-mono font-bold text-white">
+                  <span className="w-2 h-2 rounded-full bg-[#16EC06]" />
+                  <span>07:30</span>
+                </div>
+                <div className="text-[10px] font-black uppercase tracking-wider text-[#16EC06] font-condensed">
+                  {isRtl ? 'المنبه الذكي مفعل' : 'ALARM ON (EXACT)'}
+                </div>
+              </div>
+            </button>
+          );
+        })()}
 
         {/* MY JOURNAL Card */}
         <div className="p-4 rounded-[24px] bg-[#12151A] border border-white/5 flex items-center justify-between">

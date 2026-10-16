@@ -5,7 +5,6 @@ import {
   MoreHorizontal,
   Info,
   Clock,
-  Sparkles,
   TrendingUp,
 } from 'lucide-react';
 import {
@@ -45,7 +44,10 @@ export const SleepStageDetailModal: React.FC<SleepStageDetailModalProps> = ({
 
   if (!isOpen) return null;
 
-  const hasSleep = sleepData?.hoursAsleep !== null && sleepData?.hoursAsleep !== undefined && sleepData.hoursAsleep > 0;
+  const hasSleep =
+    sleepData?.hoursAsleep !== null &&
+    sleepData?.hoursAsleep !== undefined &&
+    sleepData.hoursAsleep > 0;
   const hoursAsleep = hasSleep ? sleepData.hoursAsleep : null;
   const stages = sleepData?.stages || { awakePercent: 0, lightPercent: 0, deepPercent: 0, remPercent: 0 };
   const restorativePercent = stages.deepPercent + stages.remPercent;
@@ -59,14 +61,14 @@ export const SleepStageDetailModal: React.FC<SleepStageDetailModalProps> = ({
   };
 
   // Stage Color map
-  const STAGE_COLORS = {
+  const STAGE_COLORS: Record<string, string> = {
     awake: '#E4E4E7', // White/Gray
     light: '#A855F7', // Light Purple
     deep: '#D946EF',  // Pink/Magenta
     rem: '#7C3AED',   // Deep Purple
   };
 
-  const STAGE_NAMES = {
+  const STAGE_NAMES: Record<string, string> = {
     awake: isRtl ? 'استيقاظ' : 'AWAKE',
     light: isRtl ? 'نوم خفيف' : 'LIGHT',
     deep: isRtl ? 'نوم عميق (SWS)' : 'SWS (DEEP)',
@@ -75,7 +77,11 @@ export const SleepStageDetailModal: React.FC<SleepStageDetailModalProps> = ({
 
   const stagesSummary = {
     awake: {
-      duration: formatHoursMins(sleepData?.hoursInBed && hoursAsleep ? Math.max(0, sleepData.hoursInBed - hoursAsleep) : (hasSleep ? 0.6 : null)),
+      duration: formatHoursMins(
+        sleepData?.hoursInBed && hoursAsleep
+          ? Math.max(0, sleepData.hoursInBed - hoursAsleep)
+          : null
+      ),
       pct: hasSleep ? `${stages.awakePercent}%` : '0%',
       typical: '5% - 10%',
     },
@@ -96,34 +102,29 @@ export const SleepStageDetailModal: React.FC<SleepStageDetailModalProps> = ({
     },
   };
 
-  // Hypnogram data strictly from recorded sleep points or clean empty array
-  const hypnogramData: SleepTimelinePoint[] = hasSleep
-    ? [
-        { time: '23:15', hr: 64, stage: 'awake' },
-        { time: '00:00', hr: 56, stage: 'light' },
-        { time: '01:00', hr: 50, stage: 'deep' },
-        { time: '02:00', hr: 48, stage: 'deep' },
-        { time: '03:00', hr: 54, stage: 'rem' },
-        { time: '04:00', hr: 52, stage: 'light' },
-        { time: '05:00', hr: 49, stage: 'deep' },
-        { time: '06:00', hr: 55, stage: 'rem' },
-        { time: '07:00', hr: 58, stage: 'light' },
-        { time: '07:30', hr: 66, stage: 'awake' },
-      ]
-    : [];
+  // Hypnogram data strictly from recorded sleep points (Zero Fake Constants)
+  const timelinePoints = sleepData?.timeline || [];
+  const hypnogramData: SleepTimelinePoint[] = timelinePoints.map((pt) => ({
+    time: new Date(pt.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
+    hr: pt.hr || 60,
+    stage: pt.stage,
+  }));
 
-  const getFilteredChartData = () => {
-    return hypnogramData.map((d) => {
-      const isHighlighted = selectedStage === 'all' || d.stage === selectedStage;
-      return {
-        ...d,
-        activeHr: isHighlighted ? d.hr : null,
-        dimHr: !isHighlighted ? d.hr : null,
-      };
-    });
-  };
+  const timeRangeLabel =
+    timelinePoints.length >= 2
+      ? `${new Date(timelinePoints[0].timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })} – ${new Date(
+          timelinePoints[timelinePoints.length - 1].timestamp
+        ).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}`
+      : '--';
 
-  const chartData = getFilteredChartData();
+  const chartData = hypnogramData.map((d) => {
+    const isHighlighted = selectedStage === 'all' || d.stage === selectedStage;
+    return {
+      ...d,
+      activeHr: isHighlighted ? d.hr : null,
+      dimHr: !isHighlighted ? d.hr : null,
+    };
+  });
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/90 backdrop-blur-md animate-in fade-in duration-200">
@@ -143,7 +144,7 @@ export const SleepStageDetailModal: React.FC<SleepStageDetailModalProps> = ({
               <span>{t('sleep')}</span>
             </div>
             <div className="text-[10px] text-zinc-400 font-mono" dir="ltr">
-              {hasSleep ? '23:15 – 07:30' : '--'}
+              {timeRangeLabel}
             </div>
           </div>
 
@@ -191,8 +192,8 @@ export const SleepStageDetailModal: React.FC<SleepStageDetailModalProps> = ({
             <p>
               {hasSleep
                 ? isRtl
-                  ? `هيكل نوم محسوب من البيانات الفعلية. بلغ النوم التعويضي (العميق + REM) نسبة ${restorativePercent}% من إجمالي وقت النوم لتعزيز الاستشفاء.`
-                  : `Real calculated sleep architecture. Restorative sleep (SWS Deep + REM) was ${restorativePercent}% of total sleep time, supporting tissue repair.`
+                  ? `هيكل نوم محسوب من البيانات الفعلية لسوار WHOOP 4.0. بلغ النوم التعويضي (العميق + REM) نسبة ${restorativePercent}% من إجمالي وقت النوم لتعزيز الاستشفاء العضلي والعصبي.`
+                  : `Real calculated sleep architecture from your WHOOP 4.0 strap. Restorative sleep (SWS Deep + REM) was ${restorativePercent}% of total sleep time, supporting neuromuscular recovery.`
                 : isRtl
                 ? 'لم يتم تسجيل نوم لليوم بعد. ارتدِ سوار WHOOP 4.0 أثناء النوم لتسجيل وحساب مراحل النوم الفعلية.'
                 : 'No sleep recorded yet today. Wear your WHOOP 4.0 strap overnight to record authentic sleep architecture.'}
@@ -213,46 +214,58 @@ export const SleepStageDetailModal: React.FC<SleepStageDetailModalProps> = ({
               )}
             </div>
 
-            <div className="h-32 w-full pt-2">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartData} margin={{ top: 5, right: 0, left: -25, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="sleepHrGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop
-                        offset="5%"
-                        stopColor={selectedStage === 'all' ? '#7293B2' : STAGE_COLORS[selectedStage]}
-                        stopOpacity={0.4}
-                      />
-                      <stop
-                        offset="95%"
-                        stopColor={selectedStage === 'all' ? '#7293B2' : STAGE_COLORS[selectedStage]}
-                        stopOpacity={0.0}
-                      />
-                    </linearGradient>
-                  </defs>
-                  <XAxis dataKey="time" stroke="#52525B" tick={{ fontSize: 8 }} tickLine={false} />
-                  <YAxis domain={[40, 80]} stroke="#52525B" tick={{ fontSize: 9 }} tickLine={false} />
-                  {/* Dim background curve for unselected stages */}
-                  <Area
-                    type="monotone"
-                    dataKey="dimHr"
-                    stroke="#3F3F46"
-                    strokeWidth={1}
-                    fillOpacity={0}
-                    connectNulls={false}
-                  />
-                  {/* Active highlighted curve */}
-                  <Area
-                    type="monotone"
-                    dataKey="activeHr"
-                    stroke={selectedStage === 'all' ? '#7293B2' : STAGE_COLORS[selectedStage]}
-                    strokeWidth={2.5}
-                    fill="url(#sleepHrGrad)"
-                    connectNulls={false}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
+            {chartData.length > 0 ? (
+              <div className="h-32 w-full pt-2">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={chartData} margin={{ top: 5, right: 0, left: -25, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="sleepHrGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop
+                          offset="5%"
+                          stopColor={selectedStage === 'all' ? '#7293B2' : STAGE_COLORS[selectedStage]}
+                          stopOpacity={0.4}
+                        />
+                        <stop
+                          offset="95%"
+                          stopColor={selectedStage === 'all' ? '#7293B2' : STAGE_COLORS[selectedStage]}
+                          stopOpacity={0.0}
+                        />
+                      </linearGradient>
+                    </defs>
+                    <XAxis dataKey="time" stroke="#52525B" tick={{ fontSize: 8 }} tickLine={false} />
+                    <YAxis domain={['dataMin - 5', 'dataMax + 5']} stroke="#52525B" tick={{ fontSize: 9 }} tickLine={false} />
+                    <Tooltip
+                      contentStyle={{ backgroundColor: '#0B0D10', borderColor: '#27272A', borderRadius: '12px', fontSize: '11px' }}
+                    />
+                    {/* Dim background curve for unselected stages */}
+                    <Area
+                      type="monotone"
+                      dataKey="dimHr"
+                      stroke="#3F3F46"
+                      strokeWidth={1}
+                      fillOpacity={0}
+                      connectNulls={false}
+                    />
+                    {/* Active highlighted curve */}
+                    <Area
+                      type="monotone"
+                      dataKey="activeHr"
+                      stroke={selectedStage === 'all' ? '#7293B2' : STAGE_COLORS[selectedStage]}
+                      strokeWidth={2.5}
+                      fill="url(#sleepHrGrad)"
+                      connectNulls={false}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div className="h-28 w-full flex flex-col items-center justify-center text-zinc-500 text-xs font-mono">
+                <span>{t('calibrating')}</span>
+                <span className="text-[10px] text-zinc-600 mt-1">
+                  {isRtl ? 'في انتظار جلسة نوم ليلية' : 'Awaiting overnight sleep stream'}
+                </span>
+              </div>
+            )}
           </div>
 
           {/* 4 Interactive Striped Stage Bars (00:40 in Video) */}
@@ -316,7 +329,9 @@ export const SleepStageDetailModal: React.FC<SleepStageDetailModalProps> = ({
                   {isRtl ? 'مرات الاستيقاظ' : 'WAKE EVENTS'}
                 </span>
                 <div className="text-2xl font-black font-condensed text-white tabular-nums" dir="ltr">
-                  {sleepData?.disturbancesCount !== undefined && sleepData?.disturbancesCount !== null ? sleepData.disturbancesCount : (hasSleep ? '1' : '--')}
+                  {sleepData?.disturbancesCount !== undefined && sleepData?.disturbancesCount !== null
+                    ? sleepData.disturbancesCount
+                    : '--'}
                   <span className="text-xs font-sans text-zinc-400 font-normal ml-1">{isRtl ? '/ س' : '/ hr'}</span>
                 </div>
                 <span className={`text-[9px] font-mono ${hasSleep ? 'text-[#16EC06]' : 'text-zinc-500'}`}>
@@ -330,9 +345,15 @@ export const SleepStageDetailModal: React.FC<SleepStageDetailModalProps> = ({
                   {t('sleepEfficiency')}
                 </span>
                 <div className="text-2xl font-black font-condensed text-white tabular-nums" dir="ltr">
-                  {sleepData?.efficiencyPercent ? `${sleepData.efficiencyPercent}%` : '--'}
+                  {sleepData?.efficiencyPercent !== null && sleepData?.efficiencyPercent !== undefined
+                    ? `${sleepData.efficiencyPercent}%`
+                    : '--'}
                 </div>
-                <span className={`text-[9px] font-mono ${sleepData?.efficiencyPercent ? 'text-[#16EC06]' : 'text-zinc-500'}`}>
+                <span
+                  className={`text-[9px] font-mono ${
+                    sleepData?.efficiencyPercent ? 'text-[#16EC06]' : 'text-zinc-500'
+                  }`}
+                >
                   {sleepData?.efficiencyPercent ? (isRtl ? 'كفاءة ممتازة' : 'Restful duration') : t('calibrating')}
                 </span>
               </div>

@@ -84,11 +84,19 @@ export const SleepView: React.FC<SleepViewProps> = ({
   const timeInBedRanges = recentDays.map((d) => {
     const dateObj = new Date(d.date + 'T12:00:00');
     const day = isNaN(dateObj.getTime()) ? d.label : dayNames[dateObj.getDay()];
-    const hasBed = d.offset === 0 && sleepData.hoursInBed;
+    const timeline = d.offset === 0 ? (sleepData.timeline || []) : [];
+    const hasTimeline = timeline.length >= 2;
+    const bedTime = hasTimeline
+      ? new Date(timeline[0].timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
+      : '--';
+    const wakeTime = hasTimeline
+      ? new Date(timeline[timeline.length - 1].timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
+      : '--';
+
     return {
       day: d.offset === 0 ? t('today') : day,
-      bed: hasBed ? '23:15' : '--',
-      wake: hasBed ? '07:30' : '--',
+      bed: bedTime,
+      wake: wakeTime,
       height: d.offset === 0 ? (sleepData.hoursInBed ?? 0) : 0,
     };
   });

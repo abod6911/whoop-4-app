@@ -12,6 +12,7 @@ import { notificationEngine } from '../services/notificationEngine';
 import { pedometerEngine } from '../services/pedometerEngine';
 import { sleepEngine } from '../services/sleepEngine';
 import { whoopDb } from '../services/whoopDatabase';
+import { caloriesEngine } from './caloriesEngine';
 
 export class BiometricEngine {
   private userSettings: UserSettings;
@@ -44,6 +45,7 @@ export class BiometricEngine {
   // Health Monitor: Skin Temperature & Blood Oxygen (SpO2)
   private skinTempCelsius: number | null = null;
   private skinTempDelta: number | null = null;
+  private skinTempReadings: number[] = [];
   private spO2: number | null = null;
   private spO2Readings: number[] = [];
   private spO2DipsCount = 0;
@@ -61,6 +63,13 @@ export class BiometricEngine {
   constructor(settings?: UserSettings) {
     this.userSettings = settings || storageService.getUserSettings();
     this.loadTodayRealState();
+
+    // 60-Second Periodic Auto-Save Timer to IndexedDB and localStorage (whoop_day_YYYY-MM-DD)
+    if (typeof window !== 'undefined') {
+      window.setInterval(() => {
+        this.persistTodayRealState();
+      }, 60000);
+    }
   }
 
   public updateSettings(settings: UserSettings): void {
@@ -74,11 +83,20 @@ export class BiometricEngine {
   // Load real stored state for today (from localStorage)
   private loadTodayRealState(): void {
     const todayStr = new Date().toISOString().split('T')[0];
-    const saved = storageService.getRealDayState(todayStr);
+    caloriesEngine.loadPersistedState(todayStr);
+
+    let saved = storageService.getRealDayState(todayStr);
+    if (!saved) {
+      try {
+        const rawDay = localStorage.getItem(`whoop_day_${todayStr}`);
+        if (rawDay) saved = JSON.parse(rawDay);
+      } catch {}
+    }
+
     if (saved) {
       this.dailyStrain = saved.dayStrain || 0;
       this.trimpAccumulator = this.strainToTrimp(this.dailyStrain);
-      this.activeCalories = saved.activeCalories || 0;
+      this.activeCalories = caloriesEngine.getActiveCalories() || saved.activeCalories || 0;
       this.zoneSeconds = saved.zoneSeconds || { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
       this.realRhrObserved = saved.rhr || null;
       this.stressPoints = saved.stressPoints || [];
@@ -96,7 +114,10 @@ export class BiometricEngine {
     const bmrToday = this.getBmrCaloriesElapsedToday();
     const totalCal = Math.round(bmrToday + this.activeCalories);
 
-    storageService.saveRealDayState(todayStr, {
+    // Persist to caloriesEngine
+    caloriesEngine.persistState(todayStr);
+
+    const snapshot = {
       dayStrain: this.dailyStrain,
       activeCalories: Math.round(this.activeCalories),
       rhr,
@@ -105,7 +126,21 @@ export class BiometricEngine {
       recoveryCategory: recovery.category,
       zoneSeconds: this.zoneSeconds,
       stressPoints: this.stressPoints.slice(-120), // keep latest 120 timeline points
-    });
+    };
+
+    storageService.saveRealDayState(todayStr, snapshot);
+
+    // Save directly under whoop_day_YYYY-MM-DD
+    try {
+      localStorage.setItem(`whoop_day_${todayStr}`, JSON.stringify({
+        ...snapshot,
+        date: todayStr,
+        bmrCalories: bmrToday,
+        totalCalories: totalCal,
+        steps: pedo.steps,
+        updatedAt: Date.now(),
+      }));
+    } catch {}
 
     // Also persist to Dexie production IndexedDB table
     whoopDb.saveDailyRecord({
@@ -379,48 +414,35 @@ export class BiometricEngine {
     return [...this.stressPoints];
   }
 
-  // --- Real Calories Burned (Keytel Equation) ---
+  // --- Real Calories Burned (Keytel Equation & Mifflin-St Jeor BMR) ---
   private calculateCaloriesPerSecond(bpm: number): number {
-    const { gender, weightKg, age } = this.userSettings;
-    let calPerMin = 0;
-
-    if (gender === 'male') {
-      calPerMin = (-55.0969 + 0.6309 * bpm + 0.1988 * weightKg + 0.2017 * age) / 4.184;
-    } else {
-      calPerMin = (-20.4022 + 0.4472 * bpm - 0.1263 * weightKg + 0.074 * age) / 4.184;
-    }
-
-    return Math.max(0, calPerMin / 60);
+    const rhr = this.getRestingHeartRate() || this.userSettings.restingHrBaseline;
+    return caloriesEngine.calculateActiveCaloriesPerSecond(bpm, rhr, this.userSettings);
   }
 
-  // --- Mifflin-St Jeor Basal Metabolic Rate (BMR) ---
+  // --- Basal Metabolic Rate (BMR) ---
   public calculateDailyBmr(settings?: UserSettings): number {
-    const s = settings || this.userSettings;
-    const { gender, weightKg, heightCm, age } = s;
-    const h = heightCm || 178;
-    if (gender === 'male') {
-      return (10 * weightKg) + (6.25 * h) - (5 * age) + 5;
-    } else {
-      return (10 * weightKg) + (6.25 * h) - (5 * age) - 161;
-    }
+    return caloriesEngine.calculateDailyBmr(settings || this.userSettings);
   }
 
   public getBmrCaloriesElapsedToday(): number {
-    const now = new Date();
-    const minutesSinceMidnight = (now.getHours() * 60) + now.getMinutes() + (now.getSeconds() / 60);
-    const dailyBmr = this.calculateDailyBmr();
-    return Math.round((dailyBmr / 1440) * minutesSinceMidnight);
+    return caloriesEngine.getBmrCaloriesElapsed(this.userSettings);
   }
 
   public getTotalDailyCalories(): number {
-    return Math.round(this.getBmrCaloriesElapsedToday() + this.activeCalories);
+    return caloriesEngine.getTotalCalories(this.userSettings);
   }
 
   // --- Health Monitor Ingestion (Skin Temp & SpO2) ---
   public ingestSkinTemp(celsius: number): void {
+    if (celsius < 25.0 || celsius > 43.0) return; // Discard invalid thermistor readings
     this.skinTempCelsius = Number(celsius.toFixed(1));
+    this.skinTempReadings.push(this.skinTempCelsius);
+    if (this.skinTempReadings.length > 500) this.skinTempReadings.shift();
+
     const baseline = 33.5; // WHOOP skin temperature baseline reference
-    this.skinTempDelta = Number((celsius - baseline).toFixed(1));
+    const mean = this.skinTempReadings.reduce((a, b) => a + b, 0) / this.skinTempReadings.length;
+    this.skinTempDelta = Number((mean - baseline).toFixed(1));
   }
 
   public ingestSpO2(percent: number): void {
@@ -614,7 +636,9 @@ export class BiometricEngine {
     // 3. Sleep Engine Ingestion & Metrics
     const currentHrv = this.calculateRMSSD();
     const rhr = this.getRestingHeartRate();
-    sleepEngine.ingestSample(isBandOnWrist ? bpm : 0, currentHrv, onWrist, rhr || this.userSettings.restingHrBaseline, timestamp);
+    const pedoCurrent = pedometerEngine.getState();
+    const motionIntensity = isBandOnWrist ? Math.min(1.0, pedoCurrent.cadence / 160.0) : 0;
+    sleepEngine.ingestSample(isBandOnWrist ? bpm : 0, currentHrv, onWrist, rhr || this.userSettings.restingHrBaseline, timestamp, motionIntensity);
     const sleepMetrics = sleepEngine.getSleepMetrics(this.userSettings, this.dailyStrain);
 
     // 4. Compute Metrics
@@ -845,11 +869,14 @@ export class BiometricEngine {
     this.rsaBuffer = [];
     this.rolling5MinSamples = [];
     this.stressPoints = [];
-    this.currentStressScore = null;
-    this.poincarePoints = [];
+    this.skinTempReadings = [];
+    caloriesEngine.resetDay();
 
     const todayStr = new Date().toISOString().split('T')[0];
     storageService.clearRealDayState(todayStr);
+    try {
+      localStorage.removeItem(`whoop_day_${todayStr}`);
+    } catch {}
   }
 }
 

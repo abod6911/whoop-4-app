@@ -150,39 +150,20 @@ export function generateSleepMetrics(
     return fromEngine;
   }
 
-  if (sleepPerformance === null) {
-    return {
-      hoursInBed: null,
-      hoursAsleep: null,
-      sleepNeedHours: 7.9,
-      sleepPerformance: null,
-      efficiencyPercent: null,
-      latencyMinutes: null,
-      disturbancesCount: null,
-      sleepDebtHours: 0.65,
-      stages: {
-        awakePercent: 0,
-        remPercent: 0,
-        lightPercent: 0,
-        deepPercent: 0,
-      },
-    };
-  }
-
   return {
-    hoursInBed: 8.0,
-    hoursAsleep: 7.5,
+    hoursInBed: null,
+    hoursAsleep: null,
     sleepNeedHours: 7.9,
     sleepPerformance,
-    efficiencyPercent: 94,
-    latencyMinutes: 12,
-    disturbancesCount: 2,
+    efficiencyPercent: null,
+    latencyMinutes: null,
+    disturbancesCount: null,
     sleepDebtHours: 0.65,
     stages: {
-      awakePercent: 6,
-      remPercent: 24,
-      lightPercent: 48,
-      deepPercent: 22,
+      awakePercent: 0,
+      remPercent: 0,
+      lightPercent: 0,
+      deepPercent: 0,
     },
   };
 }

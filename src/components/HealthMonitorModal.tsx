@@ -269,12 +269,32 @@ export const HealthMonitorModal: React.FC<HealthMonitorModalProps> = ({
                 <span>{t('skinTemp')}</span>
               </div>
               <div className="text-2xl font-black font-condensed text-white tabular-nums" dir="ltr">
-                {metrics.skinTempCelsius !== null ? `${metrics.skinTempCelsius >= 0 ? '+' : ''}${metrics.skinTempCelsius.toFixed(1)}°C` : '--'}
+                {metrics.skinTempDelta !== null
+                  ? `${metrics.skinTempDelta >= 0 ? '+' : ''}${metrics.skinTempDelta.toFixed(1)}°C`
+                  : metrics.skinTempCelsius !== null
+                  ? `${metrics.skinTempCelsius.toFixed(1)}°C`
+                  : '--'}
               </div>
               <div className="flex items-center gap-1.5 text-[10px] font-mono">
-                <span className={`w-2 h-2 rounded-full ${metrics.skinTempCelsius !== null ? 'bg-[#16EC06]' : 'bg-zinc-600'}`} />
-                <span className={metrics.skinTempCelsius !== null ? 'text-[#16EC06]' : 'text-zinc-500'}>
-                  {metrics.skinTempCelsius !== null ? '-0.5° to +0.5°' : t('calibrating')}
+                <span
+                  className={`w-2 h-2 rounded-full ${
+                    metrics.skinTempDelta !== null || metrics.skinTempCelsius !== null
+                      ? 'bg-[#16EC06]'
+                      : 'bg-zinc-600'
+                  }`}
+                />
+                <span
+                  className={
+                    metrics.skinTempDelta !== null || metrics.skinTempCelsius !== null
+                      ? 'text-[#16EC06]'
+                      : 'text-zinc-500'
+                  }
+                >
+                  {metrics.skinTempDelta !== null
+                    ? `${metrics.skinTempDelta >= 0 ? '+' : ''}${metrics.skinTempDelta.toFixed(1)}° ${isRtl ? 'من الأساس' : 'from baseline'}`
+                    : metrics.skinTempCelsius !== null
+                    ? `${isRtl ? 'المعدل الطبيعي: 33.5°' : 'Baseline 33.5°C'}`
+                    : t('calibrating')}
                 </span>
               </div>
             </div>

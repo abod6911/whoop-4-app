@@ -372,9 +372,18 @@ export const App: React.FC = () => {
       effectiveMetrics.currentHrv,
       effectiveMetrics.restingHr,
       effectiveMetrics.respiratoryRate,
-      settings
+      settings,
+      effectiveMetrics.skinTempCelsius,
+      effectiveMetrics.spO2
     );
-  }, [effectiveMetrics.currentHrv, effectiveMetrics.restingHr, effectiveMetrics.respiratoryRate, settings]);
+  }, [
+    effectiveMetrics.currentHrv,
+    effectiveMetrics.restingHr,
+    effectiveMetrics.respiratoryRate,
+    effectiveMetrics.skinTempCelsius,
+    effectiveMetrics.spO2,
+    settings,
+  ]);
 
   const sleepData: SleepMetrics = useMemo(() => {
     return generateSleepMetrics(effectiveMetrics.sleepPerformance, settings, effectiveMetrics.dailyStrain);
