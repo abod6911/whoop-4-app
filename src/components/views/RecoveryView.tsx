@@ -1,6 +1,5 @@
 import React from 'react';
-import type { LiveMetrics, UserSettings } from '../../types/whoop';
-import { storageService } from '../../services/StorageService';
+import type { LiveMetrics, UserSettings, DayHistoryRecord } from '../../types/whoop';
 import {
   Activity,
   Heart,
@@ -26,6 +25,7 @@ import {
 interface RecoveryViewProps {
   metrics: LiveMetrics;
   settings: UserSettings;
+  daysHistory?: DayHistoryRecord[];
   onOpenRecoveryTest: () => void;
 }
 
@@ -39,57 +39,57 @@ export const getRecoveryColor = (score: number | null) => {
 export const RecoveryView: React.FC<RecoveryViewProps> = ({
   metrics,
   settings,
+  daysHistory,
   onOpenRecoveryTest,
 }) => {
-  const recoveryScore = metrics.recoveryScore ?? 88;
+  const recoveryScore = metrics.recoveryScore;
   const recoveryColor = getRecoveryColor(recoveryScore);
 
   const size = 180;
   const stroke = 12;
   const radius = (size - stroke) / 2;
   const circ = 2 * Math.PI * radius;
-  const offset = circ - (recoveryScore / 100) * circ;
+  const offset = recoveryScore !== null ? circ - (recoveryScore / 100) * circ : circ;
 
-  // 7-day data
-  const recovery7Day = [
-    { day: 'Sat', score: 78 },
-    { day: 'Sun', score: 85 },
-    { day: 'Mon', score: 62 },
-    { day: 'Tue', score: 71 },
-    { day: 'Wed', score: 82 },
-    { day: 'Thu', score: 91 },
-    { day: 'Fri', score: recoveryScore },
-  ];
+  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const recentDays = (daysHistory || []).slice(0, 7).reverse();
 
-  const hrv7Day = [
-    { day: 'Sat', hrv: 62 },
-    { day: 'Sun', hrv: 68 },
-    { day: 'Mon', hrv: 54 },
-    { day: 'Tue', hrv: 59 },
-    { day: 'Wed', hrv: 66 },
-    { day: 'Thu', hrv: 72 },
-    { day: 'Fri', hrv: metrics.currentHrv ?? 64 },
-  ];
+  // 7-day data derived strictly from real persisted records (Zero Mock Data)
+  const recovery7Day = recentDays.map((d) => {
+    const dateObj = new Date(d.date + 'T12:00:00');
+    const day = isNaN(dateObj.getTime()) ? d.label : dayNames[dateObj.getDay()];
+    return {
+      day: d.offset === 0 ? 'Today' : day,
+      score: d.offset === 0 ? metrics.recoveryScore : d.recoveryScore,
+    };
+  });
 
-  const rhr7Day = [
-    { day: 'Sat', rhr: 54 },
-    { day: 'Sun', rhr: 52 },
-    { day: 'Mon', rhr: 57 },
-    { day: 'Tue', rhr: 55 },
-    { day: 'Wed', rhr: 53 },
-    { day: 'Thu', rhr: 50 },
-    { day: 'Fri', rhr: metrics.restingHr ?? settings.restingHrBaseline },
-  ];
+  const hrv7Day = recentDays.map((d) => {
+    const dateObj = new Date(d.date + 'T12:00:00');
+    const day = isNaN(dateObj.getTime()) ? d.label : dayNames[dateObj.getDay()];
+    return {
+      day: d.offset === 0 ? 'Today' : day,
+      hrv: d.offset === 0 ? metrics.currentHrv : d.hrv,
+    };
+  });
 
-  const resp7Day = [
-    { day: 'Sat', resp: 14.1 },
-    { day: 'Sun', resp: 13.9 },
-    { day: 'Mon', resp: 14.6 },
-    { day: 'Tue', resp: 14.3 },
-    { day: 'Wed', resp: 14.0 },
-    { day: 'Thu', resp: 13.8 },
-    { day: 'Fri', resp: metrics.respiratoryRate ?? 14.2 },
-  ];
+  const rhr7Day = recentDays.map((d) => {
+    const dateObj = new Date(d.date + 'T12:00:00');
+    const day = isNaN(dateObj.getTime()) ? d.label : dayNames[dateObj.getDay()];
+    return {
+      day: d.offset === 0 ? 'Today' : day,
+      rhr: d.offset === 0 ? metrics.restingHr : d.rhr,
+    };
+  });
+
+  const resp7Day = recentDays.map((d) => {
+    const dateObj = new Date(d.date + 'T12:00:00');
+    const day = isNaN(dateObj.getTime()) ? d.label : dayNames[dateObj.getDay()];
+    return {
+      day: d.offset === 0 ? 'Today' : day,
+      resp: d.offset === 0 ? metrics.respiratoryRate : null,
+    };
+  });
 
   return (
     <div className="space-y-4 pb-28 animate-in fade-in duration-300">
@@ -113,18 +113,20 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
               strokeWidth={stroke}
               fill="transparent"
             />
-            <circle
-              cx={size / 2}
-              cy={size / 2}
-              r={radius}
-              stroke={recoveryColor}
-              strokeWidth={stroke}
-              fill="transparent"
-              strokeDasharray={circ}
-              strokeDashoffset={offset}
-              strokeLinecap="round"
-              className="transition-all duration-700 ease-out"
-            />
+            {recoveryScore !== null && (
+              <circle
+                cx={size / 2}
+                cy={size / 2}
+                r={radius}
+                stroke={recoveryColor}
+                strokeWidth={stroke}
+                fill="transparent"
+                strokeDasharray={circ}
+                strokeDashoffset={offset}
+                strokeLinecap="round"
+                className="transition-all duration-700 ease-out"
+              />
+            )}
           </svg>
 
           <div className="absolute inset-0 flex flex-col items-center justify-center">
@@ -132,10 +134,12 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
               className="text-6xl font-black font-condensed tracking-tight tabular-nums transition-colors"
               style={{ color: recoveryColor }}
             >
-              {recoveryScore}%
+              {recoveryScore !== null ? `${recoveryScore}%` : '--'}
             </span>
             <span className="text-[11px] font-black uppercase tracking-widest text-zinc-400 font-condensed mt-1">
-              {recoveryScore >= 67 ? 'GREEN' : recoveryScore >= 34 ? 'YELLOW' : 'RED'}
+              {recoveryScore !== null
+                ? recoveryScore >= 67 ? 'GREEN' : recoveryScore >= 34 ? 'YELLOW' : 'RED'
+                : 'CALIBRATING'}
             </span>
           </div>
         </div>
@@ -144,7 +148,14 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
         <div className="mt-5 w-full p-3.5 rounded-2xl bg-[#0D1612] border border-[#16EC06]/20 text-xs text-zinc-300 leading-relaxed text-left flex items-start gap-2.5">
           <Info className="w-4 h-4 text-[#16EC06] flex-shrink-0 mt-0.5" />
           <p>
-            Your autonomic nervous system is in balance. Resting heart rate of {metrics.restingHr ?? settings.restingHrBaseline} bpm and elevated HRV indicate adequate physiological restoration.
+            {recoveryScore !== null ? (
+              <>
+                Your autonomic nervous system readiness is calculated from real WHOOP 4.0 telemetry. Resting heart rate of{' '}
+                {metrics.restingHr ?? '--'} bpm and HRV of {metrics.currentHrv ?? '--'} ms indicate your current autonomic capacity.
+              </>
+            ) : (
+              'Connect your physical WHOOP 4.0 strap to record live heart rate and calculate your daily Recovery Score and HRV metrics.'
+            )}
           </p>
         </div>
 

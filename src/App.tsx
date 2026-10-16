@@ -81,6 +81,15 @@ export const App: React.FC = () => {
   const [isCoachChatOpen, setIsCoachChatOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  // Bluetooth Device Permissions API permitted devices cache
+  const [permittedDevices, setPermittedDevices] = useState<BluetoothDevice[]>([]);
+
+  useEffect(() => {
+    whoopBleEngine.checkPermittedDevices().then((devs) => {
+      setPermittedDevices(devs);
+    });
+  }, []);
+
   useEffect(() => {
     return notificationEngine.subscribe(() => {
       setUnreadNotificationsCount(notificationEngine.getUnreadCount());
@@ -213,16 +222,31 @@ export const App: React.FC = () => {
     };
   }, [handleMeasurement]);
 
-  // Connect BLE flow (Physical WHOOP 4.0 Strap)
-  const handleConnectBle = async () => {
+  // Connect BLE flow (Physical WHOOP 4.0 Strap) with Specific Filters
+  const handleConnectBle = async (forceChooser = false) => {
     try {
       setErrorMessage(null);
-      await whoopBleEngine.connect();
+      await whoopBleEngine.connect(forceChooser);
+      const updatedPermitted = await whoopBleEngine.checkPermittedDevices();
+      setPermittedDevices(updatedPermitted);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       if (!msg.includes('cancelled') && !msg.includes('User cancelled')) {
         setErrorMessage(msg);
       }
+    }
+  };
+
+  // 1-Click Reconnect to Permitted Device without Chooser Dialog
+  const handleReconnectPermitted = async (device?: BluetoothDevice) => {
+    try {
+      setErrorMessage(null);
+      await whoopBleEngine.reconnectPermittedDevice(device);
+      const updatedPermitted = await whoopBleEngine.checkPermittedDevices();
+      setPermittedDevices(updatedPermitted);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setErrorMessage(msg);
     }
   };
 
@@ -383,6 +407,7 @@ export const App: React.FC = () => {
                   sessions={effectiveSessions}
                   settings={settings}
                   metadata={metadata}
+                  daysHistory={daysHistory}
                   onSelectSubTab={setHomeSubTab}
                   onOpenHealthMonitorModal={() => setIsHealthMonitorOpen(true)}
                   onOpenStressMonitorModal={() => setIsStressMonitorOpen(true)}
@@ -398,6 +423,7 @@ export const App: React.FC = () => {
                 <SleepView
                   metrics={effectiveMetrics}
                   sleepData={sleepData}
+                  daysHistory={daysHistory}
                   onActivateOledNightLock={() => setIsOledNightLockOpen(true)}
                 />
               )}
@@ -406,6 +432,7 @@ export const App: React.FC = () => {
                 <RecoveryView
                   metrics={effectiveMetrics}
                   settings={settings}
+                  daysHistory={daysHistory}
                   onOpenRecoveryTest={() => setIsRecoveryTestOpen(true)}
                 />
               )}
@@ -415,6 +442,7 @@ export const App: React.FC = () => {
                   metrics={effectiveMetrics}
                   zones={zones}
                   settings={settings}
+                  daysHistory={daysHistory}
                   onStartWorkout={handleStartWorkout}
                   onStopWorkout={handleStopWorkout}
                   isWorkoutActive={isWorkoutActive}
@@ -524,7 +552,9 @@ export const App: React.FC = () => {
           isOpen={isStrapSheetOpen}
           onClose={() => setIsStrapSheetOpen(false)}
           metadata={metadata}
+          permittedDevices={permittedDevices}
           onConnectBle={handleConnectBle}
+          onReconnectPermitted={handleReconnectPermitted}
           onDisconnectBle={handleDisconnectBle}
         />
 

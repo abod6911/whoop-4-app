@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { LiveMetrics, HrZoneInfo, UserSettings } from '../../types/whoop';
+import type { LiveMetrics, HrZoneInfo, UserSettings, DayHistoryRecord } from '../../types/whoop';
 import {
   Flame,
   Dumbbell,
@@ -26,6 +26,7 @@ interface StrainViewProps {
   metrics: LiveMetrics;
   zones: HrZoneInfo[];
   settings: UserSettings;
+  daysHistory?: DayHistoryRecord[];
   onStartWorkout: (sport: string) => void;
   onStopWorkout: () => void;
   isWorkoutActive: boolean;
@@ -36,6 +37,7 @@ export const StrainView: React.FC<StrainViewProps> = ({
   metrics,
   zones,
   settings,
+  daysHistory,
   onStartWorkout,
   onStopWorkout,
   isWorkoutActive,
@@ -56,40 +58,40 @@ export const StrainView: React.FC<StrainViewProps> = ({
   const stroke = 12;
   const radius = (size - stroke) / 2;
   const circ = 2 * Math.PI * radius;
-  const strainScore = metrics.dailyStrain > 0 ? metrics.dailyStrain : 5.5;
+  const strainScore = metrics.dailyStrain;
   const strainRatio = Math.min(1, Math.max(0, strainScore / 21.0));
   const strainOffset = circ - strainRatio * circ;
 
-  // 7-day chart data
-  const strain7Day = [
-    { day: 'Sat', strain: 11.2 },
-    { day: 'Sun', strain: 14.5 },
-    { day: 'Mon', strain: 9.8 },
-    { day: 'Tue', strain: 16.1 },
-    { day: 'Wed', strain: 13.4 },
-    { day: 'Thu', strain: 10.5 },
-    { day: 'Fri', strain: Number(strainScore.toFixed(1)) },
-  ];
+  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const recentDays = (daysHistory || []).slice(0, 7).reverse();
 
-  const avgHr7Day = [
-    { day: 'Sat', hr: 72 },
-    { day: 'Sun', hr: 78 },
-    { day: 'Mon', hr: 68 },
-    { day: 'Tue', hr: 81 },
-    { day: 'Wed', hr: 74 },
-    { day: 'Thu', hr: 70 },
-    { day: 'Fri', hr: metrics.avgHr ?? 73 },
-  ];
+  // 7-day chart data derived strictly from real records (Zero Fake Data)
+  const strain7Day = recentDays.map((d) => {
+    const dateObj = new Date(d.date + 'T12:00:00');
+    const day = isNaN(dateObj.getTime()) ? d.label : dayNames[dateObj.getDay()];
+    return {
+      day: d.offset === 0 ? 'Today' : day,
+      strain: d.offset === 0 ? Number(metrics.dailyStrain.toFixed(1)) : Number(d.dayStrain.toFixed(1)),
+    };
+  });
 
-  const calories7Day = [
-    { day: 'Sat', cal: 2450 },
-    { day: 'Sun', cal: 2890 },
-    { day: 'Mon', cal: 2120 },
-    { day: 'Tue', cal: 3100 },
-    { day: 'Wed', cal: 2650 },
-    { day: 'Thu', cal: 2310 },
-    { day: 'Fri', cal: metrics.activeCalories > 0 ? metrics.activeCalories : 2140 },
-  ];
+  const avgHr7Day = recentDays.map((d) => {
+    const dateObj = new Date(d.date + 'T12:00:00');
+    const day = isNaN(dateObj.getTime()) ? d.label : dayNames[dateObj.getDay()];
+    return {
+      day: d.offset === 0 ? 'Today' : day,
+      hr: d.offset === 0 ? metrics.avgHr : null,
+    };
+  });
+
+  const calories7Day = recentDays.map((d) => {
+    const dateObj = new Date(d.date + 'T12:00:00');
+    const day = isNaN(dateObj.getTime()) ? d.label : dayNames[dateObj.getDay()];
+    return {
+      day: d.offset === 0 ? 'Today' : day,
+      cal: d.offset === 0 ? metrics.activeCalories : d.activeCalories,
+    };
+  });
 
   const totalZoneSeconds = Object.values(metrics.zoneSeconds).reduce((a, b) => a + b, 0);
 

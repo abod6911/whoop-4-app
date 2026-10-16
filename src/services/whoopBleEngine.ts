@@ -124,6 +124,13 @@ export class WhoopBleEngine {
   // Active characteristics map
   private activeCharacteristics = new Map<string, BluetoothRemoteGATTCharacteristic>();
 
+  // Reconnection and Permitted Devices State
+  private isManualDisconnect = false;
+  private reconnectAttempts = 0;
+  private readonly maxReconnectAttempts = 3;
+  private reconnectTimeout: number | null = null;
+  private permittedDevices: BluetoothDevice[] = [];
+
   // Callbacks
   private onHeartRateCallbacks: Set<HeartRateCallback> = new Set();
   private onBatteryCallbacks: Set<BatteryCallback> = new Set();
@@ -151,6 +158,9 @@ export class WhoopBleEngine {
 
   constructor() {
     this.handleDisconnected = this.handleDisconnected.bind(this);
+    if (typeof window !== 'undefined') {
+      this.checkPermittedDevices().catch(() => {});
+    }
   }
 
   public isSupported(): boolean {
@@ -163,6 +173,44 @@ export class WhoopBleEngine {
 
   public getGattTree(): GattServiceInfo[] {
     return [...this.gattTree];
+  }
+
+  // --- Bluetooth Device Permissions API (navigator.bluetooth.getDevices) ---
+  public async checkPermittedDevices(): Promise<BluetoothDevice[]> {
+    if (
+      typeof navigator !== 'undefined' &&
+      'bluetooth' in navigator &&
+      typeof (navigator.bluetooth as unknown as { getDevices?: () => Promise<BluetoothDevice[]> }).getDevices === 'function'
+    ) {
+      try {
+        const devices = await (navigator.bluetooth as unknown as { getDevices: () => Promise<BluetoothDevice[]> }).getDevices();
+        this.permittedDevices = devices;
+        return devices;
+      } catch (err) {
+        console.warn('Error querying permitted Bluetooth devices:', err);
+      }
+    }
+    return [];
+  }
+
+  public getPermittedDevices(): BluetoothDevice[] {
+    return [...this.permittedDevices];
+  }
+
+  // 1-Click Reconnect to an already permitted WHOOP device without opening the chooser prompt
+  public async reconnectPermittedDevice(device?: BluetoothDevice): Promise<void> {
+    let target = device;
+    if (!target) {
+      const permitted = await this.checkPermittedDevices();
+      target =
+        permitted.find((d) => this.metadata.id && d.id === this.metadata.id) ||
+        permitted.find((d) => d.name?.toUpperCase().includes('WHOOP')) ||
+        permitted[0];
+    }
+    if (!target) {
+      throw new Error('No previously permitted WHOOP 4.0 device found. Please pair with Bluetooth.');
+    }
+    await this.connectToDevice(target);
   }
 
   // --- Listeners ---
@@ -209,8 +257,8 @@ export class WhoopBleEngine {
     this.onErrorCallbacks.forEach((cb) => cb(msg));
   }
 
-  // --- Connect to Real WHOOP 4.0 Strap ---
-  public async connect(): Promise<void> {
+  // --- Connect Directly to a Given BluetoothDevice ---
+  public async connectToDevice(device: BluetoothDevice): Promise<void> {
     if (!this.isSupported()) {
       const err = 'Web Bluetooth API is not supported in this browser. Please use Chrome, Edge, or Bluefy on iOS.';
       this.emitError(err);
@@ -218,47 +266,33 @@ export class WhoopBleEngine {
     }
 
     try {
+      this.device = device;
+      this.metadata.name = device.name || 'WHOOP 4.0 Strap';
+      this.metadata.id = device.id;
       this.metadata.connecting = true;
+      this.isManualDisconnect = false;
       this.emitMetadata();
 
-      const optionalServices: BluetoothServiceUUID[] = [
-        'heart_rate',
-        'battery_service',
-        'device_information',
-        UUID_HEART_RATE_SERVICE,
-        UUID_BATTERY_SERVICE,
-        UUID_DEVICE_INFO_SERVICE,
-        WHOOP_BASE_SERVICE_UUID,
-        NORDIC_DFU_SERVICE_UUID,
-      ];
-
-      const options: RequestDeviceOptions = {
-        acceptAllDevices: true,
-        optionalServices,
-      };
-
-      console.log('Requesting Bluetooth Device for WHOOP 4.0...');
-      this.device = await navigator.bluetooth.requestDevice(options);
-
-      if (!this.device) {
-        throw new Error('No device selected');
+      if (this.reconnectTimeout) {
+        clearTimeout(this.reconnectTimeout);
+        this.reconnectTimeout = null;
       }
 
-      this.metadata.name = this.device.name || 'WHOOP 4.0 Strap';
-      this.metadata.id = this.device.id;
-      this.device.addEventListener('gattserverdisconnected', this.handleDisconnected);
+      device.removeEventListener('gattserverdisconnected', this.handleDisconnected);
+      device.addEventListener('gattserverdisconnected', this.handleDisconnected);
 
       console.log(`Connecting to GATT server on ${this.metadata.name}...`);
-      if (!this.device.gatt) {
+      if (!device.gatt) {
         throw new Error('Device does not support GATT server');
       }
 
-      this.server = await this.device.gatt.connect();
+      this.server = await device.gatt.connect();
       this.metadata.connected = true;
       this.metadata.connecting = false;
+      this.reconnectAttempts = 0;
       this.emitMetadata();
 
-      // 1. Initialize Standard Services
+      // 1. Initialize Standard Services (Heart Rate 0x180D, Battery 0x180F, Device Info 0x180A)
       await this.initStandardServices();
 
       // 2. Auto-subscribe to WHOOP Proprietary Gen4 Telemetry Characteristics
@@ -269,6 +303,9 @@ export class WhoopBleEngine {
 
       // 4. Start 30s Battery Polling Timer
       this.startBatteryPolling();
+
+      // Refresh permitted devices cache
+      await this.checkPermittedDevices().catch(() => {});
     } catch (err: unknown) {
       this.metadata.connected = false;
       this.metadata.connecting = false;
@@ -280,7 +317,112 @@ export class WhoopBleEngine {
     }
   }
 
+  // --- Request & Connect to Physical WHOOP 4.0 Strap ---
+  public async connect(forceChooser = false): Promise<void> {
+    if (!this.isSupported()) {
+      const err = 'Web Bluetooth API is not supported in this browser. Please use Chrome, Edge, or Bluefy on iOS.';
+      this.emitError(err);
+      throw new Error(err);
+    }
+
+    // 1-Click Reconnect Check: If not forcing chooser, try reconnecting to an already permitted device first
+    if (!forceChooser) {
+      const permitted = await this.checkPermittedDevices();
+      const whoopDevice =
+        permitted.find((d) => this.metadata.id && d.id === this.metadata.id) ||
+        permitted.find((d) => d.name && d.name.toUpperCase().includes('WHOOP')) ||
+        permitted[0];
+
+      if (whoopDevice) {
+        try {
+          console.log(`1-Click Reconnecting to permitted device: ${whoopDevice.name || whoopDevice.id}`);
+          await this.connectToDevice(whoopDevice);
+          return;
+        } catch (reconnectErr) {
+          console.warn('Permitted device 1-click reconnect failed, opening filtered chooser:', reconnectErr);
+          // Fall through to requestDevice chooser
+        }
+      }
+    }
+
+    try {
+      this.metadata.connecting = true;
+      this.emitMetadata();
+
+      // User Specification: Configure navigator.bluetooth.requestDevice with specific BLE filters:
+      // - Filter by known WHOOP service UUIDs or prefix the name filter:
+      //   filters: [{ namePrefix: 'WHOOP' }], optionalServices: ['heart_rate', 0x180D, 0x180A, 'battery_service']
+      const optionalServices: BluetoothServiceUUID[] = [
+        'heart_rate',
+        'battery_service',
+        'device_information',
+        0x180d,
+        0x180f,
+        0x180a,
+        UUID_HEART_RATE_SERVICE,
+        UUID_BATTERY_SERVICE,
+        UUID_DEVICE_INFO_SERVICE,
+        WHOOP_BASE_SERVICE_UUID,
+        NORDIC_DFU_SERVICE_UUID,
+      ];
+
+      const options: RequestDeviceOptions = {
+        filters: [
+          { namePrefix: 'WHOOP' },
+          { namePrefix: 'Whoop' },
+          { services: ['heart_rate'] },
+          { services: [0x180d] },
+        ],
+        optionalServices,
+      };
+
+      console.log('Requesting Bluetooth Device with WHOOP filters (namePrefix & Heart Rate)...');
+      let selectedDevice: BluetoothDevice;
+      try {
+        selectedDevice = await navigator.bluetooth.requestDevice(options);
+      } catch (filterErr: unknown) {
+        const errMsg = filterErr instanceof Error ? filterErr.message : String(filterErr);
+        if (errMsg.includes('cancelled') || errMsg.includes('User cancelled')) {
+          console.log('User cancelled Bluetooth chooser');
+          this.metadata.connecting = false;
+          this.emitMetadata();
+          return;
+        }
+
+        console.warn('Filtered device request failed, falling back to all devices:', filterErr);
+        selectedDevice = await navigator.bluetooth.requestDevice({
+          acceptAllDevices: true,
+          optionalServices,
+        });
+      }
+
+      if (!selectedDevice) {
+        throw new Error('No device selected');
+      }
+
+      await this.connectToDevice(selectedDevice);
+    } catch (err: unknown) {
+      this.metadata.connected = false;
+      this.metadata.connecting = false;
+      this.emitMetadata();
+      const message = err instanceof Error ? err.message : String(err);
+      if (message.includes('cancelled') || message.includes('User cancelled')) {
+        console.log('User cancelled device request');
+        return;
+      }
+      console.error('BLE Connection Failed:', message);
+      this.emitError(message);
+      throw err;
+    }
+  }
+
   public disconnect(): void {
+    this.isManualDisconnect = true;
+    this.reconnectAttempts = 0;
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout);
+      this.reconnectTimeout = null;
+    }
     if (this.batteryPollingInterval) {
       clearInterval(this.batteryPollingInterval);
       this.batteryPollingInterval = null;
@@ -291,6 +433,7 @@ export class WhoopBleEngine {
     this.handleDisconnected();
   }
 
+  // Robust gattserverdisconnected event handler with auto-reconnection
   private handleDisconnected(): void {
     console.log('WHOOP 4.0 Strap Disconnected');
     if (this.batteryPollingInterval) {
@@ -300,9 +443,51 @@ export class WhoopBleEngine {
     this.server = null;
     this.activeCharacteristics.clear();
     this.metadata.connected = false;
-    this.metadata.connecting = false;
     this.metadata.onWrist = null;
-    this.emitMetadata();
+
+    if (this.isManualDisconnect) {
+      this.metadata.connecting = false;
+      this.reconnectAttempts = 0;
+      if (this.reconnectTimeout) {
+        clearTimeout(this.reconnectTimeout);
+        this.reconnectTimeout = null;
+      }
+      this.emitMetadata();
+      return;
+    }
+
+    // Unexpected disconnection -> Attempt auto-reconnect with backoff (Attempts 1-3)
+    if (this.reconnectAttempts < this.maxReconnectAttempts && this.device) {
+      this.reconnectAttempts++;
+      const delay = this.reconnectAttempts === 1 ? 2000 : this.reconnectAttempts === 2 ? 5000 : 10000;
+      this.metadata.connecting = true;
+      this.emitMetadata();
+      const statusMsg = `Strap disconnected. Reconnecting (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})...`;
+      console.warn(statusMsg);
+      this.emitError(statusMsg);
+
+      this.reconnectTimeout = window.setTimeout(async () => {
+        try {
+          if (!this.metadata.connected && this.device && !this.isManualDisconnect) {
+            console.log(`Executing auto-reconnect attempt ${this.reconnectAttempts}...`);
+            await this.connectToDevice(this.device);
+            this.emitError(''); // Clear error banner on success
+          }
+        } catch (err) {
+          console.warn(`Auto-reconnect attempt ${this.reconnectAttempts} failed:`, err);
+          if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+            this.metadata.connecting = false;
+            this.emitMetadata();
+            this.emitError('Auto-reconnect failed. Tap "Reconnect" to pair again.');
+          }
+        }
+      }, delay);
+    } else {
+      this.metadata.connecting = false;
+      this.reconnectAttempts = 0;
+      this.emitMetadata();
+      this.emitError('WHOOP 4.0 strap disconnected. Tap to reconnect.');
+    }
   }
 
   // --- Battery Polling every 30s ---

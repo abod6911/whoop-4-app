@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import type { LiveMetrics, HomeSubTab, HealthMonitorMetric, SessionRecord, UserSettings, DeviceMetadata } from '../../types/whoop';
+import type { LiveMetrics, HomeSubTab, HealthMonitorMetric, SessionRecord, UserSettings, DeviceMetadata, DayHistoryRecord } from '../../types/whoop';
 import { WhoopConcentricTripleGauge } from '../WhoopConcentricTripleGauge';
 import { WhoopEmblemIcon } from '../WhoopLogo';
 import { DailyOutlookModal } from '../DailyOutlookModal';
+import { biometricEngine } from '../../utils/biometricEngine';
 import {
   ChevronRight,
   Maximize2,
@@ -38,6 +39,7 @@ interface OverviewViewProps {
   sessions: SessionRecord[];
   settings: UserSettings;
   metadata: DeviceMetadata;
+  daysHistory?: DayHistoryRecord[];
   onSelectSubTab: (tab: HomeSubTab) => void;
   onOpenHealthMonitorModal: () => void;
   onOpenStressMonitorModal: () => void;
@@ -54,6 +56,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   sessions,
   settings,
   metadata,
+  daysHistory,
   onSelectSubTab,
   onOpenHealthMonitorModal,
   onOpenStressMonitorModal,
@@ -65,43 +68,50 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
 }) => {
   const [isOutlookModalOpen, setIsOutlookModalOpen] = useState(false);
 
-  // Stress formatting
-  const stressScore = metrics.stressScore ?? 0.3;
-  const stressTime = new Date(metrics.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  // 100% Real Stress formatting from WHOOP 4.0 telemetry
+  const stressScore = metrics.stressScore;
+  const stressTime = metrics.timestamp
+    ? new Date(metrics.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    : '--';
 
-  let stressBadgeColor = 'bg-[#0D3528] text-[#16EC06] border-[#16EC06]/30';
-  let stressText = 'LOW';
-  if (stressScore >= 2.0) {
-    stressBadgeColor = 'bg-[#351515] text-[#FF8A00] border-[#FF8A00]/30';
-    stressText = 'HIGH';
-  } else if (stressScore >= 1.0) {
-    stressBadgeColor = 'bg-[#3A2E14] text-[#FFDE00] border-[#FFDE00]/30';
-    stressText = 'MEDIUM';
+  let stressBadgeColor = 'bg-[#181C23] text-zinc-500 border-white/5';
+  let stressText = 'CALIBRATING';
+  if (stressScore !== null) {
+    if (stressScore >= 2.0) {
+      stressBadgeColor = 'bg-[#351515] text-[#FF8A00] border-[#FF8A00]/30';
+      stressText = 'HIGH';
+    } else if (stressScore >= 1.0) {
+      stressBadgeColor = 'bg-[#3A2E14] text-[#FFDE00] border-[#FFDE00]/30';
+      stressText = 'MEDIUM';
+    } else {
+      stressBadgeColor = 'bg-[#0D3528] text-[#16EC06] border-[#16EC06]/30';
+      stressText = 'LOW';
+    }
   }
 
   // Active health metrics count
   const activeHealthCount = healthMetrics.filter((m) => m.value !== null).length;
 
-  // 7-Day Strain & Recovery Dual-Axis Chart Data (01:01 in Video)
-  const dualAxisData = [
-    { day: 'Sat', strain: 11.2, recovery: 78 },
-    { day: 'Sun', strain: 14.5, recovery: 85 },
-    { day: 'Mon', strain: 9.8, recovery: 62 },
-    { day: 'Tue', strain: 16.1, recovery: 71 },
-    { day: 'Wed', strain: 13.4, recovery: 82 },
-    { day: 'Thu', strain: 10.5, recovery: 91 },
-    { day: 'Fri', strain: Number(metrics.dailyStrain > 0 ? metrics.dailyStrain.toFixed(1) : '5.5'), recovery: metrics.recoveryScore ?? 88 },
-  ];
+  // 7-Day Strain & Recovery Dual-Axis Chart Data derived from real records (Zero Fake Data)
+  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const dualAxisData = (daysHistory || []).slice(0, 7).reverse().map((d) => {
+    const dateObj = new Date(d.date + 'T12:00:00');
+    const dayLabel = isNaN(dateObj.getTime()) ? d.label : dayNames[dateObj.getDay()];
+    const isToday = d.offset === 0;
+    return {
+      day: isToday ? 'Today' : dayLabel,
+      strain: isToday ? Number(metrics.dailyStrain.toFixed(1)) : Number(d.dayStrain.toFixed(1)),
+      recovery: isToday ? metrics.recoveryScore : d.recoveryScore,
+    };
+  });
 
-  // Stress timeline preview data for Dashboard
-  const stressDashboardData = [
-    { time: '12a', score: 0.1 },
-    { time: '4a', score: 0.2 },
-    { time: '8a', score: 0.4 },
-    { time: '12p', score: 0.8 },
-    { time: '4p', score: 0.5 },
-    { time: 'Now', score: stressScore },
-  ];
+  // Stress timeline preview data for Dashboard (Real samples from today or calibrating point)
+  const recordedStress = biometricEngine.getStressPoints();
+  const stressDashboardData = recordedStress.length > 0
+    ? recordedStress.map((p) => ({ time: p.timeLabel, score: p.score }))
+    : stressScore !== null
+    ? [{ time: 'Now', score: stressScore }]
+    : [];
 
   return (
     <div className="space-y-4 pb-28 animate-in fade-in duration-300">
@@ -178,7 +188,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                 WITHIN RANGE
               </div>
               <div className="text-[10px] text-zinc-400 font-mono">
-                {activeHealthCount > 0 ? `${activeHealthCount}/5 Metrics` : '5/5 Metrics'}
+                {activeHealthCount > 0 ? `${activeHealthCount}/5 Metrics` : 'Calibrating'}
               </div>
             </div>
           </div>
@@ -196,7 +206,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
 
           <div className="flex items-center gap-2">
             <div className={`px-2 py-1 rounded-lg border font-mono font-black text-xs ${stressBadgeColor}`}>
-              {stressScore.toFixed(1)}
+              {stressScore !== null ? stressScore.toFixed(1) : '--'}
             </div>
             <div>
               <div className="text-xs font-black font-condensed uppercase tracking-wide text-white">
@@ -374,7 +384,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
             </div>
             <div className="flex items-baseline gap-2 mt-0.5">
               <span className="text-3xl font-black font-condensed text-white tabular-nums">
-                {metrics.currentHrv ?? settings.hrvBaseline}
+                {metrics.currentHrv !== null ? metrics.currentHrv : '--'}
               </span>
               <span className="text-xs text-zinc-400 font-sans">ms</span>
             </div>
@@ -393,11 +403,11 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
             </div>
             <div className="flex items-baseline gap-2 mt-0.5">
               <span className="text-3xl font-black font-condensed text-white tabular-nums">
-                {metrics.sleepPerformance !== null ? `${metrics.sleepPerformance}%` : '100%'}
+                {metrics.sleepPerformance !== null ? `${metrics.sleepPerformance}%` : '--'}
               </span>
             </div>
             <div className="text-[10px] text-zinc-500 font-mono mt-0.5">
-              Target: 8h 20m • Restorative: 51%
+              Target: {settings.sleepNeedHours}h • Sleep Need
             </div>
           </div>
           <ChevronRight className="w-4 h-4 text-zinc-600" />
@@ -414,7 +424,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
               <span>STRESS MONITOR</span>
             </div>
             <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full border ${stressBadgeColor}`}>
-              {stressText} ({stressScore.toFixed(1)})
+              {stressText} {stressScore !== null ? `(${stressScore.toFixed(1)})` : ''}
             </span>
           </div>
 

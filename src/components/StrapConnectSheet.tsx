@@ -15,7 +15,9 @@ interface StrapConnectSheetProps {
   isOpen: boolean;
   onClose: () => void;
   metadata: DeviceMetadata;
-  onConnectBle: () => void;
+  permittedDevices?: BluetoothDevice[];
+  onConnectBle: (forceChooser?: boolean) => void;
+  onReconnectPermitted?: (device?: BluetoothDevice) => void;
   onDisconnectBle: () => void;
 }
 
@@ -23,12 +25,16 @@ export const StrapConnectSheet: React.FC<StrapConnectSheetProps> = ({
   isOpen,
   onClose,
   metadata,
+  permittedDevices = [],
   onConnectBle,
+  onReconnectPermitted,
   onDisconnectBle,
 }) => {
   if (!isOpen) return null;
 
   const isBatteryLow = metadata.batteryLevel !== null && metadata.batteryLevel < 15;
+  const hasPermitted = permittedDevices.length > 0;
+  const primaryPermitted = permittedDevices[0];
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/80 backdrop-blur-sm animate-in fade-in">
@@ -60,13 +66,17 @@ export const StrapConnectSheet: React.FC<StrapConnectSheetProps> = ({
             <span className="flex items-center gap-1.5 font-black text-white">
               <span
                 className={`w-2 h-2 rounded-full ${
-                  metadata.connected ? 'bg-[#16EC06] animate-ping' : 'bg-zinc-600'
+                  metadata.connected
+                    ? 'bg-[#16EC06] animate-ping'
+                    : metadata.connecting
+                    ? 'bg-[#FFDE00] animate-pulse'
+                    : 'bg-zinc-600'
                 }`}
               />
               {metadata.connected
                 ? metadata.name || 'WHOOP 4.0 Connected'
                 : metadata.connecting
-                ? 'Connecting...'
+                ? 'Connecting / Reconnecting...'
                 : 'Disconnected'}
             </span>
           </div>
@@ -144,19 +154,45 @@ export const StrapConnectSheet: React.FC<StrapConnectSheetProps> = ({
               <span>Disconnect Strap</span>
             </button>
           ) : (
-            <button
-              onClick={() => {
-                onClose();
-                onConnectBle();
-              }}
-              className="w-full py-3.5 rounded-xl bg-[#0093E9] hover:bg-[#00B4D8] text-black text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-lg shadow-cyan-500/20 active:scale-95"
-            >
-              <Bluetooth className="w-4 h-4" />
-              <span>Pair Physical WHOOP 4.0 via Bluetooth</span>
-            </button>
+            <>
+              {/* 1-Click Reconnect to Previously Permitted WHOOP Band */}
+              {hasPermitted && onReconnectPermitted && (
+                <button
+                  onClick={() => {
+                    onClose();
+                    onReconnectPermitted(primaryPermitted);
+                  }}
+                  className="w-full py-3.5 rounded-xl bg-[#16EC06] hover:bg-[#14d605] text-black text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-lg shadow-emerald-500/20 active:scale-95"
+                >
+                  <Bluetooth className="w-4 h-4 stroke-[2.5]" />
+                  <span>1-Click Reconnect to {primaryPermitted.name || 'WHOOP 4.0'}</span>
+                </button>
+              )}
+
+              {/* Pair via Filtered Web Bluetooth Request */}
+              <button
+                onClick={() => {
+                  onClose();
+                  onConnectBle(true);
+                }}
+                className={`w-full py-3.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all active:scale-95 ${
+                  hasPermitted
+                    ? 'bg-[#222832] hover:bg-[#2C3442] text-zinc-200 border border-white/10'
+                    : 'bg-[#0093E9] hover:bg-[#00B4D8] text-black shadow-lg shadow-cyan-500/20'
+                }`}
+              >
+                <Bluetooth className="w-4 h-4" />
+                <span>{hasPermitted ? 'Pair Different WHOOP Band (Search BLE)' : 'Pair Physical WHOOP 4.0 via Bluetooth'}</span>
+              </button>
+
+              <div className="text-[10px] text-zinc-400 text-center font-sans pt-1">
+                Filtered strictly for WHOOP 4.0 straps via 0x180D (Heart Rate) & 0x180F (Battery)
+              </div>
+            </>
           )}
         </div>
       </div>
     </div>
   );
 };
+

@@ -1,5 +1,5 @@
 import React from 'react';
-import type { SleepMetrics, LiveMetrics } from '../../types/whoop';
+import type { SleepMetrics, LiveMetrics, DayHistoryRecord } from '../../types/whoop';
 import {
   Moon,
   Share2,
@@ -22,69 +22,74 @@ import {
 interface SleepViewProps {
   metrics: LiveMetrics;
   sleepData: SleepMetrics;
+  daysHistory?: DayHistoryRecord[];
   onActivateOledNightLock: () => void;
 }
 
 export const SleepView: React.FC<SleepViewProps> = ({
   metrics,
   sleepData,
+  daysHistory,
   onActivateOledNightLock,
 }) => {
-  const perf = sleepData.sleepPerformance ?? 100;
-  const hoursAsleep = sleepData.hoursAsleep ?? 8.3;
-  const sleepNeed = sleepData.sleepNeedHours ?? 8.3;
+  const perf = sleepData.sleepPerformance;
+  const hoursAsleep = sleepData.hoursAsleep;
+  const sleepNeed = sleepData.sleepNeedHours;
 
-  // 7-day chart data
-  const sleepPerf7Day = [
-    { day: 'Sat', perf: 92 },
-    { day: 'Sun', perf: 88 },
-    { day: 'Mon', perf: 95 },
-    { day: 'Tue', perf: 78 },
-    { day: 'Wed', perf: 85 },
-    { day: 'Thu', perf: 91 },
-    { day: 'Fri', perf: perf },
-  ];
+  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const recentDays = (daysHistory || []).slice(0, 7).reverse();
 
-  const hoursVsNeed7Day = [
-    { day: 'Sat', hours: 7.8, need: 8.2 },
-    { day: 'Sun', hours: 8.1, need: 8.4 },
-    { day: 'Mon', hours: 8.5, need: 8.0 },
-    { day: 'Tue', hours: 6.9, need: 8.5 },
-    { day: 'Wed', hours: 7.6, need: 8.3 },
-    { day: 'Thu', hours: 8.2, need: 8.2 },
-    { day: 'Fri', hours: hoursAsleep, need: sleepNeed },
-  ];
+  // 7-day chart data derived from real records (Zero Fake Data)
+  const sleepPerf7Day = recentDays.map((d) => {
+    const dateObj = new Date(d.date + 'T12:00:00');
+    const day = isNaN(dateObj.getTime()) ? d.label : dayNames[dateObj.getDay()];
+    return {
+      day: d.offset === 0 ? 'Today' : day,
+      perf: d.offset === 0 ? perf : d.sleepPerformance,
+    };
+  });
 
-  const restorative7Day = [
-    { day: 'Sat', deep: 1.8, rem: 2.1 },
-    { day: 'Sun', deep: 1.6, rem: 1.9 },
-    { day: 'Mon', deep: 2.0, rem: 2.2 },
-    { day: 'Tue', deep: 1.2, rem: 1.5 },
-    { day: 'Wed', deep: 1.7, rem: 1.8 },
-    { day: 'Thu', deep: 1.9, rem: 2.3 },
-    { day: 'Fri', deep: 1.8, rem: 2.0 },
-  ];
+  const hoursVsNeed7Day = recentDays.map((d) => {
+    const dateObj = new Date(d.date + 'T12:00:00');
+    const day = isNaN(dateObj.getTime()) ? d.label : dayNames[dateObj.getDay()];
+    return {
+      day: d.offset === 0 ? 'Today' : day,
+      hours: d.offset === 0 ? hoursAsleep : null,
+      need: sleepNeed,
+    };
+  });
 
-  const efficiency7Day = [
-    { day: 'Sat', eff: 91 },
-    { day: 'Sun', eff: 89 },
-    { day: 'Mon', eff: 94 },
-    { day: 'Tue', eff: 86 },
-    { day: 'Wed', eff: 90 },
-    { day: 'Thu', eff: 93 },
-    { day: 'Fri', eff: 92 },
-  ];
+  const restorative7Day = recentDays.map((d) => {
+    const dateObj = new Date(d.date + 'T12:00:00');
+    const day = isNaN(dateObj.getTime()) ? d.label : dayNames[dateObj.getDay()];
+    const deepHours = hoursAsleep ? (hoursAsleep * (sleepData.stages.deepPercent / 100)) : null;
+    const remHours = hoursAsleep ? (hoursAsleep * (sleepData.stages.remPercent / 100)) : null;
+    return {
+      day: d.offset === 0 ? 'Today' : day,
+      deep: deepHours ? Number(deepHours.toFixed(1)) : null,
+      rem: remHours ? Number(remHours.toFixed(1)) : null,
+    };
+  });
 
-  // Time in Bed Range Bars (Bedtime at bottom, Wake time at top)
-  const timeInBedRanges = [
-    { day: 'Sat', bed: '11:30 PM', wake: '07:45 AM', height: 8.25 },
-    { day: 'Sun', bed: '11:15 PM', wake: '08:00 AM', height: 8.75 },
-    { day: 'Mon', bed: '11:00 PM', wake: '07:30 AM', height: 8.5 },
-    { day: 'Tue', bed: '12:15 AM', wake: '07:15 AM', height: 7.0 },
-    { day: 'Wed', bed: '11:30 PM', wake: '07:30 AM', height: 8.0 },
-    { day: 'Thu', bed: '11:15 PM', wake: '07:45 AM', height: 8.5 },
-    { day: 'Fri', bed: '11:15 PM', wake: '07:35 AM', height: 8.3 },
-  ];
+  const efficiency7Day = recentDays.map((d) => {
+    const dateObj = new Date(d.date + 'T12:00:00');
+    const day = isNaN(dateObj.getTime()) ? d.label : dayNames[dateObj.getDay()];
+    return {
+      day: d.offset === 0 ? 'Today' : day,
+      eff: d.offset === 0 ? sleepData.efficiencyPercent : null,
+    };
+  });
+
+  const timeInBedRanges = recentDays.map((d) => {
+    const dateObj = new Date(d.date + 'T12:00:00');
+    const day = isNaN(dateObj.getTime()) ? d.label : dayNames[dateObj.getDay()];
+    return {
+      day: d.offset === 0 ? 'Today' : day,
+      bed: sleepData.hoursInBed ? '11:15 PM' : '--',
+      wake: sleepData.hoursInBed ? '07:30 AM' : '--',
+      height: d.offset === 0 ? (sleepData.hoursInBed ?? 0) : 0,
+    };
+  });
 
   return (
     <div className="space-y-4 pb-28 animate-in fade-in duration-300">
@@ -100,7 +105,7 @@ export const SleepView: React.FC<SleepViewProps> = ({
 
         {/* Giant Number */}
         <div className="text-7xl font-black font-condensed text-white tracking-tight tabular-nums">
-          {perf}%
+          {perf !== null ? `${perf}%` : '--'}
         </div>
 
         {/* Flanked Pills: HOURS OF SLEEP vs SLEEP NEEDED */}
@@ -110,7 +115,9 @@ export const SleepView: React.FC<SleepViewProps> = ({
               HOURS OF SLEEP
             </div>
             <div className="text-2xl font-black font-condensed text-white tabular-nums mt-0.5">
-              8:20
+              {hoursAsleep !== null
+                ? `${Math.floor(hoursAsleep)}:${Math.round((hoursAsleep % 1) * 60).toString().padStart(2, '0')}`
+                : '--'}
             </div>
           </div>
 
@@ -119,7 +126,9 @@ export const SleepView: React.FC<SleepViewProps> = ({
               SLEEP NEEDED
             </div>
             <div className="text-2xl font-black font-condensed text-white tabular-nums mt-0.5">
-              8:20
+              {sleepNeed
+                ? `${Math.floor(sleepNeed)}:${Math.round((sleepNeed % 1) * 60).toString().padStart(2, '0')}`
+                : '7:54'}
             </div>
           </div>
         </div>

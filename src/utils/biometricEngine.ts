@@ -234,6 +234,10 @@ export class BiometricEngine {
     return [...this.poincarePoints];
   }
 
+  public getStressPoints(): StressPoint[] {
+    return [...this.stressPoints];
+  }
+
   // --- Poincaré SD1 (Parasympathetic) and SD2 (Sympathetic) ---
   public calculateSD1AndSD2(): { sd1: number | null; sd2: number | null } {
     const rmssd = this.calculateRMSSD();
