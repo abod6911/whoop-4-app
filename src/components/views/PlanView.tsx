@@ -298,11 +298,15 @@ export const PlanView: React.FC<PlanViewProps> = ({
             <div className="grid grid-cols-2 gap-3 text-center">
               <div className="p-3 rounded-xl bg-[#0B0D10] border border-white/5">
                 <span className="text-[10px] text-zinc-400 uppercase font-condensed">{isRtl ? 'متوسط الجهد' : 'Avg Strain'}</span>
-                <div className="text-2xl font-black font-condensed text-[#0093E9] mt-0.5" dir="ltr">12.8</div>
+                <div className="text-2xl font-black font-condensed text-[#0093E9] mt-0.5" dir="ltr">
+                  {metrics.dailyStrain > 0 ? metrics.dailyStrain.toFixed(1) : '--'}
+                </div>
               </div>
               <div className="p-3 rounded-xl bg-[#0B0D10] border border-white/5">
                 <span className="text-[10px] text-zinc-400 uppercase font-condensed">{isRtl ? 'متوسط التعافي' : 'Avg Recovery'}</span>
-                <div className="text-2xl font-black font-condensed text-[#16EC06] mt-0.5" dir="ltr">74%</div>
+                <div className="text-2xl font-black font-condensed text-[#16EC06] mt-0.5" dir="ltr">
+                  {metrics.recoveryScore !== null ? `${metrics.recoveryScore}%` : '--'}
+                </div>
               </div>
             </div>
           </div>

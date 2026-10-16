@@ -133,6 +133,8 @@ export interface DeviceMetadata {
   name: string;
   id: string;
   batteryLevel: number | null;
+  isCharging: boolean;
+  chargingStatusText?: string;
   firmwareRevision: string | null;
   hardwareRevision: string | null;
   serialNumber: string | null;
@@ -141,7 +143,11 @@ export interface DeviceMetadata {
   connected: boolean;
   connecting: boolean;
   onWrist: boolean | null;
+  contactSupported?: boolean;
+  contactDetected?: boolean;
   rssi?: number | null;
+  packetsPerMinute?: number;
+  lastPacketTimestamp?: number | null;
 }
 
 export type SessionType = 'workout' | 'sleep' | 'recovery_test';

@@ -93,6 +93,12 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
     };
   });
 
+  const validRec = recovery7Day.filter((r) => r.score !== null && r.score !== undefined);
+  const avgRec = validRec.length > 0 ? `${Math.round(validRec.reduce((a, b) => a + (b.score || 0), 0) / validRec.length)}%` : '--';
+
+  const validResp = resp7Day.filter((r) => r.resp !== null && r.resp !== undefined);
+  const avgResp = validResp.length > 0 ? `${(validResp.reduce((a, b) => a + (b.resp || 0), 0) / validResp.length).toFixed(1)} ${t('rpm')}` : '--';
+
   return (
     <div className="space-y-4 pb-28 animate-in fade-in duration-300">
       {/* 1. Large Circular Recovery Gauge + Share (01:35 in Video) */}
@@ -217,7 +223,7 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
               <span className="uppercase">{t('respiratoryRate')}</span>
             </div>
             <span className="text-white font-mono font-bold">
-              {metrics.respiratoryRate ?? 14.2} rpm
+              {metrics.respiratoryRate !== null ? `${metrics.respiratoryRate} rpm` : '--'}
             </span>
           </div>
 
@@ -227,7 +233,7 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
               <span className="uppercase">{t('sleepPerformance')}</span>
             </div>
             <span className="text-white font-mono font-bold">
-              {metrics.sleepPerformance !== null ? `${metrics.sleepPerformance}%` : '100%'}
+              {metrics.sleepPerformance !== null ? `${metrics.sleepPerformance}%` : '--'}
             </span>
           </div>
         </div>
@@ -239,7 +245,7 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
         <div className="p-4 rounded-[24px] bg-[#12151A] border border-white/5 space-y-2">
           <div className="flex items-center justify-between text-xs font-black uppercase font-condensed text-white">
             <span>{t('recovery7Days')}</span>
-            <span className="text-[10px] text-[#16EC06] font-mono">{t('average')}: 79%</span>
+            <span className="text-[10px] text-[#16EC06] font-mono">{t('average')}: {avgRec}</span>
           </div>
           <div className="h-32 w-full pt-2">
             <ResponsiveContainer width="100%" height="100%">
@@ -294,7 +300,7 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
         <div className="p-4 rounded-[24px] bg-[#12151A] border border-white/5 space-y-2">
           <div className="flex items-center justify-between text-xs font-black uppercase font-condensed text-white">
             <span>{t('respiratoryRate')}</span>
-            <span className="text-[10px] text-[#7293B2] font-mono">{t('average')}: 14.1 {t('rpm')}</span>
+            <span className="text-[10px] text-[#7293B2] font-mono">{t('average')}: {avgResp}</span>
           </div>
           <div className="h-32 w-full pt-2">
             <ResponsiveContainer width="100%" height="100%">

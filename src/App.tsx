@@ -44,9 +44,11 @@ import { HealthMonitorModal } from './components/HealthMonitorModal';
 import { StressMonitorModal } from './components/StressMonitorModal';
 import { SleepStageDetailModal } from './components/SleepStageDetailModal';
 import { WhoopCoachChatSheet } from './components/WhoopCoachChatSheet';
+import { HardwareDiagnosticsModal } from './components/HardwareDiagnosticsModal';
 import { notificationEngine } from './services/notificationEngine';
+import { telemetryWorkerManager } from './services/telemetryWorkerManager';
 
-import { AlertCircle, X, Plus } from 'lucide-react';
+import { AlertCircle, X, Plus, AlertTriangle } from 'lucide-react';
 import { useLanguage } from './i18n/LanguageContext';
 
 export const App: React.FC = () => {
@@ -82,6 +84,7 @@ export const App: React.FC = () => {
   const [isStressMonitorOpen, setIsStressMonitorOpen] = useState(false);
   const [isSleepDetailOpen, setIsSleepDetailOpen] = useState(false);
   const [isCoachChatOpen, setIsCoachChatOpen] = useState(false);
+  const [isDiagnosticsOpen, setIsDiagnosticsOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Bluetooth Device Permissions API permitted devices cache
@@ -157,20 +160,29 @@ export const App: React.FC = () => {
     refreshPackets();
   }, [refreshSessions, refreshPackets]);
 
-  // Workout live timer loop
+  // Workout live timer loop using unthrottled Web Worker (immune to tab throttling)
   useEffect(() => {
-    let interval: number | null = null;
     if (isWorkoutActive && workoutStartTime) {
-      interval = window.setInterval(() => {
+      const unsub = telemetryWorkerManager.subscribe(() => {
         setWorkoutElapsedSec(Math.floor((Date.now() - workoutStartTime) / 1000));
-      }, 1000);
+      });
+      return unsub;
     } else {
       setWorkoutElapsedSec(0);
     }
-    return () => {
-      if (interval) clearInterval(interval);
-    };
   }, [isWorkoutActive, workoutStartTime]);
+
+  // Mobile background audio keep-alive to prevent BLE stream sleep
+  useEffect(() => {
+    if (metadata.connected) {
+      telemetryWorkerManager.enableBackgroundKeepAlive();
+    } else {
+      telemetryWorkerManager.disableBackgroundKeepAlive();
+    }
+    return () => {
+      telemetryWorkerManager.disableBackgroundKeepAlive();
+    };
+  }, [metadata.connected]);
 
   // Ingest 100% real sample from physical strap
   const handleMeasurement = useCallback((measurement: Parameters<typeof biometricEngine.ingestSample>[0]) => {
@@ -396,6 +408,21 @@ export const App: React.FC = () => {
           onNextDate={() => setSelectedDateIndex((prev) => (prev > 0 ? prev - 1 : prev))}
         />
 
+        {/* Off-Wrist / No Skin Contact Amber Warning Banner */}
+        {metadata.connected && metadata.onWrist === false && (
+          <div className="mx-3 mt-2 bg-amber-500/10 border border-amber-500/30 rounded-xl px-3 py-2 text-xs text-amber-300 flex items-center justify-between animate-in fade-in">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0 animate-pulse" />
+              <span className="font-condensed font-bold tracking-wide">
+                {t('bandOffWristAlert')}
+              </span>
+            </div>
+            <span className="text-[10px] text-amber-400/80 font-mono font-bold uppercase">
+              {t('paused')}
+            </span>
+          </div>
+        )}
+
         {/* Error Alert Banner */}
         {errorMessage && (
           <div className="mx-3 mt-2 bg-rose-500/10 border border-rose-500/30 rounded-xl px-3 py-2 text-xs text-rose-300 flex items-center justify-between">
@@ -570,6 +597,14 @@ export const App: React.FC = () => {
           onConnectBle={handleConnectBle}
           onReconnectPermitted={handleReconnectPermitted}
           onDisconnectBle={handleDisconnectBle}
+          onOpenDiagnostics={() => setIsDiagnosticsOpen(true)}
+        />
+
+        {/* Real Hardware Diagnostics Modal */}
+        <HardwareDiagnosticsModal
+          isOpen={isDiagnosticsOpen}
+          onClose={() => setIsDiagnosticsOpen(false)}
+          metadata={metadata}
         />
 
         {/* Full-Screen Live Workout HUD Modal */}

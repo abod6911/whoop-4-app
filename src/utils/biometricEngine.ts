@@ -559,17 +559,18 @@ export class BiometricEngine {
   // --- Core Real-Time Ingest Sample from BLE ---
   public ingestSample(measurement: HeartRateMeasurement): LiveMetrics {
     const { bpm, rrIntervals, onWrist, timestamp } = measurement;
-    this.lastBpm = bpm;
+    const isBandOnWrist = onWrist !== false && bpm >= 30 && bpm <= 240;
+    this.lastBpm = isBandOnWrist ? bpm : 0;
     this.lastWristStatus = onWrist;
     this.lastTimestamp = timestamp;
 
-    // 1. Process RR intervals
-    if (rrIntervals && rrIntervals.length > 0) {
+    // 1. Process RR intervals only when band is on-wrist
+    if (isBandOnWrist && rrIntervals && rrIntervals.length > 0) {
       this.ingestRRIntervals(rrIntervals);
     }
 
-    // 2. Process Heart Rate
-    if (bpm > 0) {
+    // 2. Process Heart Rate & Accumulators only when actively on-wrist
+    if (isBandOnWrist) {
       this.hrCount += 1;
       this.hrSum += bpm;
       if (this.minHrObserved === null || bpm < this.minHrObserved) this.minHrObserved = bpm;
@@ -604,13 +605,16 @@ export class BiometricEngine {
       this.activeCalories += this.calculateCaloriesPerSecond(bpm);
 
       // Ingest into Pedometer Activity-Cadence Model
-      pedometerEngine.ingestHeartRate(bpm, zone, timestamp);
+      pedometerEngine.ingestHeartRate(bpm, zone, timestamp, true);
+    } else {
+      // Freeze pedometer accrual when off-wrist
+      pedometerEngine.ingestHeartRate(0, 0, timestamp, false);
     }
 
     // 3. Sleep Engine Ingestion & Metrics
     const currentHrv = this.calculateRMSSD();
     const rhr = this.getRestingHeartRate();
-    sleepEngine.ingestSample(bpm, currentHrv, onWrist, rhr || this.userSettings.restingHrBaseline, timestamp);
+    sleepEngine.ingestSample(isBandOnWrist ? bpm : 0, currentHrv, onWrist, rhr || this.userSettings.restingHrBaseline, timestamp);
     const sleepMetrics = sleepEngine.getSleepMetrics(this.userSettings, this.dailyStrain);
 
     // 4. Compute Metrics
@@ -623,8 +627,8 @@ export class BiometricEngine {
     const bmrToday = this.getBmrCaloriesElapsedToday();
     const totalCalories = Math.round(bmrToday + this.activeCalories);
 
-    // 5. Ingest into Dexie Telemetry Buffer
-    if (bpm > 0 && this.hrCount % 5 === 0) {
+    // 5. Ingest into Dexie Telemetry Buffer only when actively on wrist
+    if (isBandOnWrist && this.hrCount % 5 === 0) {
       whoopDb.logTelemetry({
         timestamp,
         bpm,
@@ -635,8 +639,8 @@ export class BiometricEngine {
       }).catch(() => {});
     }
 
-    // 6. Compute Stress Score every 5 seconds
-    if (timestamp - this.lastStressTick >= 5000) {
+    // 6. Compute Stress Score every 5 seconds (only when on-wrist)
+    if (isBandOnWrist && timestamp - this.lastStressTick >= 5000) {
       this.lastStressTick = timestamp;
       const stressResult = this.computeStressScore(bpm, currentHrv);
       if (stressResult) {
@@ -653,10 +657,12 @@ export class BiometricEngine {
         // Check for resting stress alert
         notificationEngine.checkHighStress(this.currentStressScore, false);
       }
+    } else if (!isBandOnWrist) {
+      this.currentStressScore = null;
     }
 
-    // 7. Persist every 15 beats
-    if (this.hrCount % 15 === 0) {
+    // 7. Persist every 15 beats (only when on-wrist)
+    if (isBandOnWrist && this.hrCount % 15 === 0) {
       this.persistTodayRealState();
     }
 
@@ -674,11 +680,11 @@ export class BiometricEngine {
     }
 
     return {
-      currentHr: bpm > 0 ? bpm : null,
-      currentHrv,
-      sdnn,
-      meanRR,
-      lastRR,
+      currentHr: isBandOnWrist ? bpm : null,
+      currentHrv: isBandOnWrist ? currentHrv : null,
+      sdnn: isBandOnWrist ? sdnn : null,
+      meanRR: isBandOnWrist ? meanRR : null,
+      lastRR: isBandOnWrist ? lastRR : null,
       minHr: this.minHrObserved,
       maxHr: this.maxHrObserved,
       avgHr: this.hrCount > 0 ? Math.round(this.hrSum / this.hrCount) : null,
@@ -691,9 +697,9 @@ export class BiometricEngine {
       bmrCalories: bmrToday,
       totalCalories,
       steps: pedo.steps,
-      cadence: pedo.cadence,
+      cadence: isBandOnWrist ? pedo.cadence : 0,
       stepSource: pedo.source,
-      currentZone: bpm > 0 ? this.determineZone(bpm) : 0,
+      currentZone: isBandOnWrist ? this.determineZone(bpm) : 0,
       zoneSeconds: { ...this.zoneSeconds },
       optimalStrainTarget: { min: optimalTargetMin, max: optimalTargetMax },
       respiratoryRate,

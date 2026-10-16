@@ -104,6 +104,15 @@ export const StrainView: React.FC<StrainViewProps> = ({
     };
   });
 
+  const validStrain = strain7Day.filter((d) => d.strain > 0);
+  const avgStrain = validStrain.length > 0 ? (validStrain.reduce((a, b) => a + b.strain, 0) / validStrain.length).toFixed(1) : '--';
+
+  const validHr = avgHr7Day.filter((d) => d.hr && d.hr > 0);
+  const avgHrVal = validHr.length > 0 ? `${Math.round(validHr.reduce((a, b) => a + (b.hr || 0), 0) / validHr.length)} ${isRtl ? 'ن/د' : 'bpm'}` : '--';
+
+  const validCal = calories7Day.filter((d) => d.cal > 0);
+  const avgCalVal = validCal.length > 0 ? `${Math.round(validCal.reduce((a, b) => a + b.cal, 0) / validCal.length).toLocaleString()} ${isRtl ? 'سعرة' : 'kcal'}` : '--';
+
   const totalZoneSeconds = Object.values(metrics.zoneSeconds).reduce((a, b) => a + b, 0);
 
   const formatSec = (totalSec: number) => {
@@ -289,7 +298,7 @@ export const StrainView: React.FC<StrainViewProps> = ({
         <div className="p-4 rounded-[24px] bg-[#12151A] border border-white/5 space-y-2">
           <div className="flex items-center justify-between text-xs font-black uppercase font-condensed text-white">
             <span>{t('strain7Days')}</span>
-            <span className="text-[10px] text-[#0093E9] font-mono">{isRtl ? 'المتوسط: 12.8' : 'AVG: 12.8'}</span>
+            <span className="text-[10px] text-[#0093E9] font-mono">{isRtl ? `المتوسط: ${avgStrain}` : `AVG: ${avgStrain}`}</span>
           </div>
           <div className="h-32 w-full pt-2">
             <ResponsiveContainer width="100%" height="100%">
@@ -306,7 +315,7 @@ export const StrainView: React.FC<StrainViewProps> = ({
         <div className="p-4 rounded-[24px] bg-[#12151A] border border-white/5 space-y-2">
           <div className="flex items-center justify-between text-xs font-black uppercase font-condensed text-white">
             <span>{t('avgHr')}</span>
-            <span className="text-[10px] text-[#0093E9] font-mono">{isRtl ? 'المتوسط: 73 ن/د' : 'AVG: 73 bpm'}</span>
+            <span className="text-[10px] text-[#0093E9] font-mono">{isRtl ? `المتوسط: ${avgHrVal}` : `AVG: ${avgHrVal}`}</span>
           </div>
           <div className="h-32 w-full pt-2">
             <ResponsiveContainer width="100%" height="100%">
@@ -323,7 +332,7 @@ export const StrainView: React.FC<StrainViewProps> = ({
         <div className="p-4 rounded-[24px] bg-[#12151A] border border-white/5 space-y-2">
           <div className="flex items-center justify-between text-xs font-black uppercase font-condensed text-white">
             <span>{t('calories7Days')}</span>
-            <span className="text-[10px] text-[#0093E9] font-mono">{isRtl ? 'المتوسط: 2,550 سعرة' : 'AVG: 2,550 kcal'}</span>
+            <span className="text-[10px] text-[#0093E9] font-mono">{isRtl ? `المتوسط: ${avgCalVal}` : `AVG: ${avgCalVal}`}</span>
           </div>
           <div className="h-32 w-full pt-2">
             <ResponsiveContainer width="100%" height="100%">

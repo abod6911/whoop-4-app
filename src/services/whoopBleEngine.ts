@@ -16,6 +16,7 @@ export const UUID_HEART_RATE_SERVICE = '0000180d-0000-1000-8000-00805f9b34fb';
 export const UUID_HEART_RATE_MEASUREMENT = '00002a37-0000-1000-8000-00805f9b34fb';
 export const UUID_BATTERY_SERVICE = '0000180f-0000-1000-8000-00805f9b34fb';
 export const UUID_BATTERY_LEVEL = '00002a19-0000-1000-8000-00805f9b34fb';
+export const UUID_BATTERY_POWER_STATE = '00002a1a-0000-1000-8000-00805f9b34fb';
 export const UUID_DEVICE_INFO_SERVICE = '0000180a-0000-1000-8000-00805f9b34fb';
 export const UUID_SERIAL_NUMBER = '00002a25-0000-1000-8000-00805f9b34fb';
 export const UUID_FIRMWARE_REVISION = '00002a26-0000-1000-8000-00805f9b34fb';
@@ -43,6 +44,7 @@ const KNOWN_UUID_NAMES: Record<string, string> = {
   [UUID_HEART_RATE_MEASUREMENT]: 'Heart Rate Measurement',
   [UUID_BATTERY_SERVICE]: 'Battery Service',
   [UUID_BATTERY_LEVEL]: 'Battery Level',
+  [UUID_BATTERY_POWER_STATE]: 'Battery Power State',
   [UUID_DEVICE_INFO_SERVICE]: 'Device Information Service',
   [UUID_SERIAL_NUMBER]: 'Serial Number',
   [UUID_FIRMWARE_REVISION]: 'Firmware Revision',
@@ -153,6 +155,8 @@ export class WhoopBleEngine {
     name: 'WHOOP 4.0',
     id: '',
     batteryLevel: null,
+    isCharging: false,
+    chargingStatusText: '',
     firmwareRevision: null,
     hardwareRevision: null,
     serialNumber: null,
@@ -161,9 +165,21 @@ export class WhoopBleEngine {
     connected: false,
     connecting: false,
     onWrist: null,
+    contactSupported: false,
+    contactDetected: false,
+    rssi: null,
+    packetsPerMinute: 0,
+    lastPacketTimestamp: null,
   };
 
   private gattTree: GattServiceInfo[] = [];
+
+  // Packet & Telemetry Ingestion Rate Counters
+  private packetCounter = 0;
+  private packetTimestamps: number[] = [];
+
+  // Rolling Battery History for Dynamic Charging State Fallback (90s window)
+  private batteryLevelHistory: Array<{ timestamp: number; level: number }> = [];
 
   constructor() {
     this.handleDisconnected = this.handleDisconnected.bind(this);
@@ -439,6 +455,12 @@ export class WhoopBleEngine {
     this.activeCharacteristics.clear();
     this.metadata.connected = false;
     this.metadata.onWrist = null;
+    this.metadata.isCharging = false;
+    this.metadata.chargingStatusText = '';
+    this.metadata.packetsPerMinute = 0;
+    this.metadata.lastPacketTimestamp = null;
+    this.batteryLevelHistory = [];
+    this.packetTimestamps = [];
 
     if (this.isManualDisconnect) {
       this.metadata.connecting = false;
@@ -485,7 +507,35 @@ export class WhoopBleEngine {
     }
   }
 
-  // --- Battery Polling every 30s ---
+  // --- Dynamic Battery & Charging State Detection Engine ---
+  public updateBatteryState(level: number, isChargingDirect?: boolean): void {
+    const now = Date.now();
+    this.metadata.batteryLevel = level;
+    this.batteryLevelHistory.push({ timestamp: now, level });
+    // Keep rolling 90 seconds history
+    const cutoff = now - 90000;
+    this.batteryLevelHistory = this.batteryLevelHistory.filter((item) => item.timestamp >= cutoff);
+
+    if (isChargingDirect !== undefined) {
+      this.metadata.isCharging = isChargingDirect;
+    } else if (this.batteryLevelHistory.length >= 2) {
+      const oldest = this.batteryLevelHistory[0];
+      const elapsedMs = now - oldest.timestamp;
+      if (elapsedMs >= 15000) {
+        if (level > oldest.level) {
+          this.metadata.isCharging = true;
+        } else if (level < oldest.level) {
+          this.metadata.isCharging = false;
+        }
+      }
+    }
+
+    this.metadata.chargingStatusText = this.metadata.isCharging ? 'Charging' : 'Discharging';
+    this.emitMetadata();
+    this.onBatteryCallbacks.forEach((cb) => cb(level));
+  }
+
+  // --- Battery Polling every 20s ---
   private startBatteryPolling(): void {
     if (this.batteryPollingInterval) {
       clearInterval(this.batteryPollingInterval);
@@ -496,16 +546,27 @@ export class WhoopBleEngine {
         try {
           const val = await batChar.readValue();
           const level = val.getUint8(0);
-          if (level !== this.metadata.batteryLevel) {
-            this.metadata.batteryLevel = level;
-            this.emitMetadata();
-            this.onBatteryCallbacks.forEach((cb) => cb(level));
-          }
+          this.updateBatteryState(level);
         } catch {
           // Ignore transient read error
         }
       }
-    }, 30000);
+
+      // Also query 0x2A1A Power State if present
+      const pwrChar = this.activeCharacteristics.get(UUID_BATTERY_POWER_STATE);
+      if (pwrChar && this.metadata.connected) {
+        try {
+          const pwrVal = await pwrChar.readValue();
+          if (pwrVal.byteLength > 0) {
+            const raw = pwrVal.getUint8(0);
+            const isCharging = (raw & 0x03) === 3 || Boolean(raw & 0x30);
+            this.updateBatteryState(this.metadata.batteryLevel ?? 0, isCharging);
+          }
+        } catch {
+          // Ignore
+        }
+      }
+    }, 20000);
   }
 
   // --- 1. Standard Services (Heart Rate, Battery, Device Info) ---
@@ -553,12 +614,12 @@ export class WhoopBleEngine {
         if (batChar) {
           this.activeCharacteristics.set(UUID_BATTERY_LEVEL, batChar);
           // Immediate initial read
-          const val = await batChar.readValue();
-          const level = val.getUint8(0);
-          this.metadata.batteryLevel = level;
-          this.emitMetadata();
-          this.onBatteryCallbacks.forEach((cb) => cb(level));
-          console.log(`Battery level read: ${level}%`);
+          try {
+            const val = await batChar.readValue();
+            const level = val.getUint8(0);
+            this.updateBatteryState(level);
+            console.log(`Battery level read: ${level}%`);
+          } catch { /* initial read error */ }
 
           if (batChar.properties.notify) {
             await batChar.startNotifications();
@@ -566,13 +627,38 @@ export class WhoopBleEngine {
               const target = e.target as BluetoothRemoteGATTCharacteristic;
               if (target.value) {
                 const updated = target.value.getUint8(0);
-                this.metadata.batteryLevel = updated;
-                this.emitMetadata();
-                this.onBatteryCallbacks.forEach((cb) => cb(updated));
+                this.updateBatteryState(updated);
               }
             });
           }
         }
+
+        // Query Battery Power State (0x2A1A) if available
+        try {
+          const pwrChar = await batService.getCharacteristic(UUID_BATTERY_POWER_STATE).catch(() => null);
+          if (pwrChar) {
+            this.activeCharacteristics.set(UUID_BATTERY_POWER_STATE, pwrChar);
+            if (pwrChar.properties.read) {
+              const pwrVal = await pwrChar.readValue();
+              if (pwrVal.byteLength > 0) {
+                const raw = pwrVal.getUint8(0);
+                const isCharging = (raw & 0x03) === 3 || Boolean(raw & 0x30);
+                this.updateBatteryState(this.metadata.batteryLevel ?? 0, isCharging);
+              }
+            }
+            if (pwrChar.properties.notify) {
+              await pwrChar.startNotifications();
+              pwrChar.addEventListener('characteristicvaluechanged', (e: Event) => {
+                const target = e.target as BluetoothRemoteGATTCharacteristic;
+                if (target.value && target.value.byteLength > 0) {
+                  const raw = target.value.getUint8(0);
+                  const isCharging = (raw & 0x03) === 3 || Boolean(raw & 0x30);
+                  this.updateBatteryState(this.metadata.batteryLevel ?? 0, isCharging);
+                }
+              });
+            }
+          }
+        } catch { /* optional characteristic */ }
       }
     } catch (e) {
       console.warn('Could not read Battery Service:', e);
@@ -743,6 +829,12 @@ export class WhoopBleEngine {
             this.metadata.onWrist = onWrist;
             this.emitMetadata();
           }
+        } else if (msgType === 0x02 || msgType === 0x03 || msgType === 0x04) {
+          // Battery pack attached / charging
+          this.updateBatteryState(this.metadata.batteryLevel ?? 0, true);
+        } else if (msgType === 0x05) {
+          // Battery pack detached / discharging
+          this.updateBatteryState(this.metadata.batteryLevel ?? 0, false);
         }
       }
 
@@ -755,7 +847,7 @@ export class WhoopBleEngine {
           const gX = rawX / 4096.0;
           const gY = rawY / 4096.0;
           const gZ = rawZ / 4096.0;
-          pedometerEngine.ingestRawAccel(gX, gY, gZ, Date.now());
+          pedometerEngine.ingestRawAccel(gX, gY, gZ, Date.now(), this.metadata.onWrist !== false);
         } catch { /* ignore parse anomaly */ }
       }
     }
@@ -799,12 +891,12 @@ export class WhoopBleEngine {
     let offset = 1;
 
     // Bit 0: Heart Rate Value Format (0 = UINT8, 1 = UINT16)
-    let bpm: number;
+    let rawBpm: number;
     if ((flags & 0x01) === 0) {
-      bpm = data.getUint8(offset);
+      rawBpm = data.getUint8(offset);
       offset += 1;
     } else {
-      bpm = data.getUint16(offset, true); // Little-Endian
+      rawBpm = data.getUint16(offset, true); // Little-Endian
       offset += 2;
     }
 
@@ -813,12 +905,18 @@ export class WhoopBleEngine {
     // Bit 1: Sensor Contact Detected
     const contactSupported = Boolean(flags & 0x04);
     const contactDetected = Boolean(flags & 0x02);
-    const onWrist = contactSupported ? contactDetected : null;
+    this.metadata.contactSupported = contactSupported;
+    this.metadata.contactDetected = contactDetected;
 
-    if (onWrist !== null && onWrist !== this.metadata.onWrist) {
+    // Determine on-wrist status
+    const onWrist = contactSupported ? contactDetected : (rawBpm >= 30 && rawBpm <= 240);
+    if (this.metadata.onWrist !== onWrist) {
       this.metadata.onWrist = onWrist;
       this.emitMetadata();
     }
+
+    // Strict physiological human HR range: 30 bpm to 240 bpm. Discard off-wrist artifacts.
+    let bpm = (onWrist && rawBpm >= 30 && rawBpm <= 240) ? rawBpm : 0;
 
     // Bit 3: Energy Expended field presence
     let energyExpended: number | undefined;
@@ -831,22 +929,27 @@ export class WhoopBleEngine {
     const rrIntervals: number[] = [];
     let isDerivedRR = false;
 
-    if (flags & 0x10) {
+    if (flags & 0x10 && onWrist) {
       while (offset + 1 < data.byteLength) {
         const rawRR = data.getUint16(offset, true);
         // Bluetooth SIG specification: Resolution is 1/1024 of a second
         // Formula: rr_ms = (raw_rr / 1024.0) * 1000.0
         const rrMs = (rawRR / 1024.0) * 1000.0;
-        rrIntervals.push(rrMs);
+        // Strict physiological human RR filter: 300 ms (200 bpm) to 2000 ms (30 bpm)
+        if (rrMs >= 300 && rrMs <= 2000) {
+          rrIntervals.push(rrMs);
+        }
         offset += 2;
       }
     }
 
-    // If packet has no RR intervals, estimate instantaneous IBI from BPM
+    // If packet has no valid RR intervals, estimate instantaneous IBI from clean BPM
     if (rrIntervals.length === 0 && bpm > 0) {
       const derivedRR = (60000.0 / bpm);
-      rrIntervals.push(derivedRR);
-      isDerivedRR = true;
+      if (derivedRR >= 300 && derivedRR <= 2000) {
+        rrIntervals.push(derivedRR);
+        isDerivedRR = true;
+      }
     }
 
     const measurement: HeartRateMeasurement = {
@@ -863,7 +966,7 @@ export class WhoopBleEngine {
     // Emit parsed measurement
     this.onHeartRateCallbacks.forEach((cb) => cb(measurement));
 
-    // Record raw packet for sniffer
+    // Record raw packet for sniffer & telemetry tracking
     this.recordRawPacket(UUID_HEART_RATE_SERVICE, UUID_HEART_RATE_MEASUREMENT, data);
 
     return measurement;
@@ -1068,10 +1171,17 @@ export class WhoopBleEngine {
   }
 
   private recordRawPacket(serviceUuid: string, charUuid: string, data: DataView): void {
+    const now = Date.now();
+    this.packetTimestamps.push(now);
+    const cutoff = now - 60000;
+    this.packetTimestamps = this.packetTimestamps.filter((t) => t >= cutoff);
+    this.metadata.packetsPerMinute = this.packetTimestamps.length;
+    this.metadata.lastPacketTimestamp = now;
+
     const { hex, ascii, bytes } = this.formatDataView(data);
     const packet: RawBlePacket = {
-      id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-      timestamp: Date.now(),
+      id: `${now}-${++this.packetCounter}`,
+      timestamp: now,
       serviceUuid,
       charUuid,
       length: data.byteLength,

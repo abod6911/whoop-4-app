@@ -214,13 +214,17 @@ export class SleepEngine {
     const deepPct = totalMinutes > 0 ? Math.round((deepCount / totalMinutes) * 100) : 23;
     const remPct = totalMinutes > 0 ? Math.round((remCount / totalMinutes) * 100) : 24;
 
+    const latencyMinutes = this.sleepOnsetTimestamp && this.timeline[0]
+      ? Math.max(0, Math.round((this.sleepOnsetTimestamp - this.timeline[0].timestamp) / 60000))
+      : null;
+
     return {
       hoursInBed,
       hoursAsleep,
       sleepNeedHours: needHours,
       sleepPerformance: perf,
       efficiencyPercent: efficiency,
-      latencyMinutes: 12,
+      latencyMinutes,
       disturbancesCount: disturbances,
       sleepDebtHours: this.accumulatedDebtHours,
       needBreakdown,

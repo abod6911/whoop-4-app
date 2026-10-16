@@ -63,10 +63,10 @@ export const CommunityView: React.FC<CommunityViewProps> = ({
 
   const currentScore =
     metricTab === 'strain'
-      ? (metrics.dailyStrain > 0 ? metrics.dailyStrain.toFixed(1) : '5.5')
+      ? (metrics.dailyStrain > 0 ? metrics.dailyStrain.toFixed(1) : '--')
       : metricTab === 'recovery'
-      ? (metrics.recoveryScore !== null ? `${metrics.recoveryScore}%` : '88%')
-      : (metrics.sleepPerformance !== null ? `${metrics.sleepPerformance}%` : '100%');
+      ? (metrics.recoveryScore !== null ? `${metrics.recoveryScore}%` : '--')
+      : (metrics.sleepPerformance !== null ? `${metrics.sleepPerformance}%` : '--');
 
   return (
     <div className="space-y-5 pb-28 animate-in fade-in duration-300">

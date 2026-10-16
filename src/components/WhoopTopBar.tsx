@@ -1,6 +1,6 @@
 import React from 'react';
 import type { DeviceMetadata, LiveMetrics, HomeSubTab, MainTabType } from '../types/whoop';
-import { ChevronLeft, ChevronRight, Bell, Globe } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Bell, Globe, Zap } from 'lucide-react';
 
 interface WhoopTopBarProps {
   metadata: DeviceMetadata;
@@ -172,12 +172,19 @@ export const WhoopTopBar: React.FC<WhoopTopBarProps> = ({
         {/* Right: Real Battery % + Vertical Strap Icon + Signal Bars Icon */}
         <button
           onClick={onOpenStrapSheet}
-          className="flex items-center gap-2 bg-[#16191E] border border-white/5 hover:border-zinc-700 px-2.5 py-1 rounded-full transition-all active:scale-95"
+          className="flex items-center gap-1.5 bg-[#16191E] border border-white/5 hover:border-zinc-700 px-2.5 py-1 rounded-full transition-all active:scale-95"
           title="WHOOP 4.0 Strap & Battery Status"
         >
-          <span className={`text-xs font-bold font-condensed tabular-nums tracking-wide ${batteryColor}`}>
-            {metadata.batteryLevel !== null ? `${metadata.batteryLevel}%` : '--'}
-          </span>
+          {metadata.isCharging ? (
+            <span className="flex items-center gap-0.5 text-[#16EC06] text-xs font-black font-condensed animate-pulse">
+              <Zap className="w-3 h-3 fill-[#16EC06] text-[#16EC06]" />
+              <span className="tabular-nums">{metadata.batteryLevel !== null ? `${metadata.batteryLevel}%` : ''}</span>
+            </span>
+          ) : (
+            <span className={`text-xs font-bold font-condensed tabular-nums tracking-wide ${batteryColor}`}>
+              {metadata.batteryLevel !== null ? `${metadata.batteryLevel}%` : '--'}
+            </span>
+          )}
           <VerticalWhoopStrapIcon isConnected={metadata.connected} />
           <SignalBarsIcon isConnected={metadata.connected} />
         </button>

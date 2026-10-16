@@ -39,6 +39,7 @@ class NotificationEngine {
   private optimalStrainAlertFiredToday = false;
   private lastWristStatus: boolean | null = null;
   private lastConnectionState: boolean | null = null;
+  private notifyCounter = 0;
 
   constructor() {
     this.loadHistory();
@@ -206,7 +207,7 @@ class NotificationEngine {
   // --- Dispatch Notification ---
   public dispatch(notification: Omit<WhoopNotification, 'id' | 'timestamp' | 'read'>): WhoopNotification {
     const item: WhoopNotification = {
-      id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      id: `${Date.now()}-${++this.notifyCounter}`,
       timestamp: Date.now(),
       read: false,
       ...notification,

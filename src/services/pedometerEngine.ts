@@ -17,7 +17,9 @@ export class PedometerEngine {
   private accelWindow: number[] = [];
   private readonly windowSize = 50; // ~1-2 seconds of accelerometer data
   private lastPeakTime = 0;
-  private readonly minStepIntervalMs = 260; // Max ~230 steps/min (physiological limit for human bipedal cadence)
+  // Human rhythmic locomotion: 0.8 Hz (1250 ms) to 3.2 Hz (312 ms)
+  private readonly minStepIntervalMs = 312; // 3.2 Hz (~192 steps/min max human bipedal cadence)
+  private readonly maxStepIntervalMs = 1250; // 0.8 Hz (~48 steps/min min human strolling cadence)
   private dynamicThreshold = 1.15; // in G's
 
   // HR-Inference Model State
@@ -60,7 +62,12 @@ export class PedometerEngine {
   }
 
   // --- 1. Real Hardware IMU Stream Ingestion ---
-  public ingestRawAccel(x: number, y: number, z: number, timestamp = Date.now()): void {
+  public ingestRawAccel(x: number, y: number, z: number, timestamp = Date.now(), onWrist = true): void {
+    if (!onWrist) {
+      this.cadence = 0;
+      return;
+    }
+
     this.source = 'imu_hardware';
 
     // 1. Vector Magnitude (in Gs or m/s^2 normalized)
@@ -80,18 +87,20 @@ export class PedometerEngine {
       // Adaptive threshold for distinguishing heel-strikes from ambient noise
       this.dynamicThreshold = mean + Math.max(0.18, stdDev * 0.75);
 
-      // 3. Peak detection
+      // 3. Peak detection with strict human locomotion frequency (0.8 Hz - 3.2 Hz)
       const currentIndex = this.accelWindow.length - 2;
       if (currentIndex > 0) {
         const prev = this.accelWindow[currentIndex - 1];
         const curr = this.accelWindow[currentIndex];
         const next = this.accelWindow[currentIndex + 1];
 
+        const interval = timestamp - this.lastPeakTime;
         if (
           curr > prev &&
           curr > next &&
           curr > this.dynamicThreshold &&
-          timestamp - this.lastPeakTime >= this.minStepIntervalMs
+          interval >= this.minStepIntervalMs &&
+          interval <= this.maxStepIntervalMs
         ) {
           this.recordStep(timestamp);
           this.lastPeakTime = timestamp;
@@ -103,7 +112,13 @@ export class PedometerEngine {
   }
 
   // --- 2. Fallback: Activity-Cadence Inference Model from Heart Rate ---
-  public ingestHeartRate(bpm: number, zone: number, timestamp = Date.now()): void {
+  public ingestHeartRate(bpm: number, zone: number, timestamp = Date.now(), onWrist = true): void {
+    // If band is off wrist or heart rate is null/zero, freeze pedometer accrual
+    if (!onWrist || !bpm || bpm <= 0) {
+      this.cadence = 0;
+      return;
+    }
+
     // If real hardware IMU has delivered samples in the last 10 seconds, prioritize hardware IMU
     if (this.source === 'imu_hardware' && timestamp - this.lastStepTimestamp < 10000) {
       return;

@@ -65,6 +65,16 @@ export interface Translations {
   guidePairingMode: string;
   guideBluetoothOn: string;
   signalStrength: string;
+  charging: string;
+  discharging: string;
+  hardwareDiagnostics: string;
+  skinContact: string;
+  skinContactLocked: string;
+  skinContactLost: string;
+  packetsPerMin: string;
+  packetRate: string;
+  bandOffWristAlert: string;
+  paused: string;
 
   // Core Biometrics & Health Metrics
   recoveryScore: string;
@@ -366,6 +376,16 @@ export const translations: Record<Language, Translations> = {
     guidePairingMode: 'Enable Pairing Mode: Firmly double-tap the top of the sensor until LEDs pulse.',
     guideBluetoothOn: 'Bluetooth ON: Verify Bluetooth is active in your system settings.',
     signalStrength: 'Signal Strength',
+    charging: 'Charging',
+    discharging: 'Discharging',
+    hardwareDiagnostics: 'Hardware Diagnostics',
+    skinContact: 'Skin Contact',
+    skinContactLocked: 'Locked (On-Wrist)',
+    skinContactLost: 'Lost (Off-Wrist)',
+    packetsPerMin: 'pkts/min',
+    packetRate: 'Packet Ingestion Rate',
+    bandOffWristAlert: 'Band Off-Wrist / No Skin Contact',
+    paused: 'PAUSED',
 
     // Core Biometrics & Health Metrics
     recoveryScore: 'RECOVERY',
@@ -666,6 +686,16 @@ export const translations: Record<Language, Translations> = {
     guidePairingMode: 'تفعيل وضع الإقران: انقر مرتين بقوة على أعلى السوار حتى تومض لمبات LED.',
     guideBluetoothOn: 'تشغيل البلوتوث: تأكد من تفعيل البلوتوث في نظام تشغيل جهازك.',
     signalStrength: 'قوة الإشارة',
+    charging: 'جاري الشحن',
+    discharging: 'تفريغ البطارية',
+    hardwareDiagnostics: 'تشخيص العتاد والحساسات',
+    skinContact: 'ملامسة الجلد',
+    skinContactLocked: 'مُحكم (على المعصم)',
+    skinContactLost: 'مفصول (غير ملامس)',
+    packetsPerMin: 'حزمة/دقيقة',
+    packetRate: 'معدل استلام الحزم',
+    bandOffWristAlert: 'السوار غير ملامس للجلد / مفصول عن المعصم',
+    paused: 'متوقف مؤقتاً',
 
     // Core Biometrics & Health Metrics
     recoveryScore: 'نسبة الاستشفاء',

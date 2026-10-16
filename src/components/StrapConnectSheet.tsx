@@ -10,6 +10,8 @@ import {
   ShieldCheck,
   CheckCircle2,
   AlertTriangle,
+  Zap,
+  Activity,
 } from 'lucide-react';
 
 import { useLanguage } from '../i18n/LanguageContext';
@@ -22,6 +24,7 @@ interface StrapConnectSheetProps {
   onConnectBle: (mode: 'filtered' | 'all') => void;
   onReconnectPermitted?: (device?: BluetoothDevice) => void;
   onDisconnectBle: () => void;
+  onOpenDiagnostics?: () => void;
 }
 
 export const StrapConnectSheet: React.FC<StrapConnectSheetProps> = ({
@@ -32,6 +35,7 @@ export const StrapConnectSheet: React.FC<StrapConnectSheetProps> = ({
   onConnectBle,
   onReconnectPermitted,
   onDisconnectBle,
+  onOpenDiagnostics,
 }) => {
   const { t, isRtl } = useLanguage();
   if (!isOpen) return null;
@@ -89,20 +93,30 @@ export const StrapConnectSheet: React.FC<StrapConnectSheetProps> = ({
           <div className="flex items-center justify-between text-xs font-condensed border-t border-white/5 pt-2.5">
             <span className="text-zinc-400 uppercase font-bold tracking-wide">{t('battery')}</span>
             <div className="flex items-center gap-1.5 font-mono font-bold">
-              <Battery
-                className={`w-4 h-4 ${
-                  metadata.batteryLevel === null
-                    ? 'text-zinc-500'
-                    : isBatteryLow
-                    ? 'text-[#FF0026]'
-                    : metadata.batteryLevel < 50
-                    ? 'text-[#FFDE00]'
-                    : 'text-[#16EC06]'
-                }`}
-              />
-              <span className={metadata.batteryLevel !== null ? 'text-white' : 'text-zinc-500'}>
-                {metadata.batteryLevel !== null ? `${metadata.batteryLevel}%` : '--'}
-              </span>
+              {metadata.isCharging ? (
+                <span className="flex items-center gap-1 text-[#16EC06] text-xs font-black font-condensed animate-pulse">
+                  <Zap className="w-3.5 h-3.5 fill-[#16EC06] text-[#16EC06]" />
+                  <span>{metadata.batteryLevel !== null ? `${metadata.batteryLevel}%` : '--'}</span>
+                  <span className="text-[9px] px-1.5 py-0.5 bg-[#16EC06]/20 rounded font-condensed uppercase tracking-wider">{t('charging')}</span>
+                </span>
+              ) : (
+                <>
+                  <Battery
+                    className={`w-4 h-4 ${
+                      metadata.batteryLevel === null
+                        ? 'text-zinc-500'
+                        : isBatteryLow
+                        ? 'text-[#FF0026]'
+                        : metadata.batteryLevel < 50
+                        ? 'text-[#FFDE00]'
+                        : 'text-[#16EC06]'
+                    }`}
+                  />
+                  <span className={metadata.batteryLevel !== null ? 'text-white' : 'text-zinc-500'}>
+                    {metadata.batteryLevel !== null ? `${metadata.batteryLevel}%` : '--'}
+                  </span>
+                </>
+              )}
             </div>
           </div>
 
@@ -142,6 +156,27 @@ export const StrapConnectSheet: React.FC<StrapConnectSheetProps> = ({
               {metadata.serialNumber || '--'}
             </span>
           </div>
+
+          {/* Hardware Diagnostics Trigger */}
+          {onOpenDiagnostics && (
+            <div className="border-t border-white/5 pt-2.5">
+              <button
+                onClick={() => {
+                  onClose();
+                  onOpenDiagnostics();
+                }}
+                className="w-full py-2 px-3 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-black uppercase text-zinc-300 hover:text-white flex items-center justify-between transition-colors active:scale-98"
+              >
+                <div className="flex items-center gap-2">
+                  <Activity className="w-3.5 h-3.5 text-[#0093E9]" />
+                  <span>{t('hardwareDiagnostics')}</span>
+                </div>
+                <span className="text-[10px] font-mono text-zinc-400">
+                  {metadata.packetsPerMinute || 0} {t('packetsPerMin')} ›
+                </span>
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Real Web Bluetooth Connection Controls */}
