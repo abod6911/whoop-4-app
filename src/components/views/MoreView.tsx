@@ -26,7 +26,7 @@ interface MoreViewProps {
   metadata: DeviceMetadata;
   services: GattServiceInfo[];
   packets: RawBlePacket[];
-  onConnectBle: () => void;
+  onConnectBle: (mode?: 'filtered' | 'all') => void;
   onDisconnectBle: () => void;
   onClearPackets: () => void;
   onSaveSettings: (settings: UserSettings) => void;

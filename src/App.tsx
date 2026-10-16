@@ -223,10 +223,10 @@ export const App: React.FC = () => {
   }, [handleMeasurement]);
 
   // Connect BLE flow (Physical WHOOP 4.0 Strap) with Specific Filters
-  const handleConnectBle = async (forceChooser = false) => {
+  const handleConnectBle = async (mode: 'filtered' | 'all' = 'filtered') => {
     try {
       setErrorMessage(null);
-      await whoopBleEngine.connect(forceChooser);
+      await whoopBleEngine.connect(mode);
       const updatedPermitted = await whoopBleEngine.checkPermittedDevices();
       setPermittedDevices(updatedPermitted);
     } catch (e: unknown) {

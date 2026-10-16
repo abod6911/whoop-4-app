@@ -31,7 +31,7 @@ interface StrapLabViewProps {
   metadata: DeviceMetadata;
   services: GattServiceInfo[];
   packets: RawBlePacket[];
-  onConnectBle: () => void;
+  onConnectBle: (mode?: 'filtered' | 'all') => void;
   onDisconnectBle: () => void;
   onClearPackets: () => void;
   onRefreshGattTree: () => void;
@@ -167,7 +167,7 @@ export const StrapLabView: React.FC<StrapLabViewProps> = ({
             </button>
           ) : (
             <button
-              onClick={onConnectBle}
+              onClick={() => onConnectBle('filtered')}
               className="w-full py-3 rounded-xl bg-[#0093E9] hover:bg-[#00B4D8] text-black text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-lg shadow-cyan-500/20 active:scale-98"
             >
               <Bluetooth className="w-4 h-4" />

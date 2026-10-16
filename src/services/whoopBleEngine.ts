@@ -208,9 +208,17 @@ export class WhoopBleEngine {
         permitted[0];
     }
     if (!target) {
-      throw new Error('No previously permitted WHOOP 4.0 device found. Please pair with Bluetooth.');
+      throw new Error('No previously paired WHOOP 4.0 strap found. Please search for your device.');
     }
-    await this.connectToDevice(target);
+    try {
+      await this.connectToDevice(target);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      const friendlyErr = `Could not reach ${target.name || 'WHOOP strap'}. Ensure it is nearby, in pairing mode (double-tap sensor), and disconnected from your phone WHOOP app.`;
+      console.warn(friendlyErr, msg);
+      this.emitError(friendlyErr);
+      throw new Error(friendlyErr);
+    }
   }
 
   // --- Listeners ---
@@ -317,48 +325,23 @@ export class WhoopBleEngine {
     }
   }
 
-  // --- Request & Connect to Physical WHOOP 4.0 Strap ---
-  public async connect(forceChooser = false): Promise<void> {
+  // --- Request & Connect to Physical WHOOP 4.0 Strap (Direct User Gesture Safe) ---
+  public async connect(mode: 'filtered' | 'all' = 'filtered'): Promise<void> {
     if (!this.isSupported()) {
-      const err = 'Web Bluetooth API is not supported in this browser. Please use Chrome, Edge, or Bluefy on iOS.';
+      const err = 'Web Bluetooth API is not supported in this browser. Please use Google Chrome, Microsoft Edge, or Bluefy Browser on iOS.';
       this.emitError(err);
       throw new Error(err);
-    }
-
-    // 1-Click Reconnect Check: If not forcing chooser, try reconnecting to an already permitted device first
-    if (!forceChooser) {
-      const permitted = await this.checkPermittedDevices();
-      const whoopDevice =
-        permitted.find((d) => this.metadata.id && d.id === this.metadata.id) ||
-        permitted.find((d) => d.name && d.name.toUpperCase().includes('WHOOP')) ||
-        permitted[0];
-
-      if (whoopDevice) {
-        try {
-          console.log(`1-Click Reconnecting to permitted device: ${whoopDevice.name || whoopDevice.id}`);
-          await this.connectToDevice(whoopDevice);
-          return;
-        } catch (reconnectErr) {
-          console.warn('Permitted device 1-click reconnect failed, opening filtered chooser:', reconnectErr);
-          // Fall through to requestDevice chooser
-        }
-      }
     }
 
     try {
       this.metadata.connecting = true;
       this.emitMetadata();
 
-      // User Specification: Configure navigator.bluetooth.requestDevice with specific BLE filters:
-      // - Filter by known WHOOP service UUIDs or prefix the name filter:
-      //   filters: [{ namePrefix: 'WHOOP' }], optionalServices: ['heart_rate', 0x180D, 0x180A, 'battery_service']
+      // Standard and proprietary services to access upon GATT connection
       const optionalServices: BluetoothServiceUUID[] = [
         'heart_rate',
         'battery_service',
         'device_information',
-        0x180d,
-        0x180f,
-        0x180a,
         UUID_HEART_RATE_SERVICE,
         UUID_BATTERY_SERVICE,
         UUID_DEVICE_INFO_SERVICE,
@@ -366,35 +349,28 @@ export class WhoopBleEngine {
         NORDIC_DFU_SERVICE_UUID,
       ];
 
-      const options: RequestDeviceOptions = {
-        filters: [
-          { namePrefix: 'WHOOP' },
-          { namePrefix: 'Whoop' },
-          { services: ['heart_rate'] },
-          { services: [0x180d] },
-        ],
-        optionalServices,
-      };
-
-      console.log('Requesting Bluetooth Device with WHOOP filters (namePrefix & Heart Rate)...');
-      let selectedDevice: BluetoothDevice;
-      try {
-        selectedDevice = await navigator.bluetooth.requestDevice(options);
-      } catch (filterErr: unknown) {
-        const errMsg = filterErr instanceof Error ? filterErr.message : String(filterErr);
-        if (errMsg.includes('cancelled') || errMsg.includes('User cancelled')) {
-          console.log('User cancelled Bluetooth chooser');
-          this.metadata.connecting = false;
-          this.emitMetadata();
-          return;
-        }
-
-        console.warn('Filtered device request failed, falling back to all devices:', filterErr);
-        selectedDevice = await navigator.bluetooth.requestDevice({
+      let options: RequestDeviceOptions;
+      if (mode === 'all') {
+        console.log('Requesting Bluetooth Device in acceptAllDevices fallback mode...');
+        options = {
           acceptAllDevices: true,
           optionalServices,
-        });
+        };
+      } else {
+        console.log('Requesting Bluetooth Device with WHOOP filters (namePrefix & Base Service)...');
+        options = {
+          filters: [
+            { namePrefix: 'WHOOP' },
+            { namePrefix: 'Whoop' },
+            { namePrefix: 'whoop' },
+            { services: [WHOOP_BASE_SERVICE_UUID] },
+          ],
+          optionalServices,
+        };
       }
+
+      // CRITICAL: Call navigator.bluetooth.requestDevice immediately within the user gesture!
+      const selectedDevice = await navigator.bluetooth.requestDevice(options);
 
       if (!selectedDevice) {
         throw new Error('No device selected');
@@ -405,11 +381,17 @@ export class WhoopBleEngine {
       this.metadata.connected = false;
       this.metadata.connecting = false;
       this.emitMetadata();
+
       const message = err instanceof Error ? err.message : String(err);
-      if (message.includes('cancelled') || message.includes('User cancelled')) {
-        console.log('User cancelled device request');
-        return;
+      if (
+        message.includes('cancelled') ||
+        message.includes('User cancelled') ||
+        (err instanceof DOMException && err.name === 'NotFoundError')
+      ) {
+        console.log('User closed device chooser dialog');
+        return; // Don't show scary error when user closes the prompt
       }
+
       console.error('BLE Connection Failed:', message);
       this.emitError(message);
       throw err;

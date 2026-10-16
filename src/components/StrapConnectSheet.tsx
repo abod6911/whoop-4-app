@@ -9,6 +9,7 @@ import {
   Radio,
   ShieldCheck,
   CheckCircle2,
+  AlertTriangle,
 } from 'lucide-react';
 
 interface StrapConnectSheetProps {
@@ -16,7 +17,7 @@ interface StrapConnectSheetProps {
   onClose: () => void;
   metadata: DeviceMetadata;
   permittedDevices?: BluetoothDevice[];
-  onConnectBle: (forceChooser?: boolean) => void;
+  onConnectBle: (mode: 'filtered' | 'all') => void;
   onReconnectPermitted?: (device?: BluetoothDevice) => void;
   onDisconnectBle: () => void;
 }
@@ -38,7 +39,7 @@ export const StrapConnectSheet: React.FC<StrapConnectSheetProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/80 backdrop-blur-sm animate-in fade-in">
-      <div className="relative w-full max-w-[430px] p-5 rounded-t-[28px] bg-[#16191E] border-t border-x border-white/10 shadow-2xl space-y-4 animate-in slide-in-from-bottom-5">
+      <div className="relative w-full max-w-[430px] p-5 rounded-t-[28px] bg-[#16191E] border-t border-x border-white/10 shadow-2xl space-y-4 animate-in slide-in-from-bottom-5 max-h-[90vh] overflow-y-auto">
         {/* iOS Handle Indicator */}
         <div className="w-10 h-1 rounded-full bg-zinc-600 mx-auto -mt-1 mb-2" />
 
@@ -141,7 +142,7 @@ export const StrapConnectSheet: React.FC<StrapConnectSheetProps> = ({
         </div>
 
         {/* Real Web Bluetooth Connection Controls */}
-        <div className="space-y-2 font-condensed">
+        <div className="space-y-2.5 font-condensed">
           {metadata.connected ? (
             <button
               onClick={() => {
@@ -158,35 +159,56 @@ export const StrapConnectSheet: React.FC<StrapConnectSheetProps> = ({
               {/* 1-Click Reconnect to Previously Permitted WHOOP Band */}
               {hasPermitted && onReconnectPermitted && (
                 <button
-                  onClick={() => {
-                    onClose();
-                    onReconnectPermitted(primaryPermitted);
-                  }}
-                  className="w-full py-3.5 rounded-xl bg-[#16EC06] hover:bg-[#14d605] text-black text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-lg shadow-emerald-500/20 active:scale-95"
+                  onClick={() => onReconnectPermitted(primaryPermitted)}
+                  disabled={metadata.connecting}
+                  className="w-full py-3.5 rounded-xl bg-[#16EC06] hover:bg-[#14d605] text-black text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-lg shadow-emerald-500/20 active:scale-95 disabled:opacity-50"
                 >
                   <Bluetooth className="w-4 h-4 stroke-[2.5]" />
-                  <span>1-Click Reconnect to {primaryPermitted.name || 'WHOOP 4.0'}</span>
+                  <span>
+                    {metadata.connecting
+                      ? 'Connecting...'
+                      : `1-Click Reconnect to ${primaryPermitted.name || 'WHOOP 4.0'}`}
+                  </span>
                 </button>
               )}
 
-              {/* Pair via Filtered Web Bluetooth Request */}
+              {/* Primary Search: Filtered for WHOOP 4.0 */}
               <button
-                onClick={() => {
-                  onClose();
-                  onConnectBle(true);
-                }}
-                className={`w-full py-3.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all active:scale-95 ${
-                  hasPermitted
-                    ? 'bg-[#222832] hover:bg-[#2C3442] text-zinc-200 border border-white/10'
-                    : 'bg-[#0093E9] hover:bg-[#00B4D8] text-black shadow-lg shadow-cyan-500/20'
-                }`}
+                onClick={() => onConnectBle('filtered')}
+                disabled={metadata.connecting}
+                className="w-full py-3.5 rounded-xl bg-[#0093E9] hover:bg-[#00B4D8] text-black text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-lg shadow-cyan-500/20 active:scale-95 disabled:opacity-50"
               >
                 <Bluetooth className="w-4 h-4" />
-                <span>{hasPermitted ? 'Pair Different WHOOP Band (Search BLE)' : 'Pair Physical WHOOP 4.0 via Bluetooth'}</span>
+                <span>Pair WHOOP 4.0 (Filtered Search)</span>
               </button>
 
-              <div className="text-[10px] text-zinc-400 text-center font-sans pt-1">
-                Filtered strictly for WHOOP 4.0 straps via 0x180D (Heart Rate) & 0x180F (Battery)
+              {/* Fallback Search: Show All Devices */}
+              <button
+                onClick={() => onConnectBle('all')}
+                disabled={metadata.connecting}
+                className="w-full py-2.5 rounded-xl bg-[#1A1F26] hover:bg-[#222832] text-zinc-300 border border-white/10 text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all active:scale-95"
+              >
+                <Radio className="w-3.5 h-3.5 text-zinc-400" />
+                <span>Show All Devices (Fallback Search)</span>
+              </button>
+
+              {/* Troubleshooting Instructions */}
+              <div className="p-3.5 rounded-xl bg-[#0B0D10] border border-white/5 text-[11px] text-zinc-300 space-y-2 font-sans text-left">
+                <div className="flex items-center gap-1.5 text-white font-bold font-condensed uppercase tracking-wider text-xs">
+                  <AlertTriangle className="w-3.5 h-3.5 text-[#FFDE00]" />
+                  <span>WHOOP 4.0 Connection Guide</span>
+                </div>
+                <ul className="space-y-1 list-disc list-inside text-zinc-300 leading-relaxed text-[11px]">
+                  <li>
+                    <strong className="text-white">Disconnect phone app:</strong> Close or turn off Bluetooth on your smartphone (WHOOP 4.0 allows only 1 connection at a time).
+                  </li>
+                  <li>
+                    <strong className="text-white">Enable Pairing Mode:</strong> Firmly double-tap the top of the WHOOP strap until LEDs pulse, or snap on the battery pack.
+                  </li>
+                  <li>
+                    <strong className="text-white">Bluetooth ON:</strong> Verify Bluetooth is turned ON in your system settings.
+                  </li>
+                </ul>
               </div>
             </>
           )}
