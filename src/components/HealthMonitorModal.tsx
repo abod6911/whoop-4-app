@@ -89,33 +89,33 @@ export const HealthMonitorModal: React.FC<HealthMonitorModalProps> = ({
     <tbody>
       <tr>
         <td><strong>Resting Heart Rate (RHR)</strong></td>
-        <td>${metrics.restingHr ?? settings.restingHrBaseline} BPM</td>
+        <td>${metrics.restingHr !== null ? `${metrics.restingHr} BPM` : 'Calibrating (--)'}</td>
         <td>${settings.restingHrBaseline} BPM</td>
-        <td><span class="status-badge">Within Typical Range</span></td>
+        <td><span class="status-badge">${metrics.restingHr !== null ? 'Within Typical Range' : 'Calibrating'}</span></td>
       </tr>
       <tr>
         <td><strong>Heart Rate Variability (HRV RMSSD)</strong></td>
-        <td>${metrics.currentHrv ?? settings.hrvBaseline} ms</td>
+        <td>${metrics.currentHrv !== null ? `${metrics.currentHrv} ms` : 'Calibrating (--)'}</td>
         <td>${settings.hrvBaseline} ms</td>
-        <td><span class="status-badge">Normal Autonomic Tone</span></td>
+        <td><span class="status-badge">${metrics.currentHrv !== null ? 'Normal Autonomic Tone' : 'Calibrating'}</span></td>
       </tr>
       <tr>
         <td><strong>Respiratory Rate (RSA derived)</strong></td>
-        <td>${metrics.respiratoryRate ?? '14.2'} RPM</td>
+        <td>${metrics.respiratoryRate !== null ? `${metrics.respiratoryRate} RPM` : 'Calibrating (--)'}</td>
         <td>13.0 - 16.5 RPM</td>
-        <td><span class="status-badge">Within Range</span></td>
+        <td><span class="status-badge">${metrics.respiratoryRate !== null ? 'Within Range' : 'Calibrating'}</span></td>
       </tr>
       <tr>
         <td><strong>Blood Oxygen Saturation (SpO2)</strong></td>
-        <td>98%</td>
+        <td>${metrics.spO2 !== null ? `${metrics.spO2}%` : 'Calibrating (--)'}</td>
         <td>95% - 100%</td>
-        <td><span class="status-badge">Optimal Saturation</span></td>
+        <td><span class="status-badge">${metrics.spO2 !== null ? 'Optimal Saturation' : 'Calibrating'}</span></td>
       </tr>
       <tr>
         <td><strong>Skin Temperature Delta</strong></td>
-        <td>+0.2 °C</td>
+        <td>${metrics.skinTempCelsius !== null ? `${metrics.skinTempCelsius >= 0 ? '+' : ''}${metrics.skinTempCelsius.toFixed(1)} °C` : 'Calibrating (--)'}</td>
         <td>-0.5°C to +0.5°C</td>
-        <td><span class="status-badge">Afebrile / Baseline</span></td>
+        <td><span class="status-badge">${metrics.skinTempCelsius !== null ? 'Afebrile / Baseline' : 'Calibrating'}</span></td>
       </tr>
     </tbody>
   </table>
@@ -216,11 +216,13 @@ export const HealthMonitorModal: React.FC<HealthMonitorModalProps> = ({
                 <span>{t('bloodOxygen')}</span>
               </div>
               <div className="text-2xl font-black font-condensed text-white tabular-nums" dir="ltr">
-                {metadata.connected ? '98%' : '--'}
+                {metrics.spO2 !== null ? `${metrics.spO2}%` : '--'}
               </div>
-              <div className="flex items-center gap-1.5 text-[10px] text-[#16EC06] font-mono" dir="ltr">
-                <span className="w-2 h-2 rounded-full bg-[#16EC06]" />
-                <span>95% - 100%</span>
+              <div className="flex items-center gap-1.5 text-[10px] font-mono">
+                <span className={`w-2 h-2 rounded-full ${metrics.spO2 !== null ? 'bg-[#16EC06]' : 'bg-zinc-600'}`} />
+                <span className={metrics.spO2 !== null ? 'text-[#16EC06]' : 'text-zinc-500'}>
+                  {metrics.spO2 !== null ? '95% - 100%' : t('calibrating')}
+                </span>
               </div>
             </div>
 
@@ -231,12 +233,14 @@ export const HealthMonitorModal: React.FC<HealthMonitorModalProps> = ({
                 <span>{t('restingHeartRate')}</span>
               </div>
               <div className="text-2xl font-black font-condensed text-white tabular-nums" dir="ltr">
-                {metrics.restingHr ?? settings.restingHrBaseline}
+                {metrics.restingHr !== null ? metrics.restingHr : '--'}
                 <span className="text-xs font-sans text-zinc-400 font-normal ml-1">{t('bpm')}</span>
               </div>
-              <div className="flex items-center gap-1.5 text-[10px] text-[#16EC06] font-mono">
-                <span className="w-2 h-2 rounded-full bg-[#16EC06]" />
-                <span>{t('withinRange')}</span>
+              <div className="flex items-center gap-1.5 text-[10px] font-mono">
+                <span className={`w-2 h-2 rounded-full ${metrics.restingHr !== null ? 'bg-[#16EC06]' : 'bg-zinc-600'}`} />
+                <span className={metrics.restingHr !== null ? 'text-[#16EC06]' : 'text-zinc-500'}>
+                  {metrics.restingHr !== null ? t('withinRange') : t('calibrating')}
+                </span>
               </div>
             </div>
 
@@ -247,12 +251,14 @@ export const HealthMonitorModal: React.FC<HealthMonitorModalProps> = ({
                 <span>{t('hrvFull')}</span>
               </div>
               <div className="text-2xl font-black font-condensed text-white tabular-nums" dir="ltr">
-                {metrics.currentHrv ?? settings.hrvBaseline}
+                {metrics.currentHrv !== null ? metrics.currentHrv : '--'}
                 <span className="text-xs font-sans text-zinc-400 font-normal ml-1">ms</span>
               </div>
-              <div className="flex items-center gap-1.5 text-[10px] text-[#16EC06] font-mono">
-                <span className="w-2 h-2 rounded-full bg-[#16EC06]" />
-                <span>{isRtl ? 'مثالي' : 'Optimal'}</span>
+              <div className="flex items-center gap-1.5 text-[10px] font-mono">
+                <span className={`w-2 h-2 rounded-full ${metrics.currentHrv !== null ? 'bg-[#16EC06]' : 'bg-zinc-600'}`} />
+                <span className={metrics.currentHrv !== null ? 'text-[#16EC06]' : 'text-zinc-500'}>
+                  {metrics.currentHrv !== null ? (isRtl ? 'مثالي' : 'Optimal') : t('calibrating')}
+                </span>
               </div>
             </div>
 
@@ -263,11 +269,13 @@ export const HealthMonitorModal: React.FC<HealthMonitorModalProps> = ({
                 <span>{t('skinTemp')}</span>
               </div>
               <div className="text-2xl font-black font-condensed text-white tabular-nums" dir="ltr">
-                {metadata.connected ? '+0.2°C' : '--'}
+                {metrics.skinTempCelsius !== null ? `${metrics.skinTempCelsius >= 0 ? '+' : ''}${metrics.skinTempCelsius.toFixed(1)}°C` : '--'}
               </div>
-              <div className="flex items-center gap-1.5 text-[10px] text-[#16EC06] font-mono" dir="ltr">
-                <span className="w-2 h-2 rounded-full bg-[#16EC06]" />
-                <span>-0.5° to +0.5°</span>
+              <div className="flex items-center gap-1.5 text-[10px] font-mono">
+                <span className={`w-2 h-2 rounded-full ${metrics.skinTempCelsius !== null ? 'bg-[#16EC06]' : 'bg-zinc-600'}`} />
+                <span className={metrics.skinTempCelsius !== null ? 'text-[#16EC06]' : 'text-zinc-500'}>
+                  {metrics.skinTempCelsius !== null ? '-0.5° to +0.5°' : t('calibrating')}
+                </span>
               </div>
             </div>
 

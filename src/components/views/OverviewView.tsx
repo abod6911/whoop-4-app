@@ -21,6 +21,8 @@ import {
   CheckCircle2,
   Heart,
   TrendingUp,
+  Footprints,
+  Scale,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -118,7 +120,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   return (
     <div className="space-y-4 pb-28 animate-in fade-in duration-300">
       {/* 1. Official WHOOP Concentric 3-Layer Ring Gauge around the "W" Logo (00:01) */}
-      <div className="rounded-[24px] bg-[#12151A] border border-white/5 p-2">
+      <div className="py-1">
         <WhoopConcentricTripleGauge
           metrics={metrics}
           onSelectTab={onSelectSubTab}
@@ -126,19 +128,28 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
         />
       </div>
 
-      {/* 2. "Your Daily Outlook" Card with glowing purple/blue border (00:04) */}
-      <div className="rounded-[24px] bg-[#12151A] border border-[#6366F1]/50 p-4 relative overflow-hidden shadow-lg shadow-[#6366F1]/5">
+      {/* 2. "Your Daily Outlook" Card (00:04) */}
+      <div className="rounded-[24px] bg-[#12151A] border border-[#6366F1]/30 p-4 relative overflow-hidden shadow-lg shadow-[#6366F1]/5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-[#818CF8]" />
             <span className="text-xs font-black uppercase tracking-wider font-condensed text-white">
-              {t('dailyOutlook')}
+              {isRtl ? 'نظرتك اليومية' : 'Your Daily Outlook'}
             </span>
           </div>
 
-          <div className="bg-[#222730] border border-white/10 px-2 py-0.5 rounded-full flex items-center gap-1 text-[10px] font-mono text-zinc-300">
-            <span className="text-[#16EC06] font-bold">✓</span>
-            <span>3</span>
+          <div className="flex items-center gap-2">
+            {/* Mini vertical bar chart illustration */}
+            <div className="flex items-end gap-0.5 h-3">
+              <span className="w-1 h-2 bg-[#6366F1]/70 rounded-full" />
+              <span className="w-1 h-3 bg-[#6366F1] rounded-full" />
+              <span className="w-1 h-1.5 bg-[#6366F1]/50 rounded-full" />
+              <span className="w-1 h-2.5 bg-[#6366F1]/80 rounded-full" />
+            </div>
+            {/* Checklist badge */}
+            <div className="bg-[#222730] border border-white/10 px-2 py-0.5 rounded-full flex items-center gap-1 text-[10px] font-mono text-zinc-300">
+              <span className="text-[#16EC06] font-bold">✓</span>
+              <span>3</span>
+            </div>
           </div>
         </div>
 
@@ -162,12 +173,9 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
         onClick={onOpenCoachChat}
         className="w-full px-4 py-3 rounded-full bg-[#16191E] border border-white/10 hover:border-zinc-700 flex items-center gap-3 text-start transition-all active:scale-98 shadow-sm"
       >
-        <WhoopEmblemIcon size={22} />
+        <WhoopEmblemIcon size={20} variant="squircle" />
         <span className="text-xs text-zinc-400 font-sans flex-1">
           {t('askCoach')}
-        </span>
-        <span className="text-[10px] bg-[#0093E9]/20 text-[#0093E9] px-2 py-0.5 rounded-full font-mono font-bold">
-          {t('whoopCoach').split(' ')[0]}
         </span>
       </button>
 
@@ -224,51 +232,6 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
         </button>
       </div>
 
-      {/* 4.5. Side-by-Side STEPS & CADENCE and TOTAL CALORIC BURN (BMR + ACTIVE) */}
-      <div className="grid grid-cols-2 gap-3">
-        {/* Left: STEPS & CADENCE */}
-        <div className="p-3.5 rounded-[22px] bg-[#12151A] border border-white/5 flex flex-col justify-between h-[106px]">
-          <div className="flex items-center justify-between text-xs font-black uppercase tracking-wider text-white font-condensed">
-            <span>{t('steps')}</span>
-            <span
-              className={`text-[9px] px-1.5 py-0.5 rounded font-mono font-bold ${
-                metrics.stepSource === 'imu_hardware'
-                  ? 'bg-[#00F0FF]/20 text-[#00F0FF] border border-[#00F0FF]/30'
-                  : 'bg-white/10 text-zinc-400'
-              }`}
-            >
-              {metrics.stepSource === 'imu_hardware' ? t('imuHardware') : t('activityInference')}
-            </span>
-          </div>
-
-          <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-black font-condensed text-white tabular-nums">
-              {metrics.steps.toLocaleString()}
-            </span>
-            <span className="text-[11px] text-zinc-400 font-mono">
-              {metrics.cadence > 0 ? `${metrics.cadence} ${isRtl ? 'خ/د' : 'spm'}` : '--'}
-            </span>
-          </div>
-        </div>
-
-        {/* Right: TOTAL CALORIC BURN (BMR + ACTIVE) */}
-        <div className="p-3.5 rounded-[22px] bg-[#12151A] border border-white/5 flex flex-col justify-between h-[106px]">
-          <div className="flex items-center justify-between text-xs font-black uppercase tracking-wider text-white font-condensed">
-            <span>{t('totalCalories')}</span>
-            <Flame className="w-3.5 h-3.5 text-[#FF8A00]" />
-          </div>
-
-          <div>
-            <div className="text-2xl font-black font-condensed text-[#FF8A00] tabular-nums">
-              {metrics.totalCalories > 0 ? metrics.totalCalories.toLocaleString() : metrics.activeCalories.toLocaleString()}
-              <span className="text-xs text-zinc-400 font-normal ml-1">kcal</span>
-            </div>
-            <div className="text-[9px] text-zinc-500 font-mono mt-0.5">
-              {t('bmr')}: {metrics.bmrCalories} + {t('activeCalories')}: {metrics.activeCalories}
-            </div>
-          </div>
-        </div>
-      </div>
 
       {/* 5. "My Day" Section (00:32 – 00:54) */}
       <div className="space-y-3">
@@ -285,34 +248,35 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
 
           {/* Activities List */}
           <div className="divide-y divide-white/5">
-            {/* Logged Sleep Row (Tappable to open Sleep Stage Detail) */}
-            <button
-              onClick={onOpenSleepDetailModal}
-              className="w-full py-2.5 flex items-center justify-between text-start group hover:opacity-90 transition-opacity"
-            >
-              <div className="flex items-center gap-3">
-                <div className="px-2.5 py-1 rounded-full font-condensed font-black text-xs flex items-center gap-1.5 bg-[#7293B2]/20 text-[#7293B2] border border-[#7293B2]/40">
-                  <Moon className="w-3 h-3 stroke-[2.5]" />
-                  <span>8:47</span>
-                </div>
-                <div>
-                  <div className="text-xs font-bold text-white uppercase font-sans flex items-center gap-1">
-                    <span>{t('sleep')}</span>
-                    <span className="text-[10px] text-zinc-500 group-hover:text-white transition-colors">›</span>
+            {/* Real Logged Sleep Row - ONLY when real sleep was recorded */}
+            {metrics.sleepPerformance !== null && (
+              <button
+                onClick={onOpenSleepDetailModal}
+                className="w-full py-2.5 flex items-center justify-between text-start group hover:opacity-90 transition-opacity"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="px-2.5 py-1 rounded-full font-condensed font-black text-xs flex items-center gap-1.5 bg-[#7293B2]/20 text-[#7293B2] border border-[#7293B2]/40">
+                    <Moon className="w-3 h-3 stroke-[2.5]" />
+                    <span>{metrics.sleepPerformance}%</span>
                   </div>
-                  <div className="text-[10px] text-zinc-400 font-mono">
-                    {isRtl ? '100% من الاحتياج • 51% نوم مجدد' : '100% Sleep Need • Restorative 51%'}
+                  <div>
+                    <div className="text-xs font-bold text-white uppercase font-sans flex items-center gap-1">
+                      <span>{t('sleep')}</span>
+                      <span className="text-[10px] text-zinc-500 group-hover:text-white transition-colors">›</span>
+                    </div>
+                    <div className="text-[10px] text-zinc-400 font-mono">
+                      {isRtl ? `${metrics.sleepPerformance}% أداء النوم المسجل` : `${metrics.sleepPerformance}% Recorded Sleep Performance`}
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="text-end text-[10px] font-mono text-zinc-400">
-                <div>11:15 PM</div>
-                <div>7:35 AM</div>
-              </div>
-            </button>
+                <div className="text-end text-[10px] font-mono text-zinc-400">
+                  <div className="text-[#16EC06]">{isRtl ? 'مكتمل' : 'LOGGED'}</div>
+                </div>
+              </button>
+            )}
 
-            {/* Custom Session List (Workouts) */}
+            {/* Custom Session List (Real Workouts) */}
             {sessions.map((s) => (
               <div key={s.id} className="py-2.5 flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -336,6 +300,18 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                 </div>
               </div>
             ))}
+
+            {/* Clean empty state if zero activities logged today */}
+            {metrics.sleepPerformance === null && sessions.length === 0 && (
+              <div className="py-6 text-center text-zinc-500 space-y-1">
+                <div className="text-xs font-condensed font-bold uppercase tracking-wider text-zinc-400">
+                  {isRtl ? 'لا توجد أنشطة مسجلة اليوم' : 'No Activities Recorded Yet Today'}
+                </div>
+                <div className="text-[10px] text-zinc-500 font-sans">
+                  {isRtl ? 'تتم مزامنة التدريبات وفترات النوم تلقائياً من سوار WHOOP 4.0' : 'Workouts and sleep sync automatically from your WHOOP 4.0'}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Bottom Matte Buttons inside Today's Activities */}
@@ -364,7 +340,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
           className="w-full p-4 rounded-[24px] bg-[#12151A] border border-white/5 hover:border-zinc-700 flex items-center justify-between text-start transition-all active:scale-98"
         >
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-[#7293B2]/20 flex items-center justify-center text-[#7293B2]">
+            <div className="w-10 h-10 rounded-2xl bg-[#7293B2]/15 flex items-center justify-center text-[#7293B2]">
               <Moon className="w-5 h-5" />
             </div>
             <div>
@@ -391,8 +367,8 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
         {/* MY JOURNAL Card */}
         <div className="p-4 rounded-[24px] bg-[#12151A] border border-white/5 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-[#16EC06]/20 flex items-center justify-center text-[#16EC06]">
-              <CheckCircle2 className="w-5 h-5" />
+            <div className="w-10 h-10 rounded-2xl bg-white/[0.04] flex items-center justify-center text-zinc-400">
+              <CheckCircle2 className="w-5 h-5 text-zinc-400" />
             </div>
             <div>
               <div className="text-sm font-black uppercase tracking-wider text-white font-condensed">
@@ -406,7 +382,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
 
           <button
             onClick={onOpenJournal}
-            className="px-3.5 py-1.5 rounded-full bg-[#222730] hover:bg-[#2C323E] text-white text-xs font-black uppercase tracking-wider font-condensed flex items-center gap-1 transition-all active:scale-95"
+            className="px-3.5 py-1.5 rounded-full bg-[#1C2026] hover:bg-[#252B34] text-white text-xs font-black uppercase tracking-wider font-condensed flex items-center gap-1 transition-all active:scale-95 border border-white/5"
           >
             <Edit3 className="w-3 h-3" />
             <span>{isRtl ? 'تعبئة' : 'FILL OUT'}</span>
@@ -522,61 +498,106 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
           </div>
         </div>
 
-        {/* Additional Metric Rows (01:05 in Video) */}
-        <div className="grid grid-cols-2 gap-2.5">
-          {/* Steps */}
-          <div className="p-3.5 rounded-[20px] bg-[#12151A] border border-white/5 space-y-1">
-            <div className="text-[10px] font-black uppercase text-zinc-400 font-condensed">
-              👟 {t('steps')}
+        {/* Metric Row 5: STEPS & CADENCE */}
+        <div className="p-4 rounded-[22px] bg-[#12151A] border border-white/5 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-white/[0.04] flex items-center justify-center text-[#8A94A6]">
+              <Footprints className="w-5 h-5 stroke-[1.8]" />
             </div>
-            <div className="text-2xl font-black font-condensed text-white tabular-nums">
-              {metrics.steps > 0 ? metrics.steps.toLocaleString() : '--'}
-            </div>
-            <div className="text-[9px] text-[#16EC06] font-mono">
-              {t('target')}: 10,000
-            </div>
-          </div>
-
-          {/* Calories */}
-          <div className="p-3.5 rounded-[20px] bg-[#12151A] border border-white/5 space-y-1">
-            <div className="text-[10px] font-black uppercase text-zinc-400 font-condensed">
-              🔥 {t('calories')}
-            </div>
-            <div className="text-2xl font-black font-condensed text-white tabular-nums">
-              {(metrics.totalCalories > 0 ? metrics.totalCalories : metrics.activeCalories).toLocaleString()}
-              <span className="text-xs font-normal text-zinc-400 ml-1">kcal</span>
-            </div>
-            <div className="text-[9px] text-zinc-500 font-mono">
-              Keytel Metabolic Burn
+            <div>
+              <div className="text-xs font-black uppercase tracking-wider text-zinc-400 font-condensed">
+                {t('steps')}
+              </div>
+              <div className="text-[10px] text-zinc-500 font-mono mt-0.5">
+                {t('target')}: 10,000 • {metrics.cadence > 0 ? `${metrics.cadence} spm` : (isRtl ? 'حساس IMU' : 'IMU SENSOR')}
+              </div>
             </div>
           </div>
+          <div className="flex items-center gap-2">
+            <div className="text-end">
+              <span className="text-2xl font-black font-condensed text-white tabular-nums">
+                {metrics.steps > 0 ? metrics.steps.toLocaleString() : '--'}
+              </span>
+            </div>
+            <ChevronRight className={`w-4 h-4 text-zinc-600 ${isRtl ? 'rotate-180' : ''}`} />
+          </div>
+        </div>
 
-          {/* Respiratory Rate */}
-          <div className="p-3.5 rounded-[20px] bg-[#12151A] border border-white/5 space-y-1">
-            <div className="text-[10px] font-black uppercase text-zinc-400 font-condensed">
-              🫁 {t('respiratoryRate')}
+        {/* Metric Row 6: TOTAL CALORIC BURN (KEYTEL METABOLIC BURN) */}
+        <div className="p-4 rounded-[22px] bg-[#12151A] border border-white/5 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-white/[0.04] flex items-center justify-center text-[#8A94A6]">
+              <Flame className="w-5 h-5 stroke-[1.8]" />
             </div>
-            <div className="text-2xl font-black font-condensed text-white tabular-nums">
-              {metrics.respiratoryRate ?? '--'}
-              <span className="text-xs font-normal text-zinc-400 ml-1">rpm</span>
-            </div>
-            <div className="text-[9px] text-[#16EC06] font-mono">
-              {t('withinRange')}
+            <div>
+              <div className="text-xs font-black uppercase tracking-wider text-zinc-400 font-condensed">
+                {t('totalCalories')}
+              </div>
+              <div className="text-[10px] text-zinc-500 font-mono mt-0.5">
+                BMR: {metrics.bmrCalories} + {isRtl ? 'نشط' : 'Active'}: {metrics.activeCalories}
+              </div>
             </div>
           </div>
+          <div className="flex items-center gap-2">
+            <div className="text-end">
+              <span className="text-2xl font-black font-condensed text-white tabular-nums">
+                {metrics.totalCalories > 0 ? metrics.totalCalories.toLocaleString() : (metrics.activeCalories > 0 ? metrics.activeCalories.toLocaleString() : '--')}
+              </span>
+              <span className="text-xs text-zinc-400 font-normal ml-1">kcal</span>
+            </div>
+            <ChevronRight className={`w-4 h-4 text-zinc-600 ${isRtl ? 'rotate-180' : ''}`} />
+          </div>
+        </div>
 
-          {/* Lean Body Mass */}
-          <div className="p-3.5 rounded-[20px] bg-[#12151A] border border-white/5 space-y-1">
-            <div className="text-[10px] font-black uppercase text-zinc-400 font-condensed">
-              ⚖️ {t('leanBodyMass')}
+        {/* Metric Row 7: RESPIRATORY RATE */}
+        <div className="p-4 rounded-[22px] bg-[#12151A] border border-white/5 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-white/[0.04] flex items-center justify-center text-[#8A94A6]">
+              <Wind className="w-5 h-5 stroke-[1.8]" />
             </div>
-            <div className="text-2xl font-black font-condensed text-white tabular-nums">
-              {(settings.weightKg * 0.82).toFixed(1)}
-              <span className="text-xs font-normal text-zinc-400 ml-1">kg</span>
+            <div>
+              <div className="text-xs font-black uppercase tracking-wider text-zinc-400 font-condensed">
+                {t('respiratoryRate')}
+              </div>
+              <div className="text-[10px] text-zinc-500 font-mono mt-0.5">
+                {isRtl ? '14.0 د/د النطاق المعتاد' : '14.0 rpm Typical Range'}
+              </div>
             </div>
-            <div className="text-[9px] text-zinc-500 font-mono">
-              {isRtl ? '82% من إجمالي الوزن' : '82% of Total Weight'}
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="text-end">
+              <span className="text-2xl font-black font-condensed text-white tabular-nums">
+                {metrics.respiratoryRate ?? '--'}
+              </span>
+              <span className="text-xs text-zinc-400 font-normal ml-1">rpm</span>
             </div>
+            <ChevronRight className={`w-4 h-4 text-zinc-600 ${isRtl ? 'rotate-180' : ''}`} />
+          </div>
+        </div>
+
+        {/* Metric Row 8: LEAN BODY MASS */}
+        <div className="p-4 rounded-[22px] bg-[#12151A] border border-white/5 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-white/[0.04] flex items-center justify-center text-[#8A94A6]">
+              <Scale className="w-5 h-5 stroke-[1.8]" />
+            </div>
+            <div>
+              <div className="text-xs font-black uppercase tracking-wider text-zinc-400 font-condensed">
+                {t('leanBodyMass')}
+              </div>
+              <div className="text-[10px] text-zinc-500 font-mono mt-0.5">
+                {isRtl ? '82% من إجمالي وزن الجسم' : '82% of Total Weight'}
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="text-end">
+              <span className="text-2xl font-black font-condensed text-white tabular-nums">
+                {(settings.weightKg * 0.82).toFixed(1)}
+              </span>
+              <span className="text-xs text-zinc-400 font-normal ml-1">kg</span>
+            </div>
+            <ChevronRight className={`w-4 h-4 text-zinc-600 ${isRtl ? 'rotate-180' : ''}`} />
           </div>
         </div>
       </div>

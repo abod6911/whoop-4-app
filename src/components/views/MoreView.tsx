@@ -237,7 +237,7 @@ export const MoreView: React.FC<MoreViewProps> = ({
             <div className="w-full p-4 flex items-center justify-between text-start">
               <div className="flex items-center gap-3.5">
                 <div className="w-10 h-10 rounded-2xl bg-[#0B0D10] border border-white/5 flex items-center justify-center text-white">
-                  <Globe className="w-5 h-5 text-[#16EC06]" />
+                  <Globe className="w-5 h-5 text-zinc-400" />
                 </div>
                 <div>
                   <div className="text-sm font-bold text-white font-sans">
@@ -283,7 +283,7 @@ export const MoreView: React.FC<MoreViewProps> = ({
             >
               <div className="flex items-center gap-3.5">
                 <div className="w-10 h-10 rounded-2xl bg-[#0B0D10] border border-white/5 flex items-center justify-center text-white">
-                  <Smartphone className="w-5 h-5 text-[#0093E9]" />
+                  <Smartphone className="w-5 h-5 text-zinc-400 group-hover:text-white transition-colors" />
                 </div>
                 <div>
                   <div className="text-sm font-bold text-white font-sans">
@@ -306,7 +306,7 @@ export const MoreView: React.FC<MoreViewProps> = ({
             >
               <div className="flex items-center gap-3.5">
                 <div className="w-10 h-10 rounded-2xl bg-[#0B0D10] border border-white/5 flex items-center justify-center text-white">
-                  <User className="w-5 h-5 text-[#16EC06]" />
+                  <User className="w-5 h-5 text-zinc-400 group-hover:text-white transition-colors" />
                 </div>
                 <div>
                   <div className="text-sm font-bold text-white font-sans">
@@ -327,7 +327,7 @@ export const MoreView: React.FC<MoreViewProps> = ({
             >
               <div className="flex items-center gap-3.5">
                 <div className="w-10 h-10 rounded-2xl bg-[#0B0D10] border border-white/5 flex items-center justify-center text-white">
-                  <Sliders className="w-5 h-5 text-[#7293B2]" />
+                  <Sliders className="w-5 h-5 text-zinc-400 group-hover:text-white transition-colors" />
                 </div>
                 <div>
                   <div className="text-sm font-bold text-white font-sans">
@@ -348,7 +348,7 @@ export const MoreView: React.FC<MoreViewProps> = ({
             >
               <div className="flex items-center gap-3.5">
                 <div className="w-10 h-10 rounded-2xl bg-[#0B0D10] border border-white/5 flex items-center justify-center text-white">
-                  <ShieldCheck className="w-5 h-5 text-[#FFDE00]" />
+                  <ShieldCheck className="w-5 h-5 text-zinc-400 group-hover:text-white transition-colors" />
                 </div>
                 <div>
                   <div className="text-sm font-bold text-white font-sans">
@@ -369,7 +369,7 @@ export const MoreView: React.FC<MoreViewProps> = ({
             >
               <div className="flex items-center gap-3.5">
                 <div className="w-10 h-10 rounded-2xl bg-[#0B0D10] border border-white/5 flex items-center justify-center text-white">
-                  <HelpCircle className="w-5 h-5 text-[#00F0FF]" />
+                  <HelpCircle className="w-5 h-5 text-zinc-400 group-hover:text-white transition-colors" />
                 </div>
                 <div>
                   <div className="text-sm font-bold text-white font-sans">
@@ -390,7 +390,7 @@ export const MoreView: React.FC<MoreViewProps> = ({
             >
               <div className="flex items-center gap-3.5">
                 <div className="w-10 h-10 rounded-2xl bg-[#0B0D10] border border-white/5 flex items-center justify-center text-white">
-                  <Info className="w-5 h-5 text-zinc-300" />
+                  <Info className="w-5 h-5 text-zinc-400 group-hover:text-white transition-colors" />
                 </div>
                 <div>
                   <div className="text-sm font-bold text-white font-sans">

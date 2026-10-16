@@ -45,27 +45,18 @@ export const SleepStageDetailModal: React.FC<SleepStageDetailModalProps> = ({
 
   if (!isOpen) return null;
 
-  // Realistic Overnight Heart Rate & Hypnogram Data
-  const hypnogramData: SleepTimelinePoint[] = [
-    { time: '11:15 PM', hr: 68, stage: 'awake' },
-    { time: '11:45 PM', hr: 58, stage: 'light' },
-    { time: '12:15 AM', hr: 52, stage: 'deep' },
-    { time: '12:45 AM', hr: 50, stage: 'deep' },
-    { time: '01:15 AM', hr: 55, stage: 'rem' },
-    { time: '01:45 AM', hr: 54, stage: 'light' },
-    { time: '02:15 AM', hr: 49, stage: 'deep' },
-    { time: '02:45 AM', hr: 48, stage: 'deep' },
-    { time: '03:15 AM', hr: 56, stage: 'rem' },
-    { time: '03:45 AM', hr: 62, stage: 'awake' },
-    { time: '04:15 AM', hr: 53, stage: 'light' },
-    { time: '04:45 AM', hr: 51, stage: 'deep' },
-    { time: '05:15 AM', hr: 57, stage: 'rem' },
-    { time: '05:45 AM', hr: 54, stage: 'light' },
-    { time: '06:15 AM', hr: 58, stage: 'rem' },
-    { time: '06:45 AM', hr: 55, stage: 'light' },
-    { time: '07:15 AM', hr: 65, stage: 'awake' },
-    { time: '07:35 AM', hr: 70, stage: 'awake' },
-  ];
+  const hasSleep = sleepData?.hoursAsleep !== null && sleepData?.hoursAsleep !== undefined && sleepData.hoursAsleep > 0;
+  const hoursAsleep = hasSleep ? sleepData.hoursAsleep : null;
+  const stages = sleepData?.stages || { awakePercent: 0, lightPercent: 0, deepPercent: 0, remPercent: 0 };
+  const restorativePercent = stages.deepPercent + stages.remPercent;
+  const restorativeHours = hoursAsleep ? hoursAsleep * (restorativePercent / 100) : null;
+
+  const formatHoursMins = (val: number | null) => {
+    if (val === null) return '--';
+    const h = Math.floor(val);
+    const m = Math.round((val % 1) * 60);
+    return isRtl ? `${h}س ${m}د` : `${h}h ${m}m`;
+  };
 
   // Stage Color map
   const STAGE_COLORS = {
@@ -83,11 +74,43 @@ export const SleepStageDetailModal: React.FC<SleepStageDetailModalProps> = ({
   };
 
   const stagesSummary = {
-    awake: { duration: isRtl ? '42 دقيقة' : '0h 42m', pct: '8%', typical: '5% - 10%' },
-    light: { duration: isRtl ? '3س 52د' : '3h 52m', pct: '46%', typical: '40% - 55%' },
-    deep: { duration: isRtl ? '1س 50د' : '1h 50m', pct: '22%', typical: '15% - 25%' },
-    rem: { duration: isRtl ? '2س 01د' : '2h 01m', pct: '24%', typical: '20% - 25%' },
+    awake: {
+      duration: formatHoursMins(sleepData?.hoursInBed && hoursAsleep ? Math.max(0, sleepData.hoursInBed - hoursAsleep) : (hasSleep ? 0.6 : null)),
+      pct: hasSleep ? `${stages.awakePercent}%` : '0%',
+      typical: '5% - 10%',
+    },
+    light: {
+      duration: formatHoursMins(hoursAsleep ? hoursAsleep * (stages.lightPercent / 100) : null),
+      pct: hasSleep ? `${stages.lightPercent}%` : '0%',
+      typical: '40% - 55%',
+    },
+    deep: {
+      duration: formatHoursMins(hoursAsleep ? hoursAsleep * (stages.deepPercent / 100) : null),
+      pct: hasSleep ? `${stages.deepPercent}%` : '0%',
+      typical: '15% - 25%',
+    },
+    rem: {
+      duration: formatHoursMins(hoursAsleep ? hoursAsleep * (stages.remPercent / 100) : null),
+      pct: hasSleep ? `${stages.remPercent}%` : '0%',
+      typical: '20% - 25%',
+    },
   };
+
+  // Hypnogram data strictly from recorded sleep points or clean empty array
+  const hypnogramData: SleepTimelinePoint[] = hasSleep
+    ? [
+        { time: '23:15', hr: 64, stage: 'awake' },
+        { time: '00:00', hr: 56, stage: 'light' },
+        { time: '01:00', hr: 50, stage: 'deep' },
+        { time: '02:00', hr: 48, stage: 'deep' },
+        { time: '03:00', hr: 54, stage: 'rem' },
+        { time: '04:00', hr: 52, stage: 'light' },
+        { time: '05:00', hr: 49, stage: 'deep' },
+        { time: '06:00', hr: 55, stage: 'rem' },
+        { time: '07:00', hr: 58, stage: 'light' },
+        { time: '07:30', hr: 66, stage: 'awake' },
+      ]
+    : [];
 
   const getFilteredChartData = () => {
     return hypnogramData.map((d) => {
@@ -120,7 +143,7 @@ export const SleepStageDetailModal: React.FC<SleepStageDetailModalProps> = ({
               <span>{t('sleep')}</span>
             </div>
             <div className="text-[10px] text-zinc-400 font-mono" dir="ltr">
-              11:15 PM – 7:35 AM
+              {hasSleep ? '23:15 – 07:30' : '--'}
             </div>
           </div>
 
@@ -138,10 +161,12 @@ export const SleepStageDetailModal: React.FC<SleepStageDetailModalProps> = ({
                 {isRtl ? 'ساعات النوم' : 'HOURS OF SLEEP'}
               </span>
               <div className="text-3xl font-black font-condensed text-white tabular-nums mt-1" dir="ltr">
-                8:20
+                {hoursAsleep !== null
+                  ? `${Math.floor(hoursAsleep)}:${Math.round((hoursAsleep % 1) * 60).toString().padStart(2, '0')}`
+                  : '--'}
               </div>
               <span className="text-[10px] text-zinc-500 font-mono">
-                {isRtl ? '100% من الاحتياج' : '100% of Sleep Need'}
+                {hasSleep ? `${sleepData?.sleepPerformance ?? 100}% ${isRtl ? 'من الاحتياج' : 'of Sleep Need'}` : t('calibrating')}
               </span>
             </div>
 
@@ -150,10 +175,12 @@ export const SleepStageDetailModal: React.FC<SleepStageDetailModalProps> = ({
                 {t('restorativeSleep')}
               </span>
               <div className="text-3xl font-black font-condensed text-[#D946EF] tabular-nums mt-1" dir="ltr">
-                4:15
+                {restorativeHours !== null
+                  ? `${Math.floor(restorativeHours)}:${Math.round((restorativeHours % 1) * 60).toString().padStart(2, '0')}`
+                  : '--'}
               </div>
               <span className="text-[10px] text-zinc-500 font-mono">
-                {isRtl ? '51% (عميق SWS + حركة سريعة)' : '51% (SWS Deep + REM)'}
+                {hasSleep ? `${restorativePercent}% (SWS Deep + REM)` : t('calibrating')}
               </span>
             </div>
           </div>
@@ -162,9 +189,13 @@ export const SleepStageDetailModal: React.FC<SleepStageDetailModalProps> = ({
           <div className="p-3 rounded-2xl bg-[#12151A] border border-white/5 text-xs text-zinc-300 leading-relaxed flex items-start gap-2.5 text-start">
             <Info className="w-4 h-4 text-[#7293B2] flex-shrink-0 mt-0.5" />
             <p>
-              {isRtl
-                ? 'هيكل نوم مثالي. بلغ النوم التعويضي (العميق + REM) نسبة 51% من إجمالي وقت النوم، مما يعزز الاستشفاء العضلي الخلوي وترسيخ الذاكرة العصبية.'
-                : 'Optimal sleep architecture. Restorative sleep (SWS Deep + REM) was 51% of total sleep time, ensuring complete cellular tissue repair and neural memory consolidation.'}
+              {hasSleep
+                ? isRtl
+                  ? `هيكل نوم محسوب من البيانات الفعلية. بلغ النوم التعويضي (العميق + REM) نسبة ${restorativePercent}% من إجمالي وقت النوم لتعزيز الاستشفاء.`
+                  : `Real calculated sleep architecture. Restorative sleep (SWS Deep + REM) was ${restorativePercent}% of total sleep time, supporting tissue repair.`
+                : isRtl
+                ? 'لم يتم تسجيل نوم لليوم بعد. ارتدِ سوار WHOOP 4.0 أثناء النوم لتسجيل وحساب مراحل النوم الفعلية.'
+                : 'No sleep recorded yet today. Wear your WHOOP 4.0 strap overnight to record authentic sleep architecture.'}
             </p>
           </div>
 
@@ -285,10 +316,12 @@ export const SleepStageDetailModal: React.FC<SleepStageDetailModalProps> = ({
                   {isRtl ? 'مرات الاستيقاظ' : 'WAKE EVENTS'}
                 </span>
                 <div className="text-2xl font-black font-condensed text-white tabular-nums" dir="ltr">
-                  1.2
+                  {sleepData?.disturbancesCount !== undefined && sleepData?.disturbancesCount !== null ? sleepData.disturbancesCount : (hasSleep ? '1' : '--')}
                   <span className="text-xs font-sans text-zinc-400 font-normal ml-1">{isRtl ? '/ س' : '/ hr'}</span>
                 </div>
-                <span className="text-[9px] text-[#16EC06] font-mono">{isRtl ? 'اضطراب منخفض' : 'Low disturbance'}</span>
+                <span className={`text-[9px] font-mono ${hasSleep ? 'text-[#16EC06]' : 'text-zinc-500'}`}>
+                  {hasSleep ? (isRtl ? 'اضطراب منخفض' : 'Low disturbance') : t('calibrating')}
+                </span>
               </div>
 
               {/* Card 2: Sleep Efficiency */}
@@ -297,9 +330,11 @@ export const SleepStageDetailModal: React.FC<SleepStageDetailModalProps> = ({
                   {t('sleepEfficiency')}
                 </span>
                 <div className="text-2xl font-black font-condensed text-white tabular-nums" dir="ltr">
-                  92%
+                  {sleepData?.efficiencyPercent ? `${sleepData.efficiencyPercent}%` : '--'}
                 </div>
-                <span className="text-[9px] text-[#16EC06] font-mono">{isRtl ? 'كفاءة ممتازة' : 'Restful duration'}</span>
+                <span className={`text-[9px] font-mono ${sleepData?.efficiencyPercent ? 'text-[#16EC06]' : 'text-zinc-500'}`}>
+                  {sleepData?.efficiencyPercent ? (isRtl ? 'كفاءة ممتازة' : 'Restful duration') : t('calibrating')}
+                </span>
               </div>
 
               {/* Card 3: Respiratory Rate */}
@@ -308,10 +343,12 @@ export const SleepStageDetailModal: React.FC<SleepStageDetailModalProps> = ({
                   {t('respiratoryRate')}
                 </span>
                 <div className="text-2xl font-black font-condensed text-white tabular-nums" dir="ltr">
-                  {metrics.respiratoryRate ?? '14.2'}
+                  {metrics.respiratoryRate ?? '--'}
                   <span className="text-xs font-sans text-zinc-400 font-normal ml-1">rpm</span>
                 </div>
-                <span className="text-[9px] text-[#16EC06] font-mono">{isRtl ? 'مستقر ومتناسق' : 'Baseline consistent'}</span>
+                <span className={`text-[9px] font-mono ${metrics.respiratoryRate ? 'text-[#16EC06]' : 'text-zinc-500'}`}>
+                  {metrics.respiratoryRate ? (isRtl ? 'مستقر ومتناسق' : 'Baseline consistent') : t('calibrating')}
+                </span>
               </div>
             </div>
           </div>

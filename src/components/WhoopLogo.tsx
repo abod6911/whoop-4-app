@@ -15,10 +15,66 @@ interface WhoopLogoProps {
  *   2. Center-left long upward diagonal slash (/) extending from bottom-left all the way to top-center
  *   3. Right connected V (\/) starting from mid-height on left leg, dropping to bottom-right vertex, and rising to top-right matching top alignment
  */
-export const WhoopEmblemIcon: React.FC<{ size?: number; className?: string }> = ({
+export const WhoopEmblemIcon: React.FC<{
+  size?: number;
+  className?: string;
+  variant?: 'squircle' | 'minimal' | 'monogram';
+}> = ({
   size = 32,
   className = '',
+  variant = 'squircle',
 }) => {
+  if (variant === 'monogram') {
+    return (
+      <svg
+        width={size}
+        height={size}
+        viewBox="0 0 100 100"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        className={`flex-shrink-0 select-none ${className}`}
+      >
+        <g stroke="#FFFFFF" strokeWidth="6.5" strokeLinecap="butt" strokeLinejoin="miter">
+          {/* Stroke 1: Left downward diagonal - signature disconnected WHOOP cut */}
+          <line x1="30" y1="32" x2="39" y2="50" />
+          {/* Stroke 2: Long upward diagonal slash - bottom-left to top-center */}
+          <line x1="33" y1="68" x2="51" y2="32" />
+          {/* Stroke 3: Right connected V - mid-height drop to bottom-right, then up to top-right */}
+          <path d="M 45 44 L 59 68 L 71 32" fill="none" />
+        </g>
+      </svg>
+    );
+  }
+
+  if (variant === 'minimal') {
+    return (
+      <svg
+        width={size}
+        height={size}
+        viewBox="0 0 100 100"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        className={`flex-shrink-0 select-none ${className}`}
+      >
+        {/* Inner crisp white circular ring */}
+        <circle
+          cx="50"
+          cy="50"
+          r="36"
+          stroke="#FFFFFF"
+          strokeWidth="5"
+          fill="none"
+        />
+        {/* Center "W" Monogram */}
+        <g stroke="#FFFFFF" strokeWidth="6" strokeLinecap="butt" strokeLinejoin="miter">
+          <line x1="32" y1="34" x2="40" y2="50" />
+          <line x1="35" y1="66" x2="51" y2="34" />
+          <path d="M 46 44 L 58 66 L 68 34" fill="none" />
+        </g>
+      </svg>
+    );
+  }
+
   return (
     <svg
       width={size}

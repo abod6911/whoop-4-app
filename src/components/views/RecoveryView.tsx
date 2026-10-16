@@ -203,7 +203,7 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
               <span className="uppercase">{t('hrv')}</span>
             </div>
             <span className="text-white font-mono font-bold">
-              {metrics.currentHrv ?? settings.hrvBaseline} ms
+              {metrics.currentHrv !== null ? `${metrics.currentHrv} ms` : '--'}
             </span>
           </div>
 
@@ -213,7 +213,7 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
               <span className="uppercase">{t('rhr')}</span>
             </div>
             <span className="text-white font-mono font-bold">
-              {metrics.restingHr ?? settings.restingHrBaseline} {t('bpm')}
+              {metrics.restingHr !== null ? `${metrics.restingHr} ${t('bpm')}` : '--'}
             </span>
           </div>
 

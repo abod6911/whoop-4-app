@@ -163,9 +163,9 @@ export const WhoopConcentricTripleGauge: React.FC<WhoopConcentricTripleGaugeProp
           )}
         </svg>
 
-        {/* Center Geometric "W" Logo Icon */}
+        {/* Center Geometric "W" Monogram */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <WhoopEmblemIcon size={32} />
+          <WhoopEmblemIcon size={34} variant="monogram" />
         </div>
       </div>
 
