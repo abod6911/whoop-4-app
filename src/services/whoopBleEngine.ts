@@ -1,4 +1,6 @@
 /// <reference types="web-bluetooth" />
+import { Capacitor } from '@capacitor/core';
+import { BleClient } from '@capacitor-community/bluetooth-le';
 import type {
   HeartRateMeasurement,
   DeviceMetadata,
@@ -181,6 +183,10 @@ export class WhoopBleEngine {
   // Rolling Battery History for Dynamic Charging State Fallback (90s window)
   private batteryLevelHistory: Array<{ timestamp: number; level: number }> = [];
 
+  // Native Capacitor Bluetooth LE state
+  private nativeDeviceId: string | null = null;
+  private isNativeInitialized = false;
+
   constructor() {
     this.handleDisconnected = this.handleDisconnected.bind(this);
     if (typeof window !== 'undefined') {
@@ -189,6 +195,9 @@ export class WhoopBleEngine {
   }
 
   public isSupported(): boolean {
+    if (Capacitor.isNativePlatform()) {
+      return true;
+    }
     return typeof navigator !== 'undefined' && 'bluetooth' in navigator;
   }
 
@@ -202,6 +211,15 @@ export class WhoopBleEngine {
 
   // --- Bluetooth Device Permissions API (navigator.bluetooth.getDevices) ---
   public async checkPermittedDevices(): Promise<BluetoothDevice[]> {
+    if (Capacitor.isNativePlatform()) {
+      if (this.metadata.id) {
+        const dummy = { id: this.metadata.id, name: this.metadata.name } as BluetoothDevice;
+        this.permittedDevices = [dummy];
+        return this.permittedDevices;
+      }
+      return [];
+    }
+
     if (
       typeof navigator !== 'undefined' &&
       'bluetooth' in navigator &&
@@ -224,6 +242,16 @@ export class WhoopBleEngine {
 
   // 1-Click Reconnect to an already permitted WHOOP device without opening the chooser prompt
   public async reconnectPermittedDevice(device?: BluetoothDevice): Promise<void> {
+    if (Capacitor.isNativePlatform()) {
+      const targetId = device?.id || this.nativeDeviceId || this.metadata.id;
+      if (targetId) {
+        await this.connectToNativeDevice(targetId, device?.name || this.metadata.name || 'WHOOP 4.0 Strap');
+        return;
+      }
+      await this.connectNative();
+      return;
+    }
+
     let target = device;
     if (!target) {
       const permitted = await this.checkPermittedDevices();
@@ -352,6 +380,11 @@ export class WhoopBleEngine {
 
   // --- Request & Connect to Physical WHOOP 4.0 Strap (Direct User Gesture Safe) ---
   public async connect(mode: 'filtered' | 'all' = 'filtered'): Promise<void> {
+    if (Capacitor.isNativePlatform()) {
+      await this.connectNative();
+      return;
+    }
+
     if (!this.isSupported()) {
       const err = 'Web Bluetooth API is not supported in this browser. Please use Google Chrome, Microsoft Edge, or Bluefy Browser on iOS.';
       this.emitError(err);
@@ -428,7 +461,271 @@ export class WhoopBleEngine {
     }
   }
 
-  public disconnect(): void {
+  // --- Native Capacitor Bluetooth Low Energy (iOS Background Central Support) ---
+  private async initNativeBle(): Promise<void> {
+    if (!this.isNativeInitialized) {
+      await BleClient.initialize();
+      this.isNativeInitialized = true;
+    }
+  }
+
+  public async connectNative(): Promise<void> {
+    try {
+      this.metadata.connecting = true;
+      this.emitMetadata();
+
+      await this.initNativeBle();
+
+      console.log('[Native BLE] Requesting WHOOP 4.0 Device...');
+      const device = await BleClient.requestDevice({
+        services: [
+          UUID_HEART_RATE_SERVICE,
+          WHOOP_BASE_SERVICE_UUID,
+        ],
+        optionalServices: [
+          UUID_HEART_RATE_SERVICE,
+          UUID_BATTERY_SERVICE,
+          UUID_DEVICE_INFO_SERVICE,
+          UUID_HEALTH_THERMOMETER_SERVICE,
+          UUID_PULSE_OXIMETER_SERVICE,
+          WHOOP_BASE_SERVICE_UUID,
+          NORDIC_DFU_SERVICE_UUID,
+        ],
+      });
+
+      if (!device || !device.deviceId) {
+        throw new Error('No device selected');
+      }
+
+      await this.connectToNativeDevice(device.deviceId, device.name || 'WHOOP 4.0 Strap');
+    } catch (err: unknown) {
+      this.metadata.connected = false;
+      this.metadata.connecting = false;
+      this.emitMetadata();
+
+      const message = err instanceof Error ? err.message : String(err);
+      if (message.includes('cancelled') || message.includes('User cancelled')) {
+        console.log('[Native BLE] User cancelled device picker');
+        return;
+      }
+      console.error('[Native BLE] Connection failed:', message);
+      this.emitError(message);
+      throw err;
+    }
+  }
+
+  public async connectToNativeDevice(deviceId: string, name: string): Promise<void> {
+    try {
+      this.nativeDeviceId = deviceId;
+      this.metadata.name = name || 'WHOOP 4.0 Strap';
+      this.metadata.id = deviceId;
+      this.metadata.connecting = true;
+      this.isManualDisconnect = false;
+      this.emitMetadata();
+
+      if (this.reconnectTimeout) {
+        clearTimeout(this.reconnectTimeout);
+        this.reconnectTimeout = null;
+      }
+
+      await this.initNativeBle();
+
+      console.log(`[Native BLE] Connecting to ${deviceId} (${name})...`);
+      await BleClient.connect(deviceId, (disconnectedDeviceId) => {
+        console.warn(`[Native BLE] Strap disconnected: ${disconnectedDeviceId}`);
+        this.handleDisconnected();
+      });
+
+      this.metadata.connected = true;
+      this.metadata.connecting = false;
+      this.reconnectAttempts = 0;
+      this.emitMetadata();
+
+      // 1. Subscribe to Heart Rate Measurement (0x180D -> 0x2A37)
+      try {
+        await BleClient.startNotifications(
+          deviceId,
+          UUID_HEART_RATE_SERVICE,
+          UUID_HEART_RATE_MEASUREMENT,
+          (data: DataView) => {
+            this.parseHeartRatePacket(data);
+          }
+        );
+        console.log('[Native BLE] Subscribed to Heart Rate notifications');
+      } catch (e) {
+        console.warn('[Native BLE] Standard HR subscription failed:', e);
+      }
+
+      // 2. Battery Service (0x180F -> 0x2A19)
+      try {
+        const batVal = await BleClient.read(deviceId, UUID_BATTERY_SERVICE, UUID_BATTERY_LEVEL);
+        if (batVal && batVal.byteLength > 0) {
+          const lvl = batVal.getUint8(0);
+          this.updateBatteryState(lvl);
+          console.log(`[Native BLE] Initial battery level: ${lvl}%`);
+        }
+      } catch (e) {
+        console.warn('[Native BLE] Initial battery read failed:', e);
+      }
+
+      try {
+        await BleClient.startNotifications(
+          deviceId,
+          UUID_BATTERY_SERVICE,
+          UUID_BATTERY_LEVEL,
+          (data: DataView) => {
+            if (data && data.byteLength > 0) {
+              this.updateBatteryState(data.getUint8(0));
+            }
+          }
+        );
+      } catch {}
+
+      // 3. Device Information Service (0x180A)
+      try {
+        const decoder = new TextDecoder('utf-8');
+        try {
+          const fwVal = await BleClient.read(deviceId, UUID_DEVICE_INFO_SERVICE, UUID_FIRMWARE_REVISION);
+          this.metadata.firmwareRevision = decoder.decode(fwVal).replace(/\0/g, '');
+        } catch {}
+        try {
+          const snVal = await BleClient.read(deviceId, UUID_DEVICE_INFO_SERVICE, UUID_SERIAL_NUMBER);
+          this.metadata.serialNumber = decoder.decode(snVal).replace(/\0/g, '');
+        } catch {}
+        try {
+          const hwVal = await BleClient.read(deviceId, UUID_DEVICE_INFO_SERVICE, UUID_HARDWARE_REVISION);
+          this.metadata.hardwareRevision = decoder.decode(hwVal).replace(/\0/g, '');
+        } catch {}
+        try {
+          const mfgVal = await BleClient.read(deviceId, UUID_DEVICE_INFO_SERVICE, UUID_MANUFACTURER_NAME);
+          this.metadata.manufacturerName = decoder.decode(mfgVal).replace(/\0/g, '');
+        } catch {}
+        try {
+          const modVal = await BleClient.read(deviceId, UUID_DEVICE_INFO_SERVICE, UUID_MODEL_NUMBER);
+          this.metadata.modelNumber = decoder.decode(modVal).replace(/\0/g, '');
+        } catch {}
+        this.emitMetadata();
+      } catch (e) {
+        console.warn('[Native BLE] Device info read failed:', e);
+      }
+
+      // 4. WHOOP Proprietary Gen4 Services (61080001-... base)
+      try {
+        await BleClient.startNotifications(
+          deviceId,
+          WHOOP_BASE_SERVICE_UUID,
+          WHOOP_EVENTS_FROM_STRAP_UUID,
+          (data: DataView) => {
+            this.parseProprietaryPacket(WHOOP_EVENTS_FROM_STRAP_UUID, data);
+          }
+        );
+        console.log('[Native BLE] Subscribed to WHOOP EVENTS characteristic');
+      } catch (e) {
+        console.warn('[Native BLE] Failed subscribing to WHOOP EVENTS:', e);
+      }
+
+      try {
+        await BleClient.startNotifications(
+          deviceId,
+          WHOOP_BASE_SERVICE_UUID,
+          WHOOP_DATA_FROM_STRAP_UUID,
+          (data: DataView) => {
+            this.parseProprietaryPacket(WHOOP_DATA_FROM_STRAP_UUID, data);
+          }
+        );
+        console.log('[Native BLE] Subscribed to WHOOP DATA stream');
+      } catch (e) {
+        console.warn('[Native BLE] Failed subscribing to WHOOP DATA:', e);
+      }
+
+      try {
+        await BleClient.startNotifications(
+          deviceId,
+          WHOOP_BASE_SERVICE_UUID,
+          WHOOP_CMD_FROM_STRAP_UUID,
+          (data: DataView) => {
+            this.parseProprietaryPacket(WHOOP_CMD_FROM_STRAP_UUID, data);
+          }
+        );
+        console.log('[Native BLE] Subscribed to WHOOP CMD characteristic');
+      } catch (e) {
+        console.warn('[Native BLE] Failed subscribing to WHOOP CMD:', e);
+      }
+
+      // 5. Scan full GATT tree for hardware inspector
+      await this.scanNativeGattTree(deviceId);
+
+      // 6. Start 20s Battery Polling
+      this.startNativeBatteryPolling(deviceId);
+    } catch (err: unknown) {
+      this.metadata.connected = false;
+      this.metadata.connecting = false;
+      this.emitMetadata();
+      const message = err instanceof Error ? err.message : String(err);
+      console.error('[Native BLE] connectToNativeDevice failed:', message);
+      this.emitError(message);
+      throw err;
+    }
+  }
+
+  private startNativeBatteryPolling(deviceId: string): void {
+    if (this.batteryPollingInterval) {
+      clearInterval(this.batteryPollingInterval);
+    }
+    this.batteryPollingInterval = window.setInterval(async () => {
+      if (!this.metadata.connected || !this.nativeDeviceId) return;
+      try {
+        const batVal = await BleClient.read(deviceId, UUID_BATTERY_SERVICE, UUID_BATTERY_LEVEL);
+        if (batVal && batVal.byteLength > 0) {
+          this.updateBatteryState(batVal.getUint8(0));
+        }
+      } catch {}
+    }, 20000);
+  }
+
+  private async scanNativeGattTree(deviceId: string): Promise<GattServiceInfo[]> {
+    try {
+      const services = await BleClient.getServices(deviceId);
+      const tree: GattServiceInfo[] = [];
+      for (const service of services) {
+        const sUuid = service.uuid.toLowerCase();
+        const chars: GattCharacteristicInfo[] = [];
+        for (const char of service.characteristics) {
+          const cUuid = char.uuid.toLowerCase();
+          chars.push({
+            uuid: cUuid,
+            serviceUuid: sUuid,
+            name: KNOWN_UUID_NAMES[cUuid] || 'Characteristic',
+            properties: {
+              read: Boolean(char.properties?.read),
+              write: Boolean(char.properties?.write),
+              writeWithoutResponse: Boolean(char.properties?.writeWithoutResponse),
+              notify: Boolean(char.properties?.notify),
+              indicate: Boolean(char.properties?.indicate),
+            },
+            isNotifying: false,
+            lastValueHex: null,
+            lastValueAscii: null,
+            lastUpdated: null,
+          });
+        }
+        tree.push({
+          uuid: sUuid,
+          name: KNOWN_UUID_NAMES[sUuid] || 'Primary Service',
+          isPrimary: true,
+          characteristics: chars,
+        });
+      }
+      this.gattTree = tree;
+      this.onGattTreeCallbacks.forEach((cb) => cb(tree));
+      return tree;
+    } catch (e) {
+      console.warn('[Native BLE] Failed scanning GATT tree:', e);
+      return [];
+    }
+  }
+
+  public async disconnect(): Promise<void> {
     this.isManualDisconnect = true;
     this.reconnectAttempts = 0;
     if (this.reconnectTimeout) {
@@ -438,6 +735,12 @@ export class WhoopBleEngine {
     if (this.batteryPollingInterval) {
       clearInterval(this.batteryPollingInterval);
       this.batteryPollingInterval = null;
+    }
+    if (Capacitor.isNativePlatform() && this.nativeDeviceId) {
+      try {
+        await BleClient.disconnect(this.nativeDeviceId);
+      } catch {}
+      this.nativeDeviceId = null;
     }
     if (this.device && this.device.gatt && this.device.gatt.connected) {
       this.device.gatt.disconnect();
@@ -475,7 +778,7 @@ export class WhoopBleEngine {
     }
 
     // Unexpected disconnection -> Attempt auto-reconnect with backoff (Attempts 1-3)
-    if (this.reconnectAttempts < this.maxReconnectAttempts && this.device) {
+    if (this.reconnectAttempts < this.maxReconnectAttempts && (this.device || (Capacitor.isNativePlatform() && this.nativeDeviceId))) {
       this.reconnectAttempts++;
       const delay = this.reconnectAttempts === 1 ? 2000 : this.reconnectAttempts === 2 ? 5000 : 10000;
       this.metadata.connecting = true;
@@ -486,10 +789,16 @@ export class WhoopBleEngine {
 
       this.reconnectTimeout = window.setTimeout(async () => {
         try {
-          if (!this.metadata.connected && this.device && !this.isManualDisconnect) {
-            console.log(`Executing auto-reconnect attempt ${this.reconnectAttempts}...`);
-            await this.connectToDevice(this.device);
-            this.emitError(''); // Clear error banner on success
+          if (!this.metadata.connected && !this.isManualDisconnect) {
+            if (Capacitor.isNativePlatform() && this.nativeDeviceId) {
+              console.log(`[Native BLE] Executing auto-reconnect attempt ${this.reconnectAttempts}...`);
+              await this.connectToNativeDevice(this.nativeDeviceId, this.metadata.name);
+              this.emitError(''); // Clear error banner on success
+            } else if (this.device) {
+              console.log(`Executing auto-reconnect attempt ${this.reconnectAttempts}...`);
+              await this.connectToDevice(this.device);
+              this.emitError(''); // Clear error banner on success
+            }
           }
         } catch (err) {
           console.warn(`Auto-reconnect attempt ${this.reconnectAttempts} failed:`, err);
@@ -1047,6 +1356,12 @@ export class WhoopBleEngine {
   }
 
   public async sendRawBuffer(buffer: Uint8Array): Promise<void> {
+    if (Capacitor.isNativePlatform() && this.nativeDeviceId) {
+      const dataView = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+      await BleClient.write(this.nativeDeviceId, WHOOP_BASE_SERVICE_UUID, WHOOP_CMD_TO_STRAP_UUID, dataView);
+      return;
+    }
+
     const char = this.activeCharacteristics.get(WHOOP_CMD_TO_STRAP_UUID);
     if (!char) {
       throw new Error('WHOOP CMD_TO_STRAP characteristic not discovered or connected');

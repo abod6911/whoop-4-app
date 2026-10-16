@@ -13,6 +13,10 @@ dist-ssr
 *.local
 .vercel
 
+# iOS
+ios/App/build/
+ios/App/DerivedData/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
