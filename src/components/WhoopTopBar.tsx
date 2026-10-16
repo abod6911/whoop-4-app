@@ -72,7 +72,7 @@ export const WhoopTopBar: React.FC<WhoopTopBarProps> = ({
   onPrevDate,
   onNextDate,
 }) => {
-  const { t, isRtl, toggleLanguage } = useLanguage();
+  const { t, isRtl } = useLanguage();
   const isBatteryLow = metadata.batteryLevel !== null && metadata.batteryLevel < 15;
   const batteryColor = isBatteryLow ? 'text-[#FF0026]' : 'text-white';
 
@@ -109,7 +109,7 @@ export const WhoopTopBar: React.FC<WhoopTopBarProps> = ({
     <div className="sticky top-0 z-40 bg-[#0B0D10]/95 backdrop-blur-md border-b border-white/5">
       {/* Row 1: Top Bar (00:00 in Video) */}
       <div className="px-4 pt-3 pb-2 flex items-center justify-between gap-2 max-w-[430px] mx-auto">
-        {/* Left: Neutral User Avatar Circle (AB) + Notification Bell Badge + Language Switcher */}
+        {/* Left: Neutral User Avatar Circle (AB) + Notification Bell Badge */}
         <div className="flex items-center gap-2">
           <button
             onClick={onOpenNotifications}
@@ -134,17 +134,6 @@ export const WhoopTopBar: React.FC<WhoopTopBarProps> = ({
                 {unreadNotificationsCount > 9 ? '9+' : unreadNotificationsCount}
               </span>
             )}
-          </button>
-
-          {/* Modern Instant Language Switcher Pill */}
-          <button
-            onClick={toggleLanguage}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#16191E] hover:bg-[#222832] border border-white/10 text-[10px] font-condensed font-black tracking-wider transition-all active:scale-95 text-white"
-            title={isRtl ? 'التبديل إلى الإنجليزية' : 'Switch to Arabic'}
-          >
-            <span className={isRtl ? 'text-[#16EC06] font-bold' : 'text-zinc-500'}>عربي</span>
-            <span className="text-zinc-600 font-normal">/</span>
-            <span className={!isRtl ? 'text-white font-bold' : 'text-zinc-500'}>EN</span>
           </button>
         </div>
 

@@ -233,49 +233,6 @@ export const MoreView: React.FC<MoreViewProps> = ({
           </div>
 
           <div className="rounded-[24px] bg-[#12151A] border border-white/5 divide-y divide-white/5 overflow-hidden">
-            {/* QUICK LANGUAGE SWITCHER ROW */}
-            <div className="w-full p-4 flex items-center justify-between text-start">
-              <div className="flex items-center gap-3.5">
-                <div className="w-10 h-10 rounded-2xl bg-[#0B0D10] border border-white/5 flex items-center justify-center text-white">
-                  <Globe className="w-5 h-5 text-zinc-400" />
-                </div>
-                <div>
-                  <div className="text-sm font-bold text-white font-sans">
-                    {t('language')} / LANGUAGE
-                  </div>
-                  <div className="text-[11px] text-zinc-400 font-mono">
-                    {language === 'ar' ? 'العربية (مفعلة)' : 'English (Active)'}
-                  </div>
-                </div>
-              </div>
-
-              {/* Language Toggle Buttons */}
-              <div className="flex items-center gap-1 bg-[#0B0D10] p-1 rounded-xl border border-white/5">
-                <button
-                  type="button"
-                  onClick={() => setLanguage('en')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-condensed font-black uppercase transition-all ${
-                    language === 'en'
-                      ? 'bg-white text-black shadow-md'
-                      : 'text-zinc-400 hover:text-white'
-                  }`}
-                >
-                  English
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setLanguage('ar')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-condensed font-black uppercase transition-all ${
-                    language === 'ar'
-                      ? 'bg-[#16EC06] text-black shadow-md'
-                      : 'text-zinc-400 hover:text-white'
-                  }`}
-                >
-                  العربية
-                </button>
-              </div>
-            </div>
-
             {/* DEVICE SETTINGS */}
             <button
               onClick={() => setSubScreen('device')}
@@ -320,7 +277,7 @@ export const MoreView: React.FC<MoreViewProps> = ({
               <ChevronRight className={`w-4 h-4 text-zinc-500 group-hover:text-white transition-colors ${isRtl ? 'rotate-180' : ''}`} />
             </button>
 
-            {/* APP SETTINGS */}
+            {/* APP SETTINGS & LANGUAGE */}
             <button
               onClick={() => setSubScreen('app_settings')}
               className="w-full p-4 flex items-center justify-between text-start hover:bg-[#161C24] transition-colors group"
@@ -334,7 +291,7 @@ export const MoreView: React.FC<MoreViewProps> = ({
                     {t('appSettings')}
                   </div>
                   <div className="text-[11px] text-zinc-400 font-mono">
-                    {isRtl ? 'تغيير اللغة، الإشعارات ومستودع البيانات' : 'Language, Notifications & Data Vault'}
+                    <span className="text-[#16EC06] font-bold">{language === 'ar' ? 'العربية' : 'English'}</span> • {isRtl ? 'تغيير اللغة، الإشعارات ومستودع البيانات' : 'Language, Notifications & Data'}
                   </div>
                 </div>
               </div>
@@ -443,7 +400,7 @@ export const MoreView: React.FC<MoreViewProps> = ({
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <label className="text-[11px] font-black uppercase text-zinc-400 font-condensed block mb-1">
                   {t('athleteName')}
@@ -467,6 +424,24 @@ export const MoreView: React.FC<MoreViewProps> = ({
                 >
                   <option value="male">{t('male')}</option>
                   <option value="female">{t('female')}</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-black uppercase text-zinc-400 font-condensed block mb-1">
+                  {t('language')}
+                </label>
+                <select
+                  value={language}
+                  onChange={(e) => {
+                    const l = e.target.value as 'ar' | 'en';
+                    setLanguage(l);
+                    setForm({ ...form, language: l });
+                  }}
+                  className="w-full bg-[#0B0D10] border border-white/10 rounded-xl px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-[#16EC06]"
+                >
+                  <option value="ar">العربية (Arabic)</option>
+                  <option value="en">English (الإنجليزية)</option>
                 </select>
               </div>
             </div>
