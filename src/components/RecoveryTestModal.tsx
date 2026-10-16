@@ -18,6 +18,7 @@ interface RecoveryTestModalProps {
   onClose: () => void;
   metrics: LiveMetrics;
   settings: UserSettings;
+  onApplied?: () => void;
 }
 
 export const RecoveryTestModal: React.FC<RecoveryTestModalProps> = ({
@@ -25,6 +26,7 @@ export const RecoveryTestModal: React.FC<RecoveryTestModalProps> = ({
   onClose,
   metrics,
   settings,
+  onApplied,
 }) => {
   const { t, isRtl } = useLanguage();
   const TOTAL_TEST_SEC = 180; // 3 minutes
@@ -253,8 +255,19 @@ export const RecoveryTestModal: React.FC<RecoveryTestModalProps> = ({
             </div>
 
             <button
-              onClick={onClose}
-              className="w-full py-3.5 rounded-xl bg-white text-black font-black text-xs uppercase tracking-wider font-condensed transition-all"
+              onClick={() => {
+                if (result && result.score !== null) {
+                  biometricEngine.applyManualRecoveryAssessment(
+                    result.score,
+                    result.category as 'green' | 'yellow' | 'red',
+                    result.rhr,
+                    result.hrv
+                  );
+                  if (onApplied) onApplied();
+                }
+                onClose();
+              }}
+              className="w-full py-3.5 rounded-xl bg-white text-black font-black text-xs uppercase tracking-wider font-condensed transition-all active:scale-98 shadow-lg hover:bg-zinc-200"
             >
               {isRtl ? 'اعتماد التقييم لليوم' : 'Apply Assessment to Today'}
             </button>

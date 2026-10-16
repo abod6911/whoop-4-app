@@ -45,10 +45,11 @@ import { StressMonitorModal } from './components/StressMonitorModal';
 import { SleepStageDetailModal } from './components/SleepStageDetailModal';
 import { WhoopCoachChatSheet } from './components/WhoopCoachChatSheet';
 import { HardwareDiagnosticsModal } from './components/HardwareDiagnosticsModal';
+import { HrvBreathePacer } from './components/HrvBreathePacer';
 import { notificationEngine } from './services/notificationEngine';
 import { telemetryWorkerManager } from './services/telemetryWorkerManager';
 
-import { AlertCircle, X, Plus, AlertTriangle } from 'lucide-react';
+import { AlertCircle, X, Plus, AlertTriangle, Wind } from 'lucide-react';
 import { useLanguage } from './i18n/LanguageContext';
 
 export const App: React.FC = () => {
@@ -85,6 +86,7 @@ export const App: React.FC = () => {
   const [isSleepDetailOpen, setIsSleepDetailOpen] = useState(false);
   const [isCoachChatOpen, setIsCoachChatOpen] = useState(false);
   const [isDiagnosticsOpen, setIsDiagnosticsOpen] = useState(false);
+  const [isHrvBreatheOpen, setIsHrvBreatheOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Bluetooth Device Permissions API permitted devices cache
@@ -104,7 +106,7 @@ export const App: React.FC = () => {
 
   const handleBannerAction = (actionType: string) => {
     if (actionType === 'open_breathe') {
-      setIsStressMonitorOpen(true);
+      setIsHrvBreatheOpen(true);
     } else if (actionType === 'open_strap') {
       setIsStrapSheetOpen(true);
     } else if (actionType === 'open_journal') {
@@ -516,6 +518,7 @@ export const App: React.FC = () => {
             <CommunityView
               metrics={effectiveMetrics}
               settings={settings}
+              onOpenBreathePacer={() => setIsHrvBreatheOpen(true)}
             />
           )}
 
@@ -565,6 +568,7 @@ export const App: React.FC = () => {
             if (action === 'sleep_planner') setIsSleepPlannerOpen(true);
             if (action === 'sleep') setIsOledNightLockOpen(true);
             if (action === 'recovery_test') setIsRecoveryTestOpen(true);
+            if (action === 'breathe') setIsHrvBreatheOpen(true);
           }}
         />
 
@@ -636,6 +640,10 @@ export const App: React.FC = () => {
           onClose={() => setIsRecoveryTestOpen(false)}
           metrics={effectiveMetrics}
           settings={settings}
+          onApplied={() => {
+            setDaysHistory(storageService.getDaysHistory());
+            refreshSessions();
+          }}
         />
 
         {/* OLED Night Lock Overlay */}
@@ -679,6 +687,35 @@ export const App: React.FC = () => {
           metrics={effectiveMetrics}
           settings={settings}
         />
+
+        {/* HRV Resonance Coherence Breathe Pacer Modal */}
+        {isHrvBreatheOpen && (
+          <div
+            className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-in fade-in"
+            onClick={() => setIsHrvBreatheOpen(false)}
+          >
+            <div
+              className="w-full max-w-[430px] p-5 rounded-[28px] bg-[#16191E] border border-white/10 shadow-2xl space-y-4 animate-in slide-in-from-bottom"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                <div className="flex items-center gap-2">
+                  <Wind className="w-4 h-4 text-[#00F0FF]" />
+                  <h3 className="text-xs font-black uppercase tracking-wider text-white font-condensed">
+                    {isRtl ? 'جلسة تنفس الرنين (HRV Coherence)' : 'HRV Resonance Breathe Pacer'}
+                  </h3>
+                </div>
+                <button
+                  onClick={() => setIsHrvBreatheOpen(false)}
+                  className="w-7 h-7 rounded-full bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white flex items-center justify-center transition-colors"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+              <HrvBreathePacer metrics={effectiveMetrics} onClose={() => setIsHrvBreatheOpen(false)} />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

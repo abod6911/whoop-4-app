@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { SleepMetrics, LiveMetrics, DayHistoryRecord } from '../../types/whoop';
+import { shareWhoopScorecard } from '../../utils/shareScorecard';
 import {
   Moon,
   Share2,
@@ -34,9 +35,28 @@ export const SleepView: React.FC<SleepViewProps> = ({
   onActivateOledNightLock,
 }) => {
   const { t, isRtl, dayNames } = useLanguage();
+  const [shared, setShared] = useState(false);
   const perf = sleepData.sleepPerformance;
   const hoursAsleep = sleepData.hoursAsleep;
   const sleepNeed = sleepData.sleepNeedHours;
+
+  const handleShare = async () => {
+    const success = await shareWhoopScorecard(
+      {
+        recoveryScore: metrics.recoveryScore,
+        recoveryCategory: metrics.recoveryCategory,
+        dailyStrain: metrics.dailyStrain,
+        sleepPerformance: perf,
+        currentHrv: metrics.currentHrv,
+        restingHr: metrics.restingHr,
+      },
+      isRtl
+    );
+    if (success) {
+      setShared(true);
+      setTimeout(() => setShared(false), 2500);
+    }
+  };
 
   const recentDays = (daysHistory || []).slice(0, 7).reverse();
 
@@ -113,9 +133,14 @@ export const SleepView: React.FC<SleepViewProps> = ({
       <div className="p-5 rounded-[24px] bg-[#12151A] border border-white/5 space-y-4 text-center">
         <div className="flex items-center justify-between text-xs font-black uppercase tracking-wider font-condensed text-zinc-400">
           <span>{t('sleepPerformance')}</span>
-          <button className="flex items-center gap-1 text-[#00F0FF] hover:underline">
+          <button
+            onClick={handleShare}
+            className={`flex items-center gap-1 font-condensed tracking-wider transition-colors ${
+              shared ? 'text-[#16EC06]' : 'text-[#00F0FF] hover:underline'
+            }`}
+          >
             <Share2 className="w-3.5 h-3.5" />
-            <span>{isRtl ? 'مشاركة' : 'SHARE'}</span>
+            <span>{shared ? (isRtl ? 'تم النسخ!' : 'COPIED!') : (isRtl ? 'مشاركة' : 'SHARE')}</span>
           </button>
         </div>
 

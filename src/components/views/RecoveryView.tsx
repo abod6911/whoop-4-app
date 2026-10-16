@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { LiveMetrics, UserSettings, DayHistoryRecord } from '../../types/whoop';
+import { shareWhoopScorecard } from '../../utils/shareScorecard';
 import {
   Activity,
   Heart,
@@ -45,8 +46,27 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
   onOpenRecoveryTest,
 }) => {
   const { t, isRtl, dayNames } = useLanguage();
+  const [shared, setShared] = useState(false);
   const recoveryScore = metrics.recoveryScore;
   const recoveryColor = getRecoveryColor(recoveryScore);
+
+  const handleShare = async () => {
+    const success = await shareWhoopScorecard(
+      {
+        recoveryScore: metrics.recoveryScore,
+        recoveryCategory: metrics.recoveryCategory,
+        dailyStrain: metrics.dailyStrain,
+        sleepPerformance: metrics.sleepPerformance,
+        currentHrv: metrics.currentHrv,
+        restingHr: metrics.restingHr,
+      },
+      isRtl
+    );
+    if (success) {
+      setShared(true);
+      setTimeout(() => setShared(false), 2500);
+    }
+  };
 
   const size = 180;
   const stroke = 12;
@@ -105,9 +125,12 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
       <div className="p-6 rounded-[24px] bg-[#12151A] border border-white/5 flex flex-col items-center justify-center text-center">
         <div className="w-full flex items-center justify-between text-xs font-black uppercase tracking-wider font-condensed text-zinc-400 mb-2">
           <span>{t('recoveryScore')}</span>
-          <button className="flex items-center gap-1 text-[#00F0FF] hover:underline">
+          <button
+            onClick={handleShare}
+            className="flex items-center gap-1 text-[#00F0FF] hover:underline active:scale-95 transition-transform"
+          >
             <Share2 className="w-3.5 h-3.5" />
-            <span>{isRtl ? 'مشاركة' : 'SHARE'}</span>
+            <span>{shared ? (isRtl ? 'تم النسخ!' : 'COPIED!') : (isRtl ? 'مشاركة' : 'SHARE')}</span>
           </button>
         </div>
 

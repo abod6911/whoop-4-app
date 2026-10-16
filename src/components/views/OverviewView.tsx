@@ -3,6 +3,7 @@ import type { LiveMetrics, HomeSubTab, HealthMonitorMetric, SessionRecord, UserS
 import { WhoopConcentricTripleGauge } from '../WhoopConcentricTripleGauge';
 import { WhoopEmblemIcon } from '../WhoopLogo';
 import { DailyOutlookModal } from '../DailyOutlookModal';
+import { CustomizeDashboardModal, type DashboardPreferences, DEFAULT_DASHBOARD_PREFS } from '../CustomizeDashboardModal';
 import { biometricEngine } from '../../utils/biometricEngine';
 import {
   ChevronRight,
@@ -72,6 +73,25 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
 }) => {
   const { t, isRtl, dayNames, formatNumber } = useLanguage();
   const [isOutlookModalOpen, setIsOutlookModalOpen] = useState(false);
+  const [isCustomizeOpen, setIsCustomizeOpen] = useState(false);
+  const [dashboardPrefs, setDashboardPrefs] = useState<DashboardPreferences>(() => {
+    try {
+      const saved = localStorage.getItem('whoop_dashboard_customization');
+      if (saved) return JSON.parse(saved);
+    } catch {
+      // ignore
+    }
+    return DEFAULT_DASHBOARD_PREFS;
+  });
+
+  const handleSaveDashboardPrefs = (newPrefs: DashboardPreferences) => {
+    setDashboardPrefs(newPrefs);
+    try {
+      localStorage.setItem('whoop_dashboard_customization', JSON.stringify(newPrefs));
+    } catch {
+      // ignore
+    }
+  };
 
   // 100% Real Stress formatting from WHOOP 4.0 telemetry
   const stressScore = metrics.stressScore;
@@ -408,210 +428,229 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
           <h3 className="text-xl font-bold text-white tracking-tight">
             {t('myDashboard')}
           </h3>
-          <button className="text-xs font-black uppercase tracking-wider font-condensed text-zinc-400 hover:text-white flex items-center gap-1">
+          <button
+            onClick={() => setIsCustomizeOpen(true)}
+            className="text-xs font-black uppercase tracking-wider font-condensed text-zinc-400 hover:text-white flex items-center gap-1 transition-colors"
+          >
             <span>{t('customize')}</span>
             <Edit3 className="w-3 h-3" />
           </button>
         </div>
 
         {/* Metric Row 1: HEART RATE VARIABILITY */}
-        <div className="p-4 rounded-[22px] bg-[#12151A] border border-white/5 flex items-center justify-between">
-          <div>
-            <div className="text-xs font-black uppercase tracking-wider text-zinc-400 font-condensed">
-              {t('hrvFull')}
+        {dashboardPrefs.hrv && (
+          <div className="p-4 rounded-[22px] bg-[#12151A] border border-white/5 flex items-center justify-between">
+            <div>
+              <div className="text-xs font-black uppercase tracking-wider text-zinc-400 font-condensed">
+                {t('hrvFull')}
+              </div>
+              <div className="flex items-baseline gap-2 mt-0.5">
+                <span className="text-3xl font-black font-condensed text-white tabular-nums">
+                  {metrics.currentHrv !== null ? metrics.currentHrv : '--'}
+                </span>
+                <span className="text-xs text-zinc-400 font-sans">ms</span>
+              </div>
+              <div className="text-[10px] text-zinc-500 font-mono mt-0.5">
+                {t('baseline')}: {settings.hrvBaseline} ms
+              </div>
             </div>
-            <div className="flex items-baseline gap-2 mt-0.5">
-              <span className="text-3xl font-black font-condensed text-white tabular-nums">
-                {metrics.currentHrv !== null ? metrics.currentHrv : '--'}
-              </span>
-              <span className="text-xs text-zinc-400 font-sans">ms</span>
-            </div>
-            <div className="text-[10px] text-zinc-500 font-mono mt-0.5">
-              {t('baseline')}: {settings.hrvBaseline} ms
-            </div>
+            <ChevronRight className={`w-4 h-4 text-zinc-600 ${isRtl ? 'rotate-180' : ''}`} />
           </div>
-          <ChevronRight className={`w-4 h-4 text-zinc-600 ${isRtl ? 'rotate-180' : ''}`} />
-        </div>
+        )}
 
         {/* Metric Row 2: SLEEP PERFORMANCE */}
-        <div className="p-4 rounded-[22px] bg-[#12151A] border border-white/5 flex items-center justify-between">
-          <div>
-            <div className="text-xs font-black uppercase tracking-wider text-zinc-400 font-condensed">
-              {t('sleepPerformance')}
+        {dashboardPrefs.sleep && (
+          <div className="p-4 rounded-[22px] bg-[#12151A] border border-white/5 flex items-center justify-between">
+            <div>
+              <div className="text-xs font-black uppercase tracking-wider text-zinc-400 font-condensed">
+                {t('sleepPerformance')}
+              </div>
+              <div className="flex items-baseline gap-2 mt-0.5">
+                <span className="text-3xl font-black font-condensed text-white tabular-nums">
+                  {metrics.sleepPerformance !== null ? `${metrics.sleepPerformance}%` : '--'}
+                </span>
+              </div>
+              <div className="text-[10px] text-zinc-500 font-mono mt-0.5">
+                {t('target')}: {settings.sleepNeedHours}h • {t('sleepNeed')}
+              </div>
             </div>
-            <div className="flex items-baseline gap-2 mt-0.5">
-              <span className="text-3xl font-black font-condensed text-white tabular-nums">
-                {metrics.sleepPerformance !== null ? `${metrics.sleepPerformance}%` : '--'}
-              </span>
-            </div>
-            <div className="text-[10px] text-zinc-500 font-mono mt-0.5">
-              {t('target')}: {settings.sleepNeedHours}h • {t('sleepNeed')}
-            </div>
+            <ChevronRight className={`w-4 h-4 text-zinc-600 ${isRtl ? 'rotate-180' : ''}`} />
           </div>
-          <ChevronRight className={`w-4 h-4 text-zinc-600 ${isRtl ? 'rotate-180' : ''}`} />
-        </div>
+        )}
 
         {/* Embedded STRESS MONITOR Card (00:58 in Video) */}
-        <button
-          onClick={onOpenStressMonitorModal}
-          className="w-full p-4 rounded-[24px] bg-[#12151A] border border-white/5 hover:border-zinc-700 text-start space-y-2 transition-all active:scale-98"
-        >
-          <div className="flex items-center justify-between text-xs font-black uppercase tracking-wider font-condensed text-white">
-            <div className="flex items-center gap-1.5">
-              <Moon className="w-3.5 h-3.5 text-[#7293B2]" />
-              <span>{t('stressMonitor')}</span>
+        {dashboardPrefs.stress && (
+          <button
+            onClick={onOpenStressMonitorModal}
+            className="w-full p-4 rounded-[24px] bg-[#12151A] border border-white/5 hover:border-zinc-700 text-start space-y-2 transition-all active:scale-98"
+          >
+            <div className="flex items-center justify-between text-xs font-black uppercase tracking-wider font-condensed text-white">
+              <div className="flex items-center gap-1.5">
+                <Moon className="w-3.5 h-3.5 text-[#7293B2]" />
+                <span>{t('stressMonitor')}</span>
+              </div>
+              <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full border ${stressBadgeColor}`}>
+                {stressText} {stressScore !== null ? `(${stressScore.toFixed(1)})` : ''}
+              </span>
             </div>
-            <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full border ${stressBadgeColor}`}>
-              {stressText} {stressScore !== null ? `(${stressScore.toFixed(1)})` : ''}
-            </span>
-          </div>
 
-          <div className="h-20 w-full pt-1">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={stressDashboardData} margin={{ top: 2, right: 0, left: -30, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="dashStressGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#00F0FF" stopOpacity={0.4} />
-                    <stop offset="95%" stopColor="#00F0FF" stopOpacity={0.0} />
-                  </linearGradient>
-                </defs>
-                <YAxis domain={[0, 2.5]} hide />
-                <Area type="monotone" dataKey="score" stroke="#00F0FF" strokeWidth={2} fill="url(#dashStressGrad)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </button>
+            <div className="h-20 w-full pt-1">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={stressDashboardData} margin={{ top: 2, right: 0, left: -30, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="dashStressGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#00F0FF" stopOpacity={0.4} />
+                      <stop offset="95%" stopColor="#00F0FF" stopOpacity={0.0} />
+                    </linearGradient>
+                  </defs>
+                  <YAxis domain={[0, 2.5]} hide />
+                  <Area type="monotone" dataKey="score" stroke="#00F0FF" strokeWidth={2} fill="url(#dashStressGrad)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </button>
+        )}
 
         {/* Embedded STRAIN & RECOVERY 7-Day Dual-Axis Line Chart (01:01 in Video) */}
-        <div className="p-4 rounded-[24px] bg-[#12151A] border border-white/5 space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="text-xs font-black uppercase tracking-wider font-condensed text-white">
-              {t('strainAndRecovery7Days')}
+        {dashboardPrefs.strainRecovery && (
+          <div className="p-4 rounded-[24px] bg-[#12151A] border border-white/5 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="text-xs font-black uppercase tracking-wider font-condensed text-white">
+                {t('strainAndRecovery7Days')}
+              </div>
+              <div className="flex items-center gap-3 text-[10px] font-mono font-bold">
+                <span className="text-[#0093E9]">● {t('dayStrain')}</span>
+                <span className="text-[#16EC06]">● {t('recoveryScore')}</span>
+              </div>
             </div>
-            <div className="flex items-center gap-3 text-[10px] font-mono font-bold">
-              <span className="text-[#0093E9]">● {t('dayStrain')}</span>
-              <span className="text-[#16EC06]">● {t('recoveryScore')}</span>
-            </div>
-          </div>
 
-          <div className="h-40 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={dualAxisData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
-                <XAxis dataKey="day" stroke="#52525B" tick={{ fontSize: 9 }} tickLine={false} />
-                <YAxis yAxisId="left" domain={[0, 21]} stroke="#0093E9" tick={{ fontSize: 9 }} tickLine={false} />
-                <YAxis yAxisId="right" orientation="right" domain={[0, 100]} stroke="#16EC06" tick={{ fontSize: 9 }} tickLine={false} />
-                <Tooltip
-                  contentStyle={{ backgroundColor: '#0B0D10', borderColor: '#27272A', borderRadius: '12px', fontSize: '11px' }}
-                />
-                <Line yAxisId="left" type="monotone" dataKey="strain" stroke="#0093E9" strokeWidth={2.5} dot={{ r: 3, fill: '#0093E9' }} />
-                <Line yAxisId="right" type="monotone" dataKey="recovery" stroke="#16EC06" strokeWidth={2.5} dot={{ r: 3, fill: '#16EC06' }} />
-              </LineChart>
-            </ResponsiveContainer>
+            <div className="h-40 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={dualAxisData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
+                  <XAxis dataKey="day" stroke="#52525B" tick={{ fontSize: 9 }} tickLine={false} />
+                  <YAxis yAxisId="left" domain={[0, 21]} stroke="#0093E9" tick={{ fontSize: 9 }} tickLine={false} />
+                  <YAxis yAxisId="right" orientation="right" domain={[0, 100]} stroke="#16EC06" tick={{ fontSize: 9 }} tickLine={false} />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: '#0B0D10', borderColor: '#27272A', borderRadius: '12px', fontSize: '11px' }}
+                  />
+                  <Line yAxisId="left" type="monotone" dataKey="strain" stroke="#0093E9" strokeWidth={2.5} dot={{ r: 3, fill: '#0093E9' }} />
+                  <Line yAxisId="right" type="monotone" dataKey="recovery" stroke="#16EC06" strokeWidth={2.5} dot={{ r: 3, fill: '#16EC06' }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Metric Row 5: STEPS & CADENCE */}
-        <div className="p-4 rounded-[22px] bg-[#12151A] border border-white/5 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-white/[0.04] flex items-center justify-center text-[#8A94A6]">
-              <Footprints className="w-5 h-5 stroke-[1.8]" />
+        {dashboardPrefs.steps && (
+          <div className="p-4 rounded-[22px] bg-[#12151A] border border-white/5 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-white/[0.04] flex items-center justify-center text-[#8A94A6]">
+                <Footprints className="w-5 h-5 stroke-[1.8]" />
+              </div>
+              <div>
+                <div className="text-xs font-black uppercase tracking-wider text-zinc-400 font-condensed">
+                  {t('steps')}
+                </div>
+                <div className="text-[10px] text-zinc-500 font-mono mt-0.5">
+                  {t('target')}: 10,000 • {metrics.cadence > 0 ? `${metrics.cadence} spm` : (isRtl ? 'حساس IMU' : 'IMU SENSOR')}
+                </div>
+              </div>
             </div>
-            <div>
-              <div className="text-xs font-black uppercase tracking-wider text-zinc-400 font-condensed">
-                {t('steps')}
+            <div className="flex items-center gap-2">
+              <div className="text-end">
+                <span className="text-2xl font-black font-condensed text-white tabular-nums">
+                  {metrics.steps > 0 ? metrics.steps.toLocaleString() : '--'}
+                </span>
               </div>
-              <div className="text-[10px] text-zinc-500 font-mono mt-0.5">
-                {t('target')}: 10,000 • {metrics.cadence > 0 ? `${metrics.cadence} spm` : (isRtl ? 'حساس IMU' : 'IMU SENSOR')}
-              </div>
+              <ChevronRight className={`w-4 h-4 text-zinc-600 ${isRtl ? 'rotate-180' : ''}`} />
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="text-end">
-              <span className="text-2xl font-black font-condensed text-white tabular-nums">
-                {metrics.steps > 0 ? metrics.steps.toLocaleString() : '--'}
-              </span>
-            </div>
-            <ChevronRight className={`w-4 h-4 text-zinc-600 ${isRtl ? 'rotate-180' : ''}`} />
-          </div>
-        </div>
+        )}
 
         {/* Metric Row 6: TOTAL CALORIC BURN (KEYTEL METABOLIC BURN) */}
-        <div className="p-4 rounded-[22px] bg-[#12151A] border border-white/5 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-white/[0.04] flex items-center justify-center text-[#8A94A6]">
-              <Flame className="w-5 h-5 stroke-[1.8]" />
+        {dashboardPrefs.calories && (
+          <div className="p-4 rounded-[22px] bg-[#12151A] border border-white/5 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-white/[0.04] flex items-center justify-center text-[#8A94A6]">
+                <Flame className="w-5 h-5 stroke-[1.8]" />
+              </div>
+              <div>
+                <div className="text-xs font-black uppercase tracking-wider text-zinc-400 font-condensed">
+                  {t('totalCalories')}
+                </div>
+                <div className="text-[10px] text-zinc-500 font-mono mt-0.5">
+                  BMR: {metrics.bmrCalories} + {isRtl ? 'نشط' : 'Active'}: {metrics.activeCalories}
+                </div>
+              </div>
             </div>
-            <div>
-              <div className="text-xs font-black uppercase tracking-wider text-zinc-400 font-condensed">
-                {t('totalCalories')}
+            <div className="flex items-center gap-2">
+              <div className="text-end">
+                <span className="text-2xl font-black font-condensed text-white tabular-nums">
+                  {metrics.totalCalories > 0 ? metrics.totalCalories.toLocaleString() : (metrics.activeCalories > 0 ? metrics.activeCalories.toLocaleString() : '--')}
+                </span>
+                <span className="text-xs text-zinc-400 font-normal ml-1">kcal</span>
               </div>
-              <div className="text-[10px] text-zinc-500 font-mono mt-0.5">
-                BMR: {metrics.bmrCalories} + {isRtl ? 'نشط' : 'Active'}: {metrics.activeCalories}
-              </div>
+              <ChevronRight className={`w-4 h-4 text-zinc-600 ${isRtl ? 'rotate-180' : ''}`} />
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="text-end">
-              <span className="text-2xl font-black font-condensed text-white tabular-nums">
-                {metrics.totalCalories > 0 ? metrics.totalCalories.toLocaleString() : (metrics.activeCalories > 0 ? metrics.activeCalories.toLocaleString() : '--')}
-              </span>
-              <span className="text-xs text-zinc-400 font-normal ml-1">kcal</span>
-            </div>
-            <ChevronRight className={`w-4 h-4 text-zinc-600 ${isRtl ? 'rotate-180' : ''}`} />
-          </div>
-        </div>
+        )}
 
         {/* Metric Row 7: RESPIRATORY RATE */}
-        <div className="p-4 rounded-[22px] bg-[#12151A] border border-white/5 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-white/[0.04] flex items-center justify-center text-[#8A94A6]">
-              <Wind className="w-5 h-5 stroke-[1.8]" />
+        {dashboardPrefs.respiratory && (
+          <div className="p-4 rounded-[22px] bg-[#12151A] border border-white/5 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-white/[0.04] flex items-center justify-center text-[#8A94A6]">
+                <Wind className="w-5 h-5 stroke-[1.8]" />
+              </div>
+              <div>
+                <div className="text-xs font-black uppercase tracking-wider text-zinc-400 font-condensed">
+                  {t('respiratoryRate')}
+                </div>
+                <div className="text-[10px] text-zinc-500 font-mono mt-0.5">
+                  {isRtl ? '14.0 د/د النطاق المعتاد' : '14.0 rpm Typical Range'}
+                </div>
+              </div>
             </div>
-            <div>
-              <div className="text-xs font-black uppercase tracking-wider text-zinc-400 font-condensed">
-                {t('respiratoryRate')}
+            <div className="flex items-center gap-2">
+              <div className="text-end">
+                <span className="text-2xl font-black font-condensed text-white tabular-nums">
+                  {metrics.respiratoryRate ?? '--'}
+                </span>
+                <span className="text-xs text-zinc-400 font-normal ml-1">rpm</span>
               </div>
-              <div className="text-[10px] text-zinc-500 font-mono mt-0.5">
-                {isRtl ? '14.0 د/د النطاق المعتاد' : '14.0 rpm Typical Range'}
-              </div>
+              <ChevronRight className={`w-4 h-4 text-zinc-600 ${isRtl ? 'rotate-180' : ''}`} />
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="text-end">
-              <span className="text-2xl font-black font-condensed text-white tabular-nums">
-                {metrics.respiratoryRate ?? '--'}
-              </span>
-              <span className="text-xs text-zinc-400 font-normal ml-1">rpm</span>
-            </div>
-            <ChevronRight className={`w-4 h-4 text-zinc-600 ${isRtl ? 'rotate-180' : ''}`} />
-          </div>
-        </div>
+        )}
 
         {/* Metric Row 8: LEAN BODY MASS */}
-        <div className="p-4 rounded-[22px] bg-[#12151A] border border-white/5 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-white/[0.04] flex items-center justify-center text-[#8A94A6]">
-              <Scale className="w-5 h-5 stroke-[1.8]" />
+        {dashboardPrefs.leanMass && (
+          <div className="p-4 rounded-[22px] bg-[#12151A] border border-white/5 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-white/[0.04] flex items-center justify-center text-[#8A94A6]">
+                <Scale className="w-5 h-5 stroke-[1.8]" />
+              </div>
+              <div>
+                <div className="text-xs font-black uppercase tracking-wider text-zinc-400 font-condensed">
+                  {t('leanBodyMass')}
+                </div>
+                <div className="text-[10px] text-zinc-500 font-mono mt-0.5">
+                  {isRtl ? '82% من إجمالي وزن الجسم' : '82% of Total Weight'}
+                </div>
+              </div>
             </div>
-            <div>
-              <div className="text-xs font-black uppercase tracking-wider text-zinc-400 font-condensed">
-                {t('leanBodyMass')}
+            <div className="flex items-center gap-2">
+              <div className="text-end">
+                <span className="text-2xl font-black font-condensed text-white tabular-nums">
+                  {(settings.weightKg * 0.82).toFixed(1)}
+                </span>
+                <span className="text-xs text-zinc-400 font-normal ml-1">kg</span>
               </div>
-              <div className="text-[10px] text-zinc-500 font-mono mt-0.5">
-                {isRtl ? '82% من إجمالي وزن الجسم' : '82% of Total Weight'}
-              </div>
+              <ChevronRight className={`w-4 h-4 text-zinc-600 ${isRtl ? 'rotate-180' : ''}`} />
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="text-end">
-              <span className="text-2xl font-black font-condensed text-white tabular-nums">
-                {(settings.weightKg * 0.82).toFixed(1)}
-              </span>
-              <span className="text-xs text-zinc-400 font-normal ml-1">kg</span>
-            </div>
-            <ChevronRight className={`w-4 h-4 text-zinc-600 ${isRtl ? 'rotate-180' : ''}`} />
-          </div>
-        </div>
+        )}
       </div>
 
       {/* Daily Outlook Modal */}
@@ -621,6 +660,14 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
         metrics={metrics}
         settings={settings}
         metadata={metadata}
+      />
+
+      {/* Dashboard Customization Modal */}
+      <CustomizeDashboardModal
+        isOpen={isCustomizeOpen}
+        onClose={() => setIsCustomizeOpen(false)}
+        preferences={dashboardPrefs}
+        onSavePreferences={handleSaveDashboardPrefs}
       />
     </div>
   );

@@ -392,6 +392,7 @@ export class WhoopBleEngine {
             { namePrefix: 'WHOOP' },
             { namePrefix: 'Whoop' },
             { namePrefix: 'whoop' },
+            { services: ['heart_rate'] },
             { services: [WHOOP_BASE_SERVICE_UUID] },
           ],
           optionalServices,

@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { DeviceMetadata } from '../types/whoop';
 import { WhoopLogo } from './WhoopLogo';
+import { whoopBleEngine } from '../services/whoopBleEngine';
 import {
   Bluetooth,
   BluetoothOff,
@@ -12,6 +13,8 @@ import {
   AlertTriangle,
   Zap,
   Activity,
+  Copy,
+  ExternalLink,
 } from 'lucide-react';
 
 import { useLanguage } from '../i18n/LanguageContext';
@@ -38,11 +41,21 @@ export const StrapConnectSheet: React.FC<StrapConnectSheetProps> = ({
   onOpenDiagnostics,
 }) => {
   const { t, isRtl } = useLanguage();
+  const [copied, setCopied] = useState(false);
   if (!isOpen) return null;
 
+  const isBleSupported = whoopBleEngine.isSupported();
   const isBatteryLow = metadata.batteryLevel !== null && metadata.batteryLevel < 15;
   const hasPermitted = permittedDevices.length > 0;
   const primaryPermitted = permittedDevices[0];
+
+  const handleCopyUrl = () => {
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(window.location.href);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/80 backdrop-blur-sm animate-in fade-in">
@@ -194,6 +207,58 @@ export const StrapConnectSheet: React.FC<StrapConnectSheetProps> = ({
             </button>
           ) : (
             <>
+              {/* Web Bluetooth Compatibility Alert for iOS Safari / Unsupported Browsers */}
+              {!isBleSupported && (
+                <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-start space-y-2.5">
+                  <div className="flex items-center gap-2 text-amber-300 font-bold font-condensed uppercase tracking-wider text-xs">
+                    <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0 animate-pulse" />
+                    <span>{isRtl ? 'متصفحك الحالي لا يدعم Web Bluetooth' : 'Web Bluetooth Unsupported In This Browser'}</span>
+                  </div>
+                  <p className="text-[11px] text-zinc-300 leading-relaxed font-sans">
+                    {isRtl ? (
+                      <>
+                        متصفح <strong className="text-white">Safari على الآيفون</strong> لا يدعم تقنية Web Bluetooth مباشرة. للاتصال بسوارك WHOOP 4.0 من الآيفون:
+                        <br />
+                        1. حمّل تطبيق <strong className="text-[#00F0FF]">Bluefy - Web BLE Browser</strong> مجاناً من App Store.
+                        <br />
+                        2. افتح هذا الرابط داخله للاتصال فورياً.
+                        <br />
+                        على أجهزة الكمبيوتر (Windows/Mac): استخدم <strong className="text-white">Google Chrome</strong> أو <strong className="text-white">Microsoft Edge</strong>.
+                      </>
+                    ) : (
+                      <>
+                        <strong className="text-white">Apple Safari on iOS</strong> restricts the Web Bluetooth API. To connect your WHOOP 4.0 strap on iPhone/iPad:
+                        <br />
+                        1. Install the free <strong className="text-[#00F0FF]">Bluefy - Web BLE Browser</strong> from the App Store.
+                        <br />
+                        2. Open this website inside Bluefy to pair directly.
+                        <br />
+                        On Desktop (PC/Mac): Use <strong className="text-white">Google Chrome</strong> or <strong className="text-white">Microsoft Edge</strong>.
+                      </>
+                    )}
+                  </p>
+                  <div className="pt-1 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={handleCopyUrl}
+                      className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-condensed font-bold flex items-center gap-1.5 transition-colors"
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                      <span>{copied ? (isRtl ? 'تم نسخ الرابط!' : 'Copied!') : (isRtl ? 'نسخ رابط الموقع' : 'Copy Web URL')}</span>
+                    </button>
+                    <a
+                      href="https://apps.apple.com/app/bluefy-web-ble-browser/id1492822055"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-3 py-1.5 rounded-lg bg-[#0093E9]/20 hover:bg-[#0093E9]/30 text-[#00F0FF] border border-[#0093E9]/30 text-xs font-condensed font-bold flex items-center gap-1.5 transition-colors"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      <span>{isRtl ? 'تحميل Bluefy (App Store)' : 'Get Bluefy (App Store)'}</span>
+                    </a>
+                  </div>
+                </div>
+              )}
+
               {/* 1-Click Reconnect to Previously Permitted WHOOP Band */}
               {hasPermitted && onReconnectPermitted && (
                 <button

@@ -12,40 +12,48 @@ import {
 } from 'lucide-react';
 import type { LiveMetrics, UserSettings } from '../../types/whoop';
 import { useLanguage } from '../../i18n/LanguageContext';
+import { ArticleModal } from '../ArticleModal';
 
 interface CommunityViewProps {
   metrics: LiveMetrics;
   settings: UserSettings;
+  onOpenBreathePacer?: () => void;
 }
 
 export const CommunityView: React.FC<CommunityViewProps> = ({
   metrics,
   settings,
+  onOpenBreathePacer,
 }) => {
   const { t, isRtl } = useLanguage();
   const [metricTab, setMetricTab] = useState<'strain' | 'recovery' | 'sleep'>('strain');
   const [timeScope, setTimeScope] = useState<'daily' | 'weekly' | 'monthly'>('daily');
+  const [selectedArticleId, setSelectedArticleId] = useState<string | null>(null);
 
   const learnArticles = [
     {
+      id: 'hrv',
       title: isRtl ? 'كيف يتنبأ تقلب نبضات القلب (HRV) بالتعافي الذاتي للجسم' : 'How HRV Predicts Autonomic Recovery',
       category: isRtl ? 'العلوم الطبية الحيوية' : 'BIOMEDICAL SCIENCE',
-      readTime: isRtl ? '3 دقائق قراءة' : '3 min read',
+      readTime: isRtl ? '5 دقائق قراءة' : '5 min read',
       tag: 'HRV',
     },
     {
+      id: 'sws',
       title: isRtl ? 'دور نوم الموجة البطيئة (SWS) العميق في ترميم وبناء الأنسجة' : 'The Role of SWS Slow Wave Sleep in Tissue Repair',
       category: isRtl ? 'بنية النوم' : 'SLEEP ARCHITECTURE',
       readTime: isRtl ? '4 دقائق قراءة' : '4 min read',
       tag: 'SLEEP',
     },
     {
+      id: 'zone2',
       title: isRtl ? 'تمارين الكارديو في المنطقة 2 وزيادة كثافة الميتوكوندريا' : 'Zone 2 Cardio & Mitochondrial Density',
       category: isRtl ? 'فسيولوجيا التحمل' : 'ENDURANCE PHYSIOLOGY',
       readTime: isRtl ? '5 دقائق قراءة' : '5 min read',
       tag: 'STRAIN',
     },
     {
+      id: 'vagus',
       title: isRtl ? 'تنشيط العصب الحائر (المبهم) عبر التنفس بتردد الرنين 0.1 هرتز' : 'Vagal Nerve Activation via 0.1Hz Resonance',
       category: isRtl ? 'علم الأعصاب' : 'NEUROLOGY',
       readTime: isRtl ? '3 دقائق قراءة' : '3 min read',
@@ -83,23 +91,24 @@ export const CommunityView: React.FC<CommunityViewProps> = ({
         </div>
 
         <div className="overflow-x-auto flex gap-3 no-scrollbar pb-1">
-          {learnArticles.map((art, idx) => (
+          {learnArticles.map((art) => (
             <div
-              key={idx}
-              className="min-w-[260px] p-4 rounded-2xl bg-[#16191E] border border-white/5 space-y-2.5 flex-shrink-0"
+              key={art.id}
+              onClick={() => setSelectedArticleId(art.id)}
+              className="min-w-[260px] p-4 rounded-2xl bg-[#16191E] border border-white/5 space-y-2.5 flex-shrink-0 cursor-pointer hover:border-zinc-600 transition-all active:scale-98 group"
             >
               <div className="flex items-center justify-between text-[10px] font-mono">
                 <span className="text-[#0093E9] uppercase font-bold">{art.category}</span>
                 <span className="text-zinc-500">{art.readTime}</span>
               </div>
-              <h4 className="text-xs font-bold text-white font-sans line-clamp-2 leading-snug">
+              <h4 className="text-xs font-bold text-white font-sans line-clamp-2 leading-snug group-hover:text-[#00F0FF] transition-colors">
                 {art.title}
               </h4>
               <div className="pt-1 flex items-center justify-between text-[10px]">
                 <span className="bg-[#222730] text-zinc-300 px-2 py-0.5 rounded font-mono">
                   #{art.tag}
                 </span>
-                <span className="text-[#00F0FF] flex items-center gap-0.5">
+                <span className="text-[#00F0FF] flex items-center gap-0.5 font-bold">
                   {isRtl ? '← قراءة المقال' : 'Read article →'}
                 </span>
               </div>
@@ -222,6 +231,13 @@ export const CommunityView: React.FC<CommunityViewProps> = ({
           ))}
         </div>
       </div>
+
+      {/* Interactive Science & Physiology Article Modal */}
+      <ArticleModal
+        articleId={selectedArticleId}
+        onClose={() => setSelectedArticleId(null)}
+        onOpenBreathePacer={onOpenBreathePacer}
+      />
     </div>
   );
 };

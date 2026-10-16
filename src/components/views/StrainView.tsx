@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import type { LiveMetrics, HrZoneInfo, UserSettings, DayHistoryRecord } from '../../types/whoop';
+import { shareWhoopScorecard } from '../../utils/shareScorecard';
 import {
   Flame,
   Dumbbell,
@@ -47,6 +48,25 @@ export const StrainView: React.FC<StrainViewProps> = ({
 }) => {
   const { t, isRtl, dayNames } = useLanguage();
   const [selectedSport, setSelectedSport] = useState('Running');
+  const [shared, setShared] = useState(false);
+
+  const handleShare = async () => {
+    const success = await shareWhoopScorecard(
+      {
+        recoveryScore: metrics.recoveryScore,
+        recoveryCategory: metrics.recoveryCategory,
+        dailyStrain: metrics.dailyStrain,
+        sleepPerformance: metrics.sleepPerformance,
+        currentHrv: metrics.currentHrv,
+        restingHr: metrics.restingHr,
+      },
+      isRtl
+    );
+    if (success) {
+      setShared(true);
+      setTimeout(() => setShared(false), 2500);
+    }
+  };
 
   const sports = [
     'Running',
@@ -127,9 +147,14 @@ export const StrainView: React.FC<StrainViewProps> = ({
       <div className="p-6 rounded-[24px] bg-[#12151A] border border-white/5 flex flex-col items-center justify-center text-center">
         <div className="w-full flex items-center justify-between text-xs font-black uppercase tracking-wider font-condensed text-zinc-400 mb-2">
           <span>{t('dayStrain')}</span>
-          <button className="flex items-center gap-1 text-[#00F0FF] hover:underline">
+          <button
+            onClick={handleShare}
+            className={`flex items-center gap-1 font-condensed tracking-wider transition-colors ${
+              shared ? 'text-[#16EC06]' : 'text-[#00F0FF] hover:underline'
+            }`}
+          >
             <Share2 className="w-3.5 h-3.5" />
-            <span>{isRtl ? 'مشاركة' : 'SHARE'}</span>
+            <span>{shared ? (isRtl ? 'تم النسخ!' : 'COPIED!') : (isRtl ? 'مشاركة' : 'SHARE')}</span>
           </button>
         </div>
 

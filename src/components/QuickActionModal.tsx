@@ -1,5 +1,5 @@
 import React from 'react';
-import { Dumbbell, Moon, Timer, X, BookOpen, Clock, Activity, Zap } from 'lucide-react';
+import { Dumbbell, Moon, Timer, X, BookOpen, Clock, Activity, Zap, Wind } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
 
 export type QuickActionType =
@@ -8,7 +8,8 @@ export type QuickActionType =
   | 'journal'
   | 'sleep_planner'
   | 'sleep'
-  | 'recovery_test';
+  | 'recovery_test'
+  | 'breathe';
 
 interface QuickActionModalProps {
   isOpen: boolean;
@@ -173,6 +174,29 @@ export const QuickActionModal: React.FC<QuickActionModalProps> = ({
                 </div>
                 <div className="text-[11px] text-zinc-400">
                   {isRtl ? 'معايرة تقلب نبضات القلب (HRV) لـ 3 دقائق' : '3-Minute Resonant Paced HRV Calibration'}
+                </div>
+              </div>
+            </div>
+          </button>
+
+          {/* 7. HRV Resonance Breathe Pacer */}
+          <button
+            onClick={() => {
+              onClose();
+              onSelectAction('breathe');
+            }}
+            className="w-full p-3 rounded-2xl bg-[#0B0D10] hover:bg-[#12151A] border border-white/5 flex items-center justify-between transition-all group"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-[#00F0FF]/20 text-[#00F0FF] flex items-center justify-center border border-[#00F0FF]/30 group-hover:scale-105 transition-transform flex-shrink-0">
+                <Wind className="w-5 h-5" />
+              </div>
+              <div className={isRtl ? 'text-right' : 'text-left'}>
+                <div className="text-sm font-black uppercase text-white">
+                  {isRtl ? 'جلسة تنفس الرنين (HRV Coherence)' : 'HRV Resonance Breathe Pacer'}
+                </div>
+                <div className="text-[11px] text-zinc-400">
+                  {isRtl ? 'تنفس هادئ بتردد 0.1 هرتز لخفض التوتر الفوري' : '0.1 Hz Guided Breathing to Down-Regulate Stress'}
                 </div>
               </div>
             </div>

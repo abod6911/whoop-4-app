@@ -41,87 +41,95 @@ export const HealthMonitorModal: React.FC<HealthMonitorModalProps> = ({
   const pulseDuration = currentBpm && currentBpm > 0 ? (60 / currentBpm).toFixed(2) : '1.0';
 
   const generateDoctorReport = () => {
-    const dateStr = new Date().toLocaleDateString('en-US', {
+    const isArabic = language === 'ar';
+    const dateStr = new Date().toLocaleDateString(isArabic ? 'ar-SA' : 'en-US', {
       weekday: 'long',
       year: 'numeric',
       month: 'long',
       day: 'numeric',
     });
 
+    const reportTitle = isArabic ? 'تقرير العلامات الحيوية والفسيولوجية السريري // WHOOP 4.0' : 'WHOOP // Clinical Biometrics Report';
+    const reportSubtitle = isArabic
+      ? `تم استخراجه في ${dateStr} عبر قياسات التخطيط الضوئي (PPG) لسوار WHOOP 4.0`
+      : `Generated on ${dateStr} via WHOOP 4.0 Optical Photoplethysmography (PPG)`;
+
     const reportHtml = `
 <!DOCTYPE html>
-<html>
+<html dir="${isArabic ? 'rtl' : 'ltr'}" lang="${isArabic ? 'ar' : 'en'}">
 <head>
   <meta charset="utf-8">
-  <title>WHOOP 4.0 Clinical Health & Vitals Report</title>
+  <title>${reportTitle}</title>
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 40px; color: #111; max-width: 800px; mx-auto; }
-    h1 { border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 5px; font-size: 24px; text-transform: uppercase; letter-spacing: 1px; }
-    .subtitle { color: #666; font-size: 13px; margin-bottom: 30px; }
-    .patient-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 30px; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Cairo", "IBM Plex Sans Arabic", sans-serif; padding: 40px; color: #111; max-width: 800px; margin: 0 auto; direction: ${isArabic ? 'rtl' : 'ltr'}; text-align: ${isArabic ? 'right' : 'left'}; }
+    h1 { border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 5px; font-size: 22px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .subtitle { color: #666; font-size: 13px; margin-bottom: 25px; }
+    .patient-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 30px; font-size: 13px; }
     .metric-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-    .metric-table th, .metric-table td { border-bottom: 1px solid #ddd; padding: 12px; text-align: left; }
+    .metric-table th, .metric-table td { border-bottom: 1px solid #ddd; padding: 12px; text-align: ${isArabic ? 'right' : 'left'}; }
     .metric-table th { background: #f1f3f5; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
     .status-badge { display: inline-block; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: bold; background: #d3f9d8; color: #2b8a3e; }
     .footer { font-size: 11px; color: #888; border-top: 1px solid #ddd; padding-top: 15px; margin-top: 40px; text-align: center; }
   </style>
 </head>
 <body>
-  <h1>WHOOP // Clinical Biometrics Report</h1>
-  <div class="subtitle">Generated on ${dateStr} via WHOOP 4.0 Optical Photoplethysmography (PPG)</div>
+  <h1>${reportTitle}</h1>
+  <div class="subtitle">${reportSubtitle}</div>
   
   <div class="patient-grid">
-    <div><strong>Athlete:</strong> ${settings.name || 'WHOOP Athlete'}</div>
-    <div><strong>Age / Gender:</strong> ${settings.age} / ${settings.gender.toUpperCase()}</div>
-    <div><strong>Firmware / Hardware:</strong> ${metadata.firmwareRevision || 'WHOOP Gen4'} / ${metadata.hardwareRevision || '4.0'}</div>
-    <div><strong>Daily Strain / Recovery:</strong> ${metrics.dailyStrain.toFixed(1)} / ${metrics.recoveryScore !== null ? `${metrics.recoveryScore}%` : 'Calibrating'}</div>
+    <div><strong>${isArabic ? 'الرياضي / المستخدم:' : 'Athlete:'}</strong> ${settings.name || (isArabic ? 'رياضي WHOOP' : 'WHOOP Athlete')}</div>
+    <div><strong>${isArabic ? 'العمر / الجنس:' : 'Age / Gender:'}</strong> ${settings.age} / ${settings.gender === 'male' ? (isArabic ? 'ذكر' : 'MALE') : (isArabic ? 'أنثى' : 'FEMALE')}</div>
+    <div><strong>${isArabic ? 'إصدار السوار:' : 'Firmware / Hardware:'}</strong> ${metadata.firmwareRevision || 'WHOOP Gen4'} / ${metadata.hardwareRevision || '4.0'}</div>
+    <div><strong>${isArabic ? 'الجهد اليومي / الاستشفاء:' : 'Daily Strain / Recovery:'}</strong> ${metrics.dailyStrain.toFixed(1)} / ${metrics.recoveryScore !== null ? `${metrics.recoveryScore}%` : (isArabic ? 'قيد المعايرة' : 'Calibrating')}</div>
   </div>
 
   <table class="metric-table">
     <thead>
       <tr>
-        <th>Biometric Parameter</th>
-        <th>Recorded Value</th>
-        <th>Clinical Baseline</th>
-        <th>Autonomic Status</th>
+        <th>${isArabic ? 'المؤشر الفسيولوجي' : 'Biometric Parameter'}</th>
+        <th>${isArabic ? 'القيمة المسجلة' : 'Recorded Value'}</th>
+        <th>${isArabic ? 'خط الأساس السريري' : 'Clinical Baseline'}</th>
+        <th>${isArabic ? 'الحالة العصبية والفسيولوجية' : 'Autonomic Status'}</th>
       </tr>
     </thead>
     <tbody>
       <tr>
-        <td><strong>Resting Heart Rate (RHR)</strong></td>
-        <td>${metrics.restingHr !== null ? `${metrics.restingHr} BPM` : 'Calibrating (--)'}</td>
-        <td>${settings.restingHrBaseline} BPM</td>
-        <td><span class="status-badge">${metrics.restingHr !== null ? 'Within Typical Range' : 'Calibrating'}</span></td>
+        <td><strong>${isArabic ? 'نبض القلب وقت الراحة (RHR)' : 'Resting Heart Rate (RHR)'}</strong></td>
+        <td>${metrics.restingHr !== null ? `${metrics.restingHr} ${isArabic ? 'ن/د' : 'BPM'}` : (isArabic ? 'قيد المعايرة (--)' : 'Calibrating (--)')}</td>
+        <td>${settings.restingHrBaseline} ${isArabic ? 'ن/د' : 'BPM'}</td>
+        <td><span class="status-badge">${metrics.restingHr !== null ? (isArabic ? 'ضمن النطاق المعتاد' : 'Within Typical Range') : (isArabic ? 'قيد المعايرة' : 'Calibrating')}</span></td>
       </tr>
       <tr>
-        <td><strong>Heart Rate Variability (HRV RMSSD)</strong></td>
-        <td>${metrics.currentHrv !== null ? `${metrics.currentHrv} ms` : 'Calibrating (--)'}</td>
-        <td>${settings.hrvBaseline} ms</td>
-        <td><span class="status-badge">${metrics.currentHrv !== null ? 'Normal Autonomic Tone' : 'Calibrating'}</span></td>
+        <td><strong>${isArabic ? 'تباين معدل ضربات القلب (HRV RMSSD)' : 'Heart Rate Variability (HRV RMSSD)'}</strong></td>
+        <td>${metrics.currentHrv !== null ? `${metrics.currentHrv} ${isArabic ? 'مللي ثانية' : 'ms'}` : (isArabic ? 'قيد المعايرة (--)' : 'Calibrating (--)')}</td>
+        <td>${settings.hrvBaseline} ${isArabic ? 'مللي ثانية' : 'ms'}</td>
+        <td><span class="status-badge">${metrics.currentHrv !== null ? (isArabic ? 'نشاط لاودي طبيعي' : 'Normal Autonomic Tone') : (isArabic ? 'قيد المعايرة' : 'Calibrating')}</span></td>
       </tr>
       <tr>
-        <td><strong>Respiratory Rate (RSA derived)</strong></td>
-        <td>${metrics.respiratoryRate !== null ? `${metrics.respiratoryRate} RPM` : 'Calibrating (--)'}</td>
-        <td>13.0 - 16.5 RPM</td>
-        <td><span class="status-badge">${metrics.respiratoryRate !== null ? 'Within Range' : 'Calibrating'}</span></td>
+        <td><strong>${isArabic ? 'معدل التنفس (RSA Respiratory Rate)' : 'Respiratory Rate (RSA derived)'}</strong></td>
+        <td>${metrics.respiratoryRate !== null ? `${metrics.respiratoryRate} ${isArabic ? 'د/د' : 'RPM'}` : (isArabic ? 'قيد المعايرة (--)' : 'Calibrating (--)')}</td>
+        <td>13.0 - 16.5 ${isArabic ? 'دورة/دقيقة' : 'RPM'}</td>
+        <td><span class="status-badge">${metrics.respiratoryRate !== null ? (isArabic ? 'معدل مثالي' : 'Within Range') : (isArabic ? 'قيد المعايرة' : 'Calibrating')}</span></td>
       </tr>
       <tr>
-        <td><strong>Blood Oxygen Saturation (SpO2)</strong></td>
-        <td>${metrics.spO2 !== null ? `${metrics.spO2}%` : 'Calibrating (--)'}</td>
+        <td><strong>${isArabic ? 'تشبع الأكسجين في الدم (SpO2)' : 'Blood Oxygen Saturation (SpO2)'}</strong></td>
+        <td>${metrics.spO2 !== null ? `${metrics.spO2}%` : (isArabic ? 'قيد المعايرة (--)' : 'Calibrating (--)')}</td>
         <td>95% - 100%</td>
-        <td><span class="status-badge">${metrics.spO2 !== null ? 'Optimal Saturation' : 'Calibrating'}</span></td>
+        <td><span class="status-badge">${metrics.spO2 !== null ? (isArabic ? 'تشبع ممتاز' : 'Optimal Saturation') : (isArabic ? 'قيد المعايرة' : 'Calibrating')}</span></td>
       </tr>
       <tr>
-        <td><strong>Skin Temperature Delta</strong></td>
-        <td>${metrics.skinTempCelsius !== null ? `${metrics.skinTempCelsius >= 0 ? '+' : ''}${metrics.skinTempCelsius.toFixed(1)} °C` : 'Calibrating (--)'}</td>
+        <td><strong>${isArabic ? 'تغير درجة حرارة الجلد' : 'Skin Temperature Delta'}</strong></td>
+        <td>${metrics.skinTempCelsius !== null ? `${metrics.skinTempCelsius >= 0 ? '+' : ''}${metrics.skinTempCelsius.toFixed(1)} °C` : (isArabic ? 'قيد المعايرة (--)' : 'Calibrating (--)')}</td>
         <td>-0.5°C to +0.5°C</td>
-        <td><span class="status-badge">${metrics.skinTempCelsius !== null ? 'Afebrile / Baseline' : 'Calibrating'}</span></td>
+        <td><span class="status-badge">${metrics.skinTempCelsius !== null ? (isArabic ? 'حرارة طبيعية / خط الأساس' : 'Afebrile / Baseline') : (isArabic ? 'قيد المعايرة' : 'Calibrating')}</span></td>
       </tr>
     </tbody>
   </table>
 
   <div class="footer">
-    This physiological report was recorded locally via WHOOP 4.0 Web Bluetooth telemetry. For clinical assessment, consult your board-certified physician or healthcare practitioner.
+    ${isArabic
+      ? 'تم تسجيل هذا التقرير الفسيولوجي محلياً عبر حساسات سوار WHOOP 4.0 بتقنية Web Bluetooth. هذا التقرير للمتابعة الرياضية والفسيولوجية، وللتقييم الطبي يرجى استشارة الطبيب المختص.'
+      : 'This physiological report was recorded locally via WHOOP 4.0 Web Bluetooth telemetry. For clinical assessment, consult your board-certified physician or healthcare practitioner.'}
   </div>
 
   <script>

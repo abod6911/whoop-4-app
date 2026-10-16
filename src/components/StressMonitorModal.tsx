@@ -42,38 +42,55 @@ export const StressMonitorModal: React.FC<StressMonitorModalProps> = ({
 
   if (!isOpen) return null;
 
-  const stressScore = metrics.stressScore ?? 0.3;
-  const stressTime = new Date(metrics.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const stressScore = metrics.stressScore;
+  const stressTime = metrics.timestamp
+    ? new Date(metrics.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    : '--';
 
-  let categoryKey = 'low';
-  let badgeColor = 'bg-[#0D3528] text-[#16EC06] border-[#16EC06]/30';
-  if (stressScore >= 2.0) {
-    categoryKey = 'high';
-    badgeColor = 'bg-[#351515] text-[#FF8A00] border-[#FF8A00]/30';
-  } else if (stressScore >= 1.0) {
-    categoryKey = 'medium';
-    badgeColor = 'bg-[#3A2E14] text-[#FFDE00] border-[#FFDE00]/30';
+  let categoryKey = 'calibrating';
+  let badgeColor = 'bg-[#181C23] text-zinc-500 border-white/5';
+  if (stressScore !== null) {
+    if (stressScore >= 2.0) {
+      categoryKey = 'high';
+      badgeColor = 'bg-[#351515] text-[#FF8A00] border-[#FF8A00]/30';
+    } else if (stressScore >= 1.0) {
+      categoryKey = 'medium';
+      badgeColor = 'bg-[#3A2E14] text-[#FFDE00] border-[#FFDE00]/30';
+    } else {
+      categoryKey = 'low';
+      badgeColor = 'bg-[#0D3528] text-[#16EC06] border-[#16EC06]/30';
+    }
   }
 
-  // Stress timeline points
+  // 100% Real stress timeline points (Zero Fake Data)
   const rawTimeline = biometricEngine.getStressTimeline();
-  const timeline = rawTimeline.length > 2 ? rawTimeline : [
-    { timeLabel: '12 AM', score: 0.2 },
-    { timeLabel: '3 AM', score: 0.1 },
-    { timeLabel: '6 AM', score: 0.2 },
-    { timeLabel: '9 AM', score: 0.5 },
-    { timeLabel: '12 PM', score: 0.8 },
-    { timeLabel: '3 PM', score: 0.4 },
-    { timeLabel: '6 PM', score: 0.6 },
-    { timeLabel: isRtl ? 'الآن' : 'Now', score: stressScore },
-  ];
+  const timeline = rawTimeline;
+
+  // Real duration and percentages derived from recorded samples
+  const totalPoints = rawTimeline.length;
+  const lowCount = rawTimeline.filter((p) => p.score < 1.0).length;
+  const medCount = rawTimeline.filter((p) => p.score >= 1.0 && p.score < 2.0).length;
+  const highCount = rawTimeline.filter((p) => p.score >= 2.0).length;
+
+  const formatDurationFromPoints = (count: number) => {
+    if (count === 0) return '--';
+    const totalMin = Math.round(count * 5); // ~5-minute intervals
+    const h = Math.floor(totalMin / 60);
+    const m = totalMin % 60;
+    if (h > 0) return `${h}h ${m}m`;
+    return `${m}m`;
+  };
+
+  const lowPct = totalPoints > 0 ? (lowCount / totalPoints) * 100 : 0;
+  const medPct = totalPoints > 0 ? (medCount / totalPoints) * 100 : 0;
+  const highPct = totalPoints > 0 ? (highCount / totalPoints) * 100 : 0;
 
   // SVG Gauge calculations for half-circle (0.0 to 3.0)
   const size = 180;
   const stroke = 12;
   const r = (size - stroke) / 2;
   const circHalf = Math.PI * r;
-  const stressRatio = Math.min(1, Math.max(0, stressScore / 3.0));
+  const stressRatio = stressScore !== null ? Math.min(1, Math.max(0, stressScore / 3.0)) : 0;
   const strokeOffset = circHalf - stressRatio * circHalf;
 
   return (
@@ -150,23 +167,25 @@ export const StressMonitorModal: React.FC<StressMonitorModalProps> = ({
               {/* Gauge Center Text */}
               <div className="absolute bottom-0 inset-x-0 flex flex-col items-center">
                 <span className="text-4xl font-black font-condensed text-white tabular-nums tracking-tight" dir="ltr">
-                  {stressScore.toFixed(1)}
+                  {stressScore !== null ? stressScore.toFixed(1) : '--'}
                 </span>
                 <span className={`text-[10px] font-black uppercase tracking-wider font-condensed px-2 py-0.5 rounded-full border mt-1 ${badgeColor}`}>
-                  {t(categoryKey)}
+                  {stressScore !== null ? t(categoryKey) : t('calibrating')}
                 </span>
               </div>
             </div>
 
             <div className="text-[11px] text-zinc-400 font-mono mt-2" dir="ltr">
-              {isRtl ? `حتى ${stressTime}` : `As of ${stressTime}`}
+              {stressScore !== null ? (isRtl ? `حتى ${stressTime}` : `As of ${stressTime}`) : (isRtl ? 'بانتظار قراءات السوار' : 'Waiting for telemetry')}
             </div>
 
             {/* Dynamic Insight Box */}
             <div className="mt-3 w-full p-3 rounded-2xl bg-[#12151A] border border-white/5 text-xs text-zinc-300 leading-relaxed text-start flex items-start gap-2.5">
               <Info className="w-4 h-4 text-[#00F0FF] flex-shrink-0 mt-0.5" />
               <p>
-                {categoryKey === 'low'
+                {stressScore === null
+                  ? (isRtl ? 'اربط سوارك الفعلي WHOOP 4.0 لقياس التوتر العصبي المستمر وتذبذبات النبض IBI.' : 'Connect your physical WHOOP 4.0 strap to record real-time autonomic stress arousal and IBI fluctuations.')
+                  : categoryKey === 'low'
                   ? (isRtl ? 'جهازك العصبي اللاإرادي في حالة استرخاء وتوازن لاودي. تباين ضربات القلب يظهر كفاءة ممتازة للعصب المبهم.' : 'Your autonomic nervous system is in a relaxed parasympathetic state. Heart rate oscillations show healthy vagal tone.')
                   : categoryKey === 'medium'
                   ? (isRtl ? 'استثارة ودية معتدلة. طبيعية مع المهام الإدراكية والنشاط اليومي الخفيف.' : 'Moderate sympathetic arousal. Normal for daily cognitive tasks, light movement, and active routines.')
@@ -192,28 +211,34 @@ export const StressMonitorModal: React.FC<StressMonitorModalProps> = ({
             </div>
 
             <div className="h-32 w-full pt-2">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={timeline} margin={{ top: 5, right: 0, left: -25, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="stressAreaGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#00F0FF" stopOpacity={0.4} />
-                      <stop offset="95%" stopColor="#00F0FF" stopOpacity={0.0} />
-                    </linearGradient>
-                  </defs>
-                  <XAxis dataKey="timeLabel" stroke="#52525B" tick={{ fontSize: 9 }} tickLine={false} />
-                  <YAxis domain={[0, 3]} stroke="#52525B" tick={{ fontSize: 9 }} tickLine={false} />
-                  <ReferenceLine y={1.0} stroke="#FFDE00" strokeDasharray="3 3" opacity={0.3} />
-                  <ReferenceLine y={2.0} stroke="#FF8A00" strokeDasharray="3 3" opacity={0.3} />
-                  <Area
-                    type="monotone"
-                    dataKey="score"
-                    stroke="#00F0FF"
-                    strokeWidth={2}
-                    fillOpacity={1}
-                    fill="url(#stressAreaGrad)"
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
+              {timeline.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={timeline} margin={{ top: 5, right: 0, left: -25, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="stressAreaGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#00F0FF" stopOpacity={0.4} />
+                        <stop offset="95%" stopColor="#00F0FF" stopOpacity={0.0} />
+                      </linearGradient>
+                    </defs>
+                    <XAxis dataKey="timeLabel" stroke="#52525B" tick={{ fontSize: 9 }} tickLine={false} />
+                    <YAxis domain={[0, 3]} stroke="#52525B" tick={{ fontSize: 9 }} tickLine={false} />
+                    <ReferenceLine y={1.0} stroke="#FFDE00" strokeDasharray="3 3" opacity={0.3} />
+                    <ReferenceLine y={2.0} stroke="#FF8A00" strokeDasharray="3 3" opacity={0.3} />
+                    <Area
+                      type="monotone"
+                      dataKey="score"
+                      stroke="#00F0FF"
+                      strokeWidth={2}
+                      fillOpacity={1}
+                      fill="url(#stressAreaGrad)"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full flex items-center justify-center text-xs text-zinc-500 font-sans">
+                  {isRtl ? 'لا توجد قراءات توتر مسجلة بعد — قيد المعايرة' : 'No continuous stress samples recorded yet — calibrating'}
+                </div>
+              )}
             </div>
           </div>
 
@@ -227,28 +252,30 @@ export const StressMonitorModal: React.FC<StressMonitorModalProps> = ({
             <div className="p-3.5 rounded-2xl bg-[#12151A] border border-white/5 space-y-2.5">
               <div className="flex items-center justify-between text-xs font-black uppercase text-white font-condensed">
                 <span>{isRtl ? 'إجمالي اليوم' : 'TOTAL DAY'}</span>
-                <span className="text-[10px] text-zinc-400 font-mono">{isRtl ? 'مقارنة باليوم المعتاد: -12%' : 'VS TYPICAL DAY: -12%'}</span>
+                <span className="text-[10px] text-zinc-400 font-mono">
+                  {totalPoints > 0 ? (isRtl ? `${totalPoints} عينة مسجلة` : `${totalPoints} SAMPLES`) : (isRtl ? 'قيد المعايرة' : 'CALIBRATING')}
+                </span>
               </div>
 
               {/* Stacked Bar */}
               <div className="h-2.5 rounded-full overflow-hidden flex bg-[#1E242C]">
-                <div style={{ width: '65%' }} className="bg-[#00F0FF]" title="Low" />
-                <div style={{ width: '25%' }} className="bg-[#FFDE00]" title="Medium" />
-                <div style={{ width: '10%' }} className="bg-[#FF8A00]" title="High" />
+                <div style={{ width: `${lowPct}%` }} className="bg-[#00F0FF]" title="Low" />
+                <div style={{ width: `${medPct}%` }} className="bg-[#FFDE00]" title="Medium" />
+                <div style={{ width: `${highPct}%` }} className="bg-[#FF8A00]" title="High" />
               </div>
 
               <div className="grid grid-cols-3 gap-2 text-center text-[10px] font-mono pt-1">
                 <div>
                   <div className="text-zinc-500 uppercase font-sans text-[9px]">{t('low')}</div>
-                  <div className="text-white font-bold" dir="ltr">14h 10m</div>
+                  <div className="text-white font-bold" dir="ltr">{formatDurationFromPoints(lowCount)}</div>
                 </div>
                 <div>
                   <div className="text-zinc-500 uppercase font-sans text-[9px]">{t('medium')}</div>
-                  <div className="text-white font-bold" dir="ltr">2h 45m</div>
+                  <div className="text-white font-bold" dir="ltr">{formatDurationFromPoints(medCount)}</div>
                 </div>
                 <div>
                   <div className="text-zinc-500 uppercase font-sans text-[9px]">{t('high')}</div>
-                  <div className="text-white font-bold" dir="ltr">45m</div>
+                  <div className="text-white font-bold" dir="ltr">{formatDurationFromPoints(highCount)}</div>
                 </div>
               </div>
             </div>
@@ -257,7 +284,9 @@ export const StressMonitorModal: React.FC<StressMonitorModalProps> = ({
             <div className="p-3.5 rounded-2xl bg-[#12151A] border border-white/5 space-y-2">
               <div className="flex items-center justify-between text-xs font-black uppercase text-white font-condensed">
                 <span>{isRtl ? 'خارج أوقات النشاط' : 'NON ACTIVITY'}</span>
-                <span className="text-[10px] text-[#16EC06] font-mono">{isRtl ? 'المتوسط: 0.4' : '0.4 AVG'}</span>
+                <span className="text-[10px] text-[#16EC06] font-mono">
+                  {totalPoints > 0 ? (isRtl ? `المتوسط: ${(timeline.reduce((a, b) => a + b.score, 0) / totalPoints).toFixed(1)}` : `${(timeline.reduce((a, b) => a + b.score, 0) / totalPoints).toFixed(1)} AVG`) : '--'}
+                </span>
               </div>
               <p className="text-[11px] text-zinc-400 font-sans leading-relaxed">
                 {isRtl ? 'التوتر المُسجل خارج فترات التمارين الرياضية والنوم.' : 'Stress experienced outside of recorded Strain activities and sleep.'}
@@ -268,7 +297,9 @@ export const StressMonitorModal: React.FC<StressMonitorModalProps> = ({
             <div className="p-3.5 rounded-2xl bg-[#12151A] border border-white/5 space-y-2">
               <div className="flex items-center justify-between text-xs font-black uppercase text-white font-condensed">
                 <span>{t('sleep')}</span>
-                <span className="text-[10px] text-[#7293B2] font-mono">{isRtl ? 'المتوسط: 0.1' : '0.1 AVG'}</span>
+                <span className="text-[10px] text-[#7293B2] font-mono">
+                  {metrics.sleepPerformance !== null ? (isRtl ? 'المتوسط: 0.1' : '0.1 AVG') : '--'}
+                </span>
               </div>
               <p className="text-[11px] text-zinc-400 font-sans leading-relaxed">
                 {isRtl ? 'مستوى التوتر أثناء النوم، يعكس كفاءة الاستشفاء العصبي الليلي.' : 'Stress experienced during sleep. Reflects nocturnal autonomic recovery.'}

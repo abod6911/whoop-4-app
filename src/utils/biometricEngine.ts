@@ -526,6 +526,38 @@ export class BiometricEngine {
     return { score, category };
   }
 
+  // --- Apply Manual Morning Recovery Assessment from 3-Min Resonant Protocol ---
+  public applyManualRecoveryAssessment(
+    score: number,
+    category: 'green' | 'yellow' | 'red',
+    rhr: number,
+    hrv: number
+  ): void {
+    this.realRhrObserved = rhr;
+    // Preload representative RR interval from HRV & RHR into buffer
+    const rrEstimate = Math.round(60000.0 / rhr);
+    if (this.rrBuffer.length === 0) {
+      this.rrBuffer = [rrEstimate, rrEstimate + hrv, rrEstimate - hrv, rrEstimate];
+    }
+    const todayStr = new Date().toISOString().split('T')[0];
+    const saved = storageService.getRealDayState(todayStr) || {
+      dayStrain: this.dailyStrain,
+      activeCalories: this.activeCalories,
+      rhr,
+      hrv,
+      recoveryScore: score,
+      recoveryCategory: category,
+      zoneSeconds: { ...this.zoneSeconds },
+      stressPoints: [...this.stressPoints],
+    };
+    saved.rhr = rhr;
+    saved.hrv = hrv;
+    saved.recoveryScore = score;
+    saved.recoveryCategory = category;
+    storageService.saveRealDayState(todayStr, saved);
+    this.persistTodayRealState();
+  }
+
   private approxErf(x: number): number {
     const sign = x >= 0 ? 1 : -1;
     const a1 = 0.254829592;
