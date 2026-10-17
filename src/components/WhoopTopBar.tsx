@@ -14,6 +14,7 @@ interface WhoopTopBarProps {
   selectedDate: string;
   onPrevDate: () => void;
   onNextDate: () => void;
+  onOpenCalendar?: () => void;
 }
 
 export const SignalBarsIcon: React.FC<{ isConnected: boolean; className?: string }> = ({
@@ -71,6 +72,7 @@ export const WhoopTopBar: React.FC<WhoopTopBarProps> = ({
   selectedDate,
   onPrevDate,
   onNextDate,
+  onOpenCalendar,
 }) => {
   const { t, isRtl } = useLanguage();
   const isBatteryLow = metadata.batteryLevel !== null && metadata.batteryLevel < 15;
@@ -107,6 +109,25 @@ export const WhoopTopBar: React.FC<WhoopTopBarProps> = ({
 
   return (
     <div className="sticky top-0 z-40 bg-[#0B0D10]/95 backdrop-blur-md border-b border-white/5">
+      {/* Catch-Up Sync Animated Progress Banner */}
+      {metadata.isSyncing && (
+        <div className="w-full bg-[#00A3FF]/15 border-b border-[#00A3FF]/30 px-4 py-1.5 flex items-center justify-between text-[10px] font-condensed font-bold text-[#00A3FF]">
+          <div className="flex items-center gap-2 animate-pulse">
+            <span className="w-2 h-2 rounded-full bg-[#00A3FF]" />
+            <span>{metadata.syncStatusText || (isRtl ? 'جاري مزامنة ذاكرة السوار...' : 'Syncing strap memory...')}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="tabular-nums font-black">{metadata.syncProgress ?? 0}%</span>
+            <div className="w-16 h-1.5 bg-black/50 rounded-full overflow-hidden border border-white/10">
+              <div
+                className="h-full bg-gradient-to-r from-[#00A3FF] to-[#16EC06] transition-all duration-300"
+                style={{ width: `${metadata.syncProgress ?? 0}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Row 1: Top Bar (00:00 in Video) */}
       <div className="px-4 pt-3 pb-2 flex items-center justify-between gap-2 max-w-[430px] mx-auto">
         {/* Left: Neutral User Avatar Circle (AB) + Notification Bell Badge */}
@@ -137,7 +158,7 @@ export const WhoopTopBar: React.FC<WhoopTopBarProps> = ({
           </button>
         </div>
 
-        {/* Center: Date Selector < TODAY > with Chevrons */}
+        {/* Center: Date Selector < TODAY > with Chevrons and Click-to-Calendar */}
         <div className="flex items-center gap-0.5 bg-[#1C212B] px-2 py-1 rounded-full border border-white/5">
           <button
             onClick={onPrevDate}
@@ -146,9 +167,13 @@ export const WhoopTopBar: React.FC<WhoopTopBarProps> = ({
           >
             <ChevronLeft className={`w-3.5 h-3.5 ${isRtl ? 'rotate-180' : ''}`} />
           </button>
-          <span className="text-[11px] font-black uppercase text-white font-condensed tracking-widest px-2.5">
+          <button
+            onClick={onOpenCalendar}
+            className="text-[11px] font-black uppercase text-white font-condensed tracking-widest px-2.5 hover:text-[#00A3FF] transition-colors active:scale-95"
+            title={isRtl ? 'فتح تقويم الدورات الفسيولوجية' : 'Open Cycles Calendar'}
+          >
             {getLocalizedDate(selectedDate)}
-          </span>
+          </button>
           <button
             onClick={onNextDate}
             className="p-0.5 text-zinc-400 hover:text-white transition-colors"

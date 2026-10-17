@@ -95,10 +95,13 @@ export interface PoincarePoint {
 export interface DailyRecoveryLock {
   date: string;              // YYYY-MM-DD (localDateKey)
   recoveryScore: number;     // 1 - 100% (LOCKED for the day)
-  recoveryCategory: 'green' | 'yellow' | 'red';
+  recoveryCategory: 'green' | 'yellow' | 'red' | 'calibrating';
   lockedHrv: number;         // Morning / Sleep baseline RMSSD (ms)
   lockedRhr: number;         // Morning / Sleep Resting HR (bpm)
   lockedRespiratoryRate: number | null;
+  lockedSkinTempCelsius?: number | null;
+  lockedSkinTempDelta?: number | null;
+  lockedSpO2?: number | null;
   lockedAt: number;          // Timestamp when locked
   source: 'sleep' | 'morning_test' | 'initial_calibration';
 }
@@ -107,6 +110,10 @@ export interface LiveMetrics {
   currentHr: number | null;
   currentHrv: number | null; // RMSSD in ms (Live Daytime HRV)
   lockedHrv?: number | null; // Morning / Baseline RMSSD locked for today
+  lockedRespiratoryRate?: number | null;
+  lockedSkinTempCelsius?: number | null;
+  lockedSkinTempDelta?: number | null;
+  lockedSpO2?: number | null;
   dailyRecoveryLock?: DailyRecoveryLock | null;
   sdnn: number | null;
   meanRR: number | null;
@@ -165,6 +172,9 @@ export interface DeviceMetadata {
   rssi?: number | null;
   packetsPerMinute?: number;
   lastPacketTimestamp?: number | null;
+  isSyncing?: boolean;
+  syncProgress?: number;
+  syncStatusText?: string;
 }
 
 export type SessionType = 'workout' | 'sleep' | 'recovery_test';
@@ -204,12 +214,23 @@ export interface DayHistoryRecord {
   sleepNeededHours?: number | null;
   deepHours?: number | null;
   remHours?: number | null;
+  lightHours?: number | null;
+  awakeHours?: number | null;
   sleepEfficiency?: number | null;
   bedtime?: string | null;
   wakeTime?: string | null;
+  sleepTimeline?: SleepStagePoint[];
   rhr: number | null;
   hrv: number | null;
+  respiratoryRate?: number | null;
+  skinTempCelsius?: number | null;
+  skinTempDelta?: number | null;
+  spO2?: number | null;
   activeCalories: number;
+  bmrCalories?: number;
+  totalCalories?: number;
+  steps?: number;
+  zoneSeconds?: Record<number, number>;
   sessions: SessionRecord[];
   stressPoints?: StressPoint[];
   hasRealData: boolean;
@@ -317,6 +338,11 @@ export interface DailyRecordEntity {
   cadence: number;
   rhr: number | null;
   hrv: number | null;
+  respiratoryRate?: number | null;
+  skinTempCelsius?: number | null;
+  skinTempDelta: number | null;
+  spO2?: number | null;
+  spO2Avg: number | null;
   sleepPerformance: number | null;
   hoursAsleep: number | null;
   hoursInBed: number | null;
@@ -325,12 +351,15 @@ export interface DailyRecordEntity {
   sleepNeededHours?: number | null;
   deepHours?: number | null;
   remHours?: number | null;
+  lightHours?: number | null;
+  awakeHours?: number | null;
   sleepEfficiency?: number | null;
   bedtime?: string | null;
   wakeTime?: string | null;
+  sleepTimeline?: SleepStagePoint[];
+  stressTimeline?: StressPoint[];
+  workouts?: SessionRecord[];
   stressAvg: number | null;
-  skinTempDelta: number | null;
-  spO2Avg: number | null;
   zoneSeconds: Record<number, number>;
 }
 

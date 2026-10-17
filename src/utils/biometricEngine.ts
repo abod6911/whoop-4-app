@@ -128,6 +128,15 @@ export class BiometricEngine {
         const parsed = JSON.parse(dailyLockRaw) as DailyRecoveryLock;
         if (parsed && typeof parsed.recoveryScore === 'number' && parsed.date === todayStr) {
           this.dailyRecoveryLock = parsed;
+          if (parsed.lockedSkinTempCelsius !== undefined && parsed.lockedSkinTempCelsius !== null) {
+            this.skinTempCelsius = parsed.lockedSkinTempCelsius;
+          }
+          if (parsed.lockedSkinTempDelta !== undefined && parsed.lockedSkinTempDelta !== null) {
+            this.skinTempDelta = parsed.lockedSkinTempDelta;
+          }
+          if (parsed.lockedSpO2 !== undefined && parsed.lockedSpO2 !== null) {
+            this.spO2 = parsed.lockedSpO2;
+          }
         }
       } else {
         const legacyLockRaw = localStorage.getItem(`whoop_recovery_lock_${todayStr}`);
@@ -141,6 +150,9 @@ export class BiometricEngine {
               lockedHrv: parsedLegacy.morningHrv ?? this.userSettings.hrvBaseline,
               lockedRhr: parsedLegacy.morningRhr ?? this.userSettings.restingHrBaseline,
               lockedRespiratoryRate: null,
+              lockedSkinTempCelsius: null,
+              lockedSkinTempDelta: null,
+              lockedSpO2: null,
               lockedAt: parsedLegacy.lockedAt || Date.now(),
               source: 'morning_test',
             };
@@ -182,6 +194,15 @@ export class BiometricEngine {
       this.zoneSeconds = saved.zoneSeconds || { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
       this.realRhrObserved = saved.rhr || null;
       this.stressPoints = saved.stressPoints || [];
+      if (saved.skinTempCelsius !== undefined && saved.skinTempCelsius !== null) {
+        this.skinTempCelsius = saved.skinTempCelsius;
+      }
+      if (saved.skinTempDelta !== undefined && saved.skinTempDelta !== null) {
+        this.skinTempDelta = saved.skinTempDelta;
+      }
+      if (saved.spO2 !== undefined && saved.spO2 !== null) {
+        this.spO2 = saved.spO2;
+      }
 
       // If today has a persisted recovery score but memory lock was not loaded, lock it to prevent fluctuation
       if (!this.dailyRecoveryLock && typeof saved.recoveryScore === 'number' && saved.recoveryScore > 0) {
@@ -191,7 +212,10 @@ export class BiometricEngine {
           recoveryCategory: (saved.recoveryCategory as 'green' | 'yellow' | 'red') || 'yellow',
           lockedHrv: saved.hrv || this.userSettings.hrvBaseline,
           lockedRhr: saved.rhr || this.userSettings.restingHrBaseline,
-          lockedRespiratoryRate: null,
+          lockedRespiratoryRate: saved.respiratoryRate ?? null,
+          lockedSkinTempCelsius: saved.skinTempCelsius ?? null,
+          lockedSkinTempDelta: saved.skinTempDelta ?? null,
+          lockedSpO2: saved.spO2 ?? null,
           lockedAt: Date.now(),
           source: 'initial_calibration',
         };
@@ -212,6 +236,10 @@ export class BiometricEngine {
     const lock = this.getDailyRecoveryLock();
     const effectiveHrv = lock?.lockedHrv ?? currentHrv;
     const effectiveRhr = lock?.lockedRhr ?? rhr;
+    const effectiveResp = lock?.lockedRespiratoryRate ?? this.calculateRespiratoryRate();
+    const effectiveSkinTempCelsius = lock?.lockedSkinTempCelsius ?? this.skinTempCelsius;
+    const effectiveSkinTempDelta = lock?.lockedSkinTempDelta ?? this.skinTempDelta;
+    const effectiveSpO2 = lock?.lockedSpO2 ?? this.spO2 ?? this.getSpO2NightlyAvg();
     const pedo = pedometerEngine.getState();
     const bmrToday = this.getBmrCaloriesElapsedToday();
     const totalCal = Math.round(bmrToday + this.activeCalories);
@@ -222,6 +250,15 @@ export class BiometricEngine {
     const remHours = sleepMetrics.hoursAsleep
       ? Number((sleepMetrics.hoursAsleep * (sleepMetrics.stages.remPercent / 100)).toFixed(2))
       : null;
+    const lightHours = sleepMetrics.hoursAsleep
+      ? Number((sleepMetrics.hoursAsleep * (sleepMetrics.stages.lightPercent / 100)).toFixed(2))
+      : null;
+    const awakeHours = sleepMetrics.hoursInBed && sleepMetrics.hoursAsleep
+      ? Number(Math.max(0, sleepMetrics.hoursInBed - sleepMetrics.hoursAsleep).toFixed(2))
+      : null;
+    const workouts = storageService.getWorkoutsForDate(todayStr);
+    const sleepTimeline = sleepEngine.getHypnogram();
+    const stressTimeline = this.stressPoints.slice(-120);
 
     // Persist to caloriesEngine
     caloriesEngine.persistState(todayStr);
@@ -234,7 +271,7 @@ export class BiometricEngine {
       recoveryScore: recovery.score,
       recoveryCategory: recovery.category,
       zoneSeconds: this.zoneSeconds,
-      stressPoints: this.stressPoints.slice(-120), // keep latest 120 timeline points
+      stressPoints: stressTimeline,
       sleepPerformance: sleepMetrics.sleepPerformance,
       hoursAsleep: sleepMetrics.hoursAsleep,
       hoursInBed: sleepMetrics.hoursInBed,
@@ -243,9 +280,15 @@ export class BiometricEngine {
       sleepNeededHours: sleepMetrics.sleepNeedHours,
       deepHours,
       remHours,
+      lightHours,
+      awakeHours,
       sleepEfficiency: sleepMetrics.efficiencyPercent,
       bedtime: sleepTimes.onsetTime,
       wakeTime: sleepTimes.wakeTime,
+      respiratoryRate: effectiveResp,
+      skinTempCelsius: effectiveSkinTempCelsius,
+      skinTempDelta: effectiveSkinTempDelta,
+      spO2: effectiveSpO2,
     };
 
     storageService.saveRealDayState(todayStr, snapshot);
@@ -258,6 +301,8 @@ export class BiometricEngine {
         bmrCalories: bmrToday,
         totalCalories: totalCal,
         steps: pedo.steps,
+        workouts,
+        sleepTimeline,
         updatedAt: Date.now(),
       }));
     } catch {}
@@ -276,6 +321,10 @@ export class BiometricEngine {
       cadence: pedo.cadence,
       rhr: effectiveRhr,
       hrv: effectiveHrv,
+      respiratoryRate: effectiveResp,
+      skinTempCelsius: effectiveSkinTempCelsius,
+      skinTempDelta: effectiveSkinTempDelta,
+      spO2: effectiveSpO2,
       sleepPerformance: sleepMetrics.sleepPerformance,
       hoursAsleep: sleepMetrics.hoursAsleep,
       hoursInBed: sleepMetrics.hoursInBed,
@@ -284,13 +333,17 @@ export class BiometricEngine {
       sleepNeededHours: sleepMetrics.sleepNeedHours,
       deepHours,
       remHours,
+      lightHours,
+      awakeHours,
       sleepEfficiency: sleepMetrics.efficiencyPercent,
       bedtime: sleepTimes.onsetTime,
       wakeTime: sleepTimes.wakeTime,
       stressAvg: this.currentStressScore,
-      skinTempDelta: this.skinTempDelta,
       spO2Avg: this.getSpO2NightlyAvg(),
       zoneSeconds: { ...this.zoneSeconds },
+      sleepTimeline,
+      stressTimeline,
+      workouts,
     }).catch(() => {});
   }
 
@@ -796,19 +849,26 @@ export class BiometricEngine {
   }
 
   public lockDailyRecovery(lock: DailyRecoveryLock): void {
-    this.dailyRecoveryLock = lock;
-    const todayStr = lock.date || localDateKey();
+    const completeLock: DailyRecoveryLock = {
+      ...lock,
+      lockedRespiratoryRate: lock.lockedRespiratoryRate ?? this.calculateRespiratoryRate(),
+      lockedSkinTempCelsius: lock.lockedSkinTempCelsius ?? this.skinTempCelsius,
+      lockedSkinTempDelta: lock.lockedSkinTempDelta ?? this.skinTempDelta,
+      lockedSpO2: lock.lockedSpO2 ?? this.spO2 ?? this.getSpO2NightlyAvg(),
+    };
+    this.dailyRecoveryLock = completeLock;
+    const todayStr = completeLock.date || localDateKey();
     try {
-      localStorage.setItem(`whoop_daily_recovery_lock_${todayStr}`, JSON.stringify(lock));
+      localStorage.setItem(`whoop_daily_recovery_lock_${todayStr}`, JSON.stringify(completeLock));
       // Backwards compatibility legacy key
       localStorage.setItem(
         `whoop_recovery_lock_${todayStr}`,
         JSON.stringify({
-          lockedRecoveryScore: lock.recoveryScore,
-          recoveryCategory: lock.recoveryCategory,
-          morningHrv: lock.lockedHrv,
-          morningRhr: lock.lockedRhr,
-          lockedAt: lock.lockedAt,
+          lockedRecoveryScore: completeLock.recoveryScore,
+          recoveryCategory: completeLock.recoveryCategory,
+          morningHrv: completeLock.lockedHrv,
+          morningRhr: completeLock.lockedRhr,
+          lockedAt: completeLock.lockedAt,
         })
       );
     } catch {}
@@ -816,17 +876,21 @@ export class BiometricEngine {
     const saved = storageService.getRealDayState(todayStr) || {
       dayStrain: this.dailyStrain,
       activeCalories: this.activeCalories,
-      rhr: lock.lockedRhr,
-      hrv: lock.lockedHrv,
-      recoveryScore: lock.recoveryScore,
-      recoveryCategory: lock.recoveryCategory,
+      rhr: completeLock.lockedRhr,
+      hrv: completeLock.lockedHrv,
+      recoveryScore: completeLock.recoveryScore,
+      recoveryCategory: completeLock.recoveryCategory,
       zoneSeconds: { ...this.zoneSeconds },
       stressPoints: [...this.stressPoints],
     };
-    saved.rhr = lock.lockedRhr;
-    saved.hrv = lock.lockedHrv;
-    saved.recoveryScore = lock.recoveryScore;
-    saved.recoveryCategory = lock.recoveryCategory;
+    saved.rhr = completeLock.lockedRhr;
+    saved.hrv = completeLock.lockedHrv;
+    saved.recoveryScore = completeLock.recoveryScore;
+    saved.recoveryCategory = completeLock.recoveryCategory;
+    saved.respiratoryRate = completeLock.lockedRespiratoryRate ?? undefined;
+    saved.skinTempCelsius = completeLock.lockedSkinTempCelsius ?? undefined;
+    saved.skinTempDelta = completeLock.lockedSkinTempDelta ?? undefined;
+    saved.spO2 = completeLock.lockedSpO2 ?? undefined;
     storageService.saveRealDayState(todayStr, saved);
   }
 
@@ -1016,10 +1080,11 @@ export class BiometricEngine {
       const isFemale = this.userSettings.gender === 'female';
       const trimpInc = banisterTrimpIncrement(bpm, rhr, maxHr, isFemale, effectiveDt);
       this.trimpAccumulator += trimpInc;
-      this.dailyStrain = this.calculateStrainFromTrimp(this.trimpAccumulator);
+      const newCalculatedStrain = this.calculateStrainFromTrimp(this.trimpAccumulator);
+      this.dailyStrain = Math.max(this.dailyStrain, newCalculatedStrain);
 
       // Net Active Calories Accumulation
-      this.activeCalories += this.calculateCaloriesPerSecond(bpm) * effectiveDt;
+      this.activeCalories = Math.max(this.activeCalories, this.activeCalories + this.calculateCaloriesPerSecond(bpm) * effectiveDt);
 
       // Ingest into Pedometer Activity-Cadence Model
       pedometerEngine.ingestHeartRate(bpm, zone, timestamp, true);
@@ -1069,6 +1134,9 @@ export class BiometricEngine {
           lockedHrv: currentHrv || this.userSettings.hrvBaseline,
           lockedRhr: rhr || this.userSettings.restingHrBaseline,
           lockedRespiratoryRate: this.calculateRespiratoryRate(),
+          lockedSkinTempCelsius: this.skinTempCelsius,
+          lockedSkinTempDelta: this.skinTempDelta,
+          lockedSpO2: this.spO2 ?? this.getSpO2NightlyAvg(),
           lockedAt: Date.now(),
           source: 'sleep',
         });
@@ -1089,6 +1157,9 @@ export class BiometricEngine {
           lockedHrv: currentHrv,
           lockedRhr: initialRhr,
           lockedRespiratoryRate: initialResp,
+          lockedSkinTempCelsius: this.skinTempCelsius,
+          lockedSkinTempDelta: this.skinTempDelta,
+          lockedSpO2: this.spO2 ?? this.getSpO2NightlyAvg(),
           lockedAt: Date.now(),
           source: 'initial_calibration',
         });
@@ -1126,13 +1197,14 @@ export class BiometricEngine {
       this.lastStressTick = timestamp;
       const stressResult = this.computeStressScore(bpm, currentHrv);
       if (stressResult) {
-        this.currentStressScore = stressResult.score;
+        const prevScore = this.currentStressScore ?? stressResult.score;
+        this.currentStressScore = Number((prevScore * 0.75 + stressResult.score * 0.25).toFixed(1));
         const timeLabel = new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         this.stressPoints.push({
           timestamp,
           timeLabel,
-          score: stressResult.score,
-          category: stressResult.category,
+          score: this.currentStressScore,
+          category: this.currentStressScore >= 2.0 ? 'high' : this.currentStressScore >= 1.0 ? 'medium' : 'low',
         });
         if (this.stressPoints.length > 200) this.stressPoints.shift();
 
@@ -1161,6 +1233,11 @@ export class BiometricEngine {
       stressCat = this.currentStressScore >= 2.0 ? 'high' : this.currentStressScore >= 1.0 ? 'medium' : 'low';
     }
 
+    const effectiveResp = lock?.lockedRespiratoryRate ?? respiratoryRate;
+    const effectiveSkinTempCelsius = lock?.lockedSkinTempCelsius ?? this.skinTempCelsius;
+    const effectiveSkinTempDelta = lock?.lockedSkinTempDelta ?? this.skinTempDelta;
+    const effectiveSpO2 = lock?.lockedSpO2 ?? this.spO2;
+
     return {
       currentHr: isBandOnWrist ? bpm : null,
       currentHrv: isBandOnWrist ? currentHrv : null, // Live daytime HRV for real-time stress & ECG wave
@@ -1186,12 +1263,16 @@ export class BiometricEngine {
       currentZone: isBandOnWrist ? this.determineZone(bpm) : 0,
       zoneSeconds: { ...this.zoneSeconds },
       optimalStrainTarget: { min: optimalTargetMin, max: optimalTargetMax },
-      respiratoryRate,
+      respiratoryRate: effectiveResp,
+      lockedRespiratoryRate: lock ? lock.lockedRespiratoryRate : null,
       stressScore: this.currentStressScore,
       stressCategory: stressCat,
-      skinTempCelsius: this.skinTempCelsius,
-      skinTempDelta: this.skinTempDelta,
-      spO2: this.spO2,
+      skinTempCelsius: effectiveSkinTempCelsius,
+      skinTempDelta: effectiveSkinTempDelta,
+      lockedSkinTempCelsius: lock ? lock.lockedSkinTempCelsius : null,
+      lockedSkinTempDelta: lock ? lock.lockedSkinTempDelta : null,
+      spO2: effectiveSpO2,
+      lockedSpO2: lock ? lock.lockedSpO2 : null,
       spO2NightlyAvg: this.getSpO2NightlyAvg(),
       spO2DipsCount: this.spO2DipsCount,
       vo2Max: this.calculateVo2Max(),
@@ -1212,6 +1293,11 @@ export class BiometricEngine {
     const bmrToday = this.getBmrCaloriesElapsedToday();
     const totalCalories = Math.round(bmrToday + (saved?.activeCalories || 0));
     const sleepMetrics = sleepEngine.getSleepMetrics(this.userSettings, saved?.dayStrain || 0);
+
+    const effectiveResp = lock?.lockedRespiratoryRate ?? saved?.respiratoryRate ?? null;
+    const effectiveSkinTempCelsius = lock?.lockedSkinTempCelsius ?? saved?.skinTempCelsius ?? this.skinTempCelsius;
+    const effectiveSkinTempDelta = lock?.lockedSkinTempDelta ?? saved?.skinTempDelta ?? this.skinTempDelta;
+    const effectiveSpO2 = lock?.lockedSpO2 ?? saved?.spO2 ?? this.spO2;
 
     return {
       currentHr: null,
@@ -1238,12 +1324,16 @@ export class BiometricEngine {
       currentZone: 0,
       zoneSeconds: saved?.zoneSeconds || { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
       optimalStrainTarget: { min: 8.0, max: 12.0 },
-      respiratoryRate: null,
+      respiratoryRate: effectiveResp,
+      lockedRespiratoryRate: lock?.lockedRespiratoryRate ?? null,
       stressScore: null,
       stressCategory: null,
-      skinTempCelsius: this.skinTempCelsius,
-      skinTempDelta: this.skinTempDelta,
-      spO2: this.spO2,
+      skinTempCelsius: effectiveSkinTempCelsius,
+      skinTempDelta: effectiveSkinTempDelta,
+      lockedSkinTempCelsius: lock?.lockedSkinTempCelsius ?? null,
+      lockedSkinTempDelta: lock?.lockedSkinTempDelta ?? null,
+      spO2: effectiveSpO2,
+      lockedSpO2: lock?.lockedSpO2 ?? null,
       spO2NightlyAvg: this.getSpO2NightlyAvg(),
       spO2DipsCount: this.spO2DipsCount,
       vo2Max: this.calculateVo2Max(),

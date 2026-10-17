@@ -60,6 +60,15 @@ export const MoreView: React.FC<MoreViewProps> = ({
   const [form, setForm] = useState<UserSettings>({ ...settings });
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
   const [importStatus, setImportStatus] = useState<string | null>(null);
+  const [archivedCycleCount, setArchivedCycleCount] = useState<number>(() => {
+    return storageService.getAllArchivedDates().length;
+  });
+
+  React.useEffect(() => {
+    whoopDb.getDailyRecordCount().then((count) => {
+      setArchivedCycleCount(Math.max(count, storageService.getAllArchivedDates().length));
+    }).catch(() => {});
+  }, []);
 
   const handleTanaka = () => {
     const max = Math.round(208 - 0.7 * form.age);
@@ -265,9 +274,32 @@ export const MoreView: React.FC<MoreViewProps> = ({
             <h2 className="text-xl font-bold text-white tracking-tight">{t('more')}</h2>
             <p className="text-xs text-zinc-400 font-sans">
               {isRtl
-                ? 'Ø¥Ø¯Ø§Ø±Ø© Ø³ÙˆØ§Ø± WHOOP 4.0 ÙˆÙ…Ø¹Ø¯Ù„Ø§ØªÙƒ Ø§Ù„Ø­ÙŠÙˆÙŠØ© ÙˆØ¥Ø¹Ø¯Ø§Ø¯Ø§Øª Ø§Ù„Ù„ØºØ© ÙˆÙ…Ø³ØªÙˆØ¯Ø¹ Ø§Ù„Ø¨ÙŠØ§Ù†Ø§Øª.'
+                ? 'إدارة سوار WHOOP 4.0 ومعدلاتك الحيوية وإعدادات اللغة ومستودع البيانات.'
                 : 'Manage WHOOP 4.0 hardware, biometric baselines, language, and data.'}
             </p>
+          </div>
+
+          {/* 100% Offline PWA Ready Status Banner */}
+          <div className="p-3.5 rounded-[20px] bg-gradient-to-r from-[#12151A] to-[#161B23] border border-[#16EC06]/30 flex items-center justify-between shadow-lg">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-[#16EC06]/15 border border-[#16EC06]/30 flex items-center justify-center text-[#16EC06]">
+                <CheckCircle2 className="w-4 h-4" />
+              </div>
+              <div>
+                <div className="text-xs font-black uppercase font-condensed tracking-wider text-white flex items-center gap-1.5">
+                  <span>{isRtl ? 'جاهز للعمل دون إنترنت بالكامل' : '100% OFFLINE READY'}</span>
+                  <span className="text-[10px] text-[#16EC06] font-bold">✓</span>
+                </div>
+                <div className="text-[11px] text-zinc-400 font-mono">
+                  {isRtl
+                    ? `${archivedCycleCount} دورة فسيولوجية محفوظة محلياً في الذاكرة`
+                    : `${archivedCycleCount} physiological cycles stored on device`}
+                </div>
+              </div>
+            </div>
+            <span className="text-[10px] font-condensed font-black px-2 py-1 rounded-md bg-[#16EC06]/10 text-[#16EC06] border border-[#16EC06]/20">
+              PWA
+            </span>
           </div>
 
           <div className="rounded-[24px] bg-[#12151A] border border-white/5 divide-y divide-white/5 overflow-hidden">

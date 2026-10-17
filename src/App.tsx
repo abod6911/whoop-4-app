@@ -10,6 +10,7 @@ import type {
   HomeSubTab,
   HealthMonitorMetric,
   SleepMetrics,
+  DayHistoryRecord,
 } from './types/whoop';
 import { whoopBleEngine } from './services/whoopBleEngine';
 import { biometricEngine } from './utils/biometricEngine';
@@ -49,6 +50,7 @@ import { HardwareDiagnosticsModal } from './components/HardwareDiagnosticsModal'
 import { HrvBreathePacer } from './components/HrvBreathePacer';
 import { HapticAlarmModal } from './components/HapticAlarmModal';
 import { ShareCardModal, type ShareCardType } from './components/ShareCardModal';
+import { WhoopCalendarSheet } from './components/WhoopCalendarSheet';
 import { alarmEngine } from './services/alarmEngine';
 import { notificationEngine } from './services/notificationEngine';
 import { telemetryWorkerManager } from './services/telemetryWorkerManager';
@@ -69,6 +71,8 @@ export const App: React.FC = () => {
   const [mainTab, setMainTab] = useState<MainTabType>('home');
   const [homeSubTab, setHomeSubTab] = useState<HomeSubTab>('overview');
   const [selectedDateIndex, setSelectedDateIndex] = useState(0); // 0 = TODAY, 1 = YESTERDAY...
+  const [selectedDateStr, setSelectedDateStr] = useState<string>(() => localDateKey());
+  const [isCalendarSheetOpen, setIsCalendarSheetOpen] = useState(false);
 
   // --- Real 7-Day History Records from Storage ---
   const [daysHistory, setDaysHistory] = useState(() => storageService.getDaysHistory());
@@ -326,14 +330,167 @@ export const App: React.FC = () => {
     setLiveMetrics(biometricEngine.getInitialDisconnectedMetrics());
   };
 
-  // --- Effective Metrics based on Date Carousel (Real Records Only) ---
-  const currentDayRecord = daysHistory[selectedDateIndex] || daysHistory[0];
+  // --- Effective Metrics based on Selected Date Cycle (100% Offline Archival) ---
+  const isViewingToday = selectedDateStr === localDateKey();
+
+  const handlePrevDate = () => {
+    const parts = selectedDateStr.split('-').map(Number);
+    const d = new Date(parts[0], parts[1] - 1, parts[2]);
+    d.setDate(d.getDate() - 1);
+    setSelectedDateStr(localDateKey(d));
+  };
+
+  const handleNextDate = () => {
+    if (selectedDateStr >= localDateKey()) return;
+    const parts = selectedDateStr.split('-').map(Number);
+    const d = new Date(parts[0], parts[1] - 1, parts[2]);
+    d.setDate(d.getDate() + 1);
+    setSelectedDateStr(localDateKey(d));
+  };
+
+  const topBarDateLabel = useMemo(() => {
+    const today = localDateKey();
+    if (selectedDateStr === today) return 'TODAY';
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    if (selectedDateStr === localDateKey(yesterday)) return 'YESTERDAY';
+    const parts = selectedDateStr.split('-').map(Number);
+    if (parts.length === 3) {
+      const d = new Date(parts[0], parts[1] - 1, parts[2]);
+      return d.toLocaleDateString([], { month: 'short', day: 'numeric' }).toUpperCase();
+    }
+    return selectedDateStr;
+  }, [selectedDateStr]);
+
+  const currentDayRecord: DayHistoryRecord = useMemo(() => {
+    if (isViewingToday) {
+      return daysHistory[0] || {
+        offset: 0,
+        label: 'TODAY',
+        date: localDateKey(),
+        dayStrain: liveMetrics.dailyStrain,
+        recoveryScore: liveMetrics.recoveryScore,
+        recoveryCategory: liveMetrics.recoveryCategory,
+        sleepPerformance: liveMetrics.sleepPerformance,
+        hoursAsleep: liveMetrics.hoursAsleep ?? null,
+        hoursInBed: liveMetrics.hoursInBed ?? null,
+        sleepNeedHours: null,
+        sleepHours: liveMetrics.hoursAsleep ?? null,
+        sleepNeededHours: null,
+        deepHours: null,
+        remHours: null,
+        lightHours: null,
+        awakeHours: null,
+        sleepEfficiency: null,
+        bedtime: null,
+        wakeTime: null,
+        sleepTimeline: [],
+        rhr: liveMetrics.restingHr,
+        hrv: liveMetrics.currentHrv,
+        respiratoryRate: liveMetrics.respiratoryRate,
+        skinTempCelsius: liveMetrics.skinTempCelsius,
+        skinTempDelta: liveMetrics.skinTempDelta,
+        spO2: liveMetrics.spO2,
+        activeCalories: liveMetrics.activeCalories,
+        bmrCalories: liveMetrics.bmrCalories,
+        totalCalories: liveMetrics.totalCalories,
+        steps: liveMetrics.steps,
+        zoneSeconds: liveMetrics.zoneSeconds,
+        sessions: [],
+        stressPoints: [],
+        hasRealData: true,
+      };
+    }
+
+    const found = daysHistory.find((d) => d.date === selectedDateStr);
+    if (found) return found;
+
+    const stored = storageService.getRealDayState(selectedDateStr);
+    const dObj = new Date(selectedDateStr + 'T12:00:00');
+    const label = dObj.toLocaleDateString([], { month: 'short', day: 'numeric' }).toUpperCase();
+
+    if (stored) {
+      return {
+        offset: 99,
+        label,
+        date: selectedDateStr,
+        dayStrain: stored.dayStrain || 0,
+        recoveryScore: stored.recoveryScore || null,
+        recoveryCategory: stored.recoveryCategory || 'calibrating',
+        sleepPerformance: stored.sleepPerformance || null,
+        hoursAsleep: stored.hoursAsleep || stored.sleepHours || null,
+        hoursInBed: stored.hoursInBed || null,
+        sleepNeedHours: stored.sleepNeedHours || null,
+        sleepHours: stored.sleepHours || null,
+        sleepNeededHours: stored.sleepNeededHours || null,
+        deepHours: stored.deepHours || null,
+        remHours: stored.remHours || null,
+        lightHours: stored.lightHours || null,
+        awakeHours: stored.awakeHours || null,
+        sleepEfficiency: stored.sleepEfficiency || null,
+        bedtime: stored.bedtime || null,
+        wakeTime: stored.wakeTime || null,
+        sleepTimeline: stored.sleepTimeline || [],
+        rhr: stored.rhr || null,
+        hrv: stored.hrv || null,
+        respiratoryRate: stored.respiratoryRate || null,
+        skinTempCelsius: stored.skinTempCelsius || null,
+        skinTempDelta: stored.skinTempDelta || null,
+        spO2: stored.spO2 || null,
+        activeCalories: stored.activeCalories || 0,
+        bmrCalories: stored.bmrCalories || 0,
+        totalCalories: stored.totalCalories || 0,
+        steps: stored.steps || 0,
+        zoneSeconds: stored.zoneSeconds || { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+        sessions: storageService.getWorkoutsForDate(selectedDateStr),
+        stressPoints: stored.stressPoints || [],
+        hasRealData: true,
+      };
+    }
+
+    return {
+      offset: 99,
+      label,
+      date: selectedDateStr,
+      dayStrain: 0,
+      recoveryScore: null,
+      recoveryCategory: 'calibrating',
+      sleepPerformance: null,
+      hoursAsleep: null,
+      hoursInBed: null,
+      sleepNeedHours: null,
+      sleepHours: null,
+      sleepNeededHours: null,
+      deepHours: null,
+      remHours: null,
+      lightHours: null,
+      awakeHours: null,
+      sleepEfficiency: null,
+      bedtime: null,
+      wakeTime: null,
+      sleepTimeline: [],
+      rhr: null,
+      hrv: null,
+      respiratoryRate: null,
+      skinTempCelsius: null,
+      skinTempDelta: null,
+      spO2: null,
+      activeCalories: 0,
+      bmrCalories: 0,
+      totalCalories: 0,
+      steps: 0,
+      zoneSeconds: { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+      sessions: [],
+      stressPoints: [],
+      hasRealData: false,
+    };
+  }, [selectedDateStr, isViewingToday, daysHistory, liveMetrics]);
 
   const sleepData: SleepMetrics = useMemo(() => {
-    const perf = selectedDateIndex === 0 ? liveMetrics.sleepPerformance : currentDayRecord.sleepPerformance;
-    const strain = selectedDateIndex === 0 ? liveMetrics.dailyStrain : currentDayRecord.dayStrain;
+    const perf = isViewingToday ? liveMetrics.sleepPerformance : currentDayRecord.sleepPerformance;
+    const strain = isViewingToday ? liveMetrics.dailyStrain : currentDayRecord.dayStrain;
     return generateSleepMetrics(perf, settings, strain);
-  }, [selectedDateIndex, liveMetrics.sleepPerformance, liveMetrics.dailyStrain, currentDayRecord, settings]);
+  }, [isViewingToday, liveMetrics.sleepPerformance, liveMetrics.dailyStrain, currentDayRecord, settings]);
 
   // Live Biometric & Sleep Goal Alarm Evaluation
   useEffect(() => {
@@ -341,7 +498,7 @@ export const App: React.FC = () => {
   }, [liveMetrics, sleepData]);
 
   const effectiveMetrics: LiveMetrics = useMemo(() => {
-    if (selectedDateIndex === 0) {
+    if (isViewingToday) {
       return {
         ...liveMetrics,
         hoursAsleep: sleepData.hoursAsleep,
@@ -349,11 +506,27 @@ export const App: React.FC = () => {
       };
     }
 
-    // Historical day snapshot
+    // Historical cycle snapshot: restore 100% preserved offline health metrics
     const bmr = biometricEngine.calculateDailyBmr(settings);
     return {
-      currentHr: null,
+      currentHr: null, // Zero synthetic live HR on past cycles
       currentHrv: currentDayRecord.hrv,
+      lockedHrv: currentDayRecord.hrv,
+      dailyRecoveryLock: currentDayRecord.recoveryScore
+        ? {
+            date: selectedDateStr,
+            recoveryScore: currentDayRecord.recoveryScore,
+            recoveryCategory: currentDayRecord.recoveryCategory,
+            lockedHrv: currentDayRecord.hrv || settings.hrvBaseline,
+            lockedRhr: currentDayRecord.rhr || settings.restingHrBaseline,
+            lockedRespiratoryRate: currentDayRecord.respiratoryRate ?? null,
+            lockedSkinTempCelsius: currentDayRecord.skinTempCelsius ?? null,
+            lockedSkinTempDelta: currentDayRecord.skinTempDelta ?? null,
+            lockedSpO2: currentDayRecord.spO2 ?? null,
+            lockedAt: 0,
+            source: 'sleep',
+          }
+        : null,
       sdnn: null,
       meanRR: null,
       lastRR: null,
@@ -368,35 +541,41 @@ export const App: React.FC = () => {
       hoursAsleep: currentDayRecord.hoursAsleep ?? currentDayRecord.sleepHours ?? null,
       hoursInBed: currentDayRecord.hoursInBed ?? null,
       activeCalories: currentDayRecord.activeCalories,
-      bmrCalories: bmr,
-      totalCalories: currentDayRecord.activeCalories + bmr,
-      steps: 0,
+      bmrCalories: currentDayRecord.bmrCalories || bmr,
+      totalCalories: currentDayRecord.totalCalories || (currentDayRecord.activeCalories + bmr),
+      steps: currentDayRecord.steps || 0,
       cadence: 0,
       stepSource: 'imu_hardware',
       currentZone: 0,
-      zoneSeconds: { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+      zoneSeconds: currentDayRecord.zoneSeconds || { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
       optimalStrainTarget: calculateOptimalStrainTarget(currentDayRecord.recoveryScore),
-      respiratoryRate: null,
+      respiratoryRate: currentDayRecord.respiratoryRate ?? null,
+      lockedRespiratoryRate: currentDayRecord.respiratoryRate ?? null,
       stressScore: null,
       stressCategory: null,
-      skinTempCelsius: null,
-      skinTempDelta: null,
-      spO2: null,
-      spO2NightlyAvg: null,
+      skinTempCelsius: currentDayRecord.skinTempCelsius ?? null,
+      skinTempDelta: currentDayRecord.skinTempDelta ?? null,
+      lockedSkinTempCelsius: currentDayRecord.skinTempCelsius ?? null,
+      lockedSkinTempDelta: currentDayRecord.skinTempDelta ?? null,
+      spO2: currentDayRecord.spO2 ?? null,
+      lockedSpO2: currentDayRecord.spO2 ?? null,
+      spO2NightlyAvg: currentDayRecord.spO2 ?? null,
       spO2DipsCount: 0,
       vo2Max: null,
+      sd1: null,
+      sd2: null,
+      baevskyIndex: null,
       onWrist: null,
       timestamp: Date.now(),
     };
-  }, [selectedDateIndex, liveMetrics, sleepData, currentDayRecord, settings]);
+  }, [isViewingToday, liveMetrics, sleepData, currentDayRecord, settings, selectedDateStr]);
 
   const effectiveSessions: SessionRecord[] = useMemo(() => {
-    if (selectedDateIndex === 0) {
+    if (isViewingToday) {
       return sessions;
     }
-    const targetDate = currentDayRecord.date;
-    return sessions.filter((s) => localDateKey(s.startTime) === targetDate);
-  }, [selectedDateIndex, sessions, currentDayRecord]);
+    return sessions.filter((s) => localDateKey(s.startTime) === selectedDateStr);
+  }, [isViewingToday, sessions, selectedDateStr]);
 
   const healthMetrics: HealthMonitorMetric[] = useMemo(() => {
     return generateHealthMonitorMetrics(
@@ -419,7 +598,6 @@ export const App: React.FC = () => {
   ]);
 
   const zones = biometricEngine.getZones();
-  const maxDayIndex = Math.min(6, daysHistory.length - 1);
 
   return (
     <div className="min-h-screen bg-[#0B0D10] text-white flex justify-center font-sans antialiased selection:bg-[#0093E9] selection:text-black">
@@ -441,10 +619,29 @@ export const App: React.FC = () => {
           onOpenStrapSheet={() => setIsStrapSheetOpen(true)}
           onOpenNotifications={() => setIsNotificationDrawerOpen(true)}
           unreadNotificationsCount={unreadNotificationsCount}
-          selectedDate={currentDayRecord.label}
-          onPrevDate={() => setSelectedDateIndex((prev) => (prev < maxDayIndex ? prev + 1 : prev))}
-          onNextDate={() => setSelectedDateIndex((prev) => (prev > 0 ? prev - 1 : prev))}
+          selectedDate={topBarDateLabel}
+          onPrevDate={handlePrevDate}
+          onNextDate={handleNextDate}
+          onOpenCalendar={() => setIsCalendarSheetOpen(true)}
         />
+
+        {/* Historical Cycle Banner with Quick Return Button */}
+        {!isViewingToday && (
+          <div className="mx-3 mt-2 bg-[#1C212B] border border-[#00A3FF]/40 rounded-xl px-3.5 py-2 flex items-center justify-between shadow-lg animate-in fade-in">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-[#00A3FF] animate-pulse" />
+              <span className="text-xs font-condensed font-bold text-zinc-200">
+                {isRtl ? `عرض دورة أرشيفية: ${selectedDateStr}` : `Viewing Historical Cycle: ${selectedDateStr}`}
+              </span>
+            </div>
+            <button
+              onClick={() => setSelectedDateStr(localDateKey())}
+              className="text-[10px] font-condensed font-black uppercase text-[#00A3FF] hover:text-white px-2 py-0.5 rounded-md bg-[#00A3FF]/10 hover:bg-[#00A3FF]/20 transition-colors"
+            >
+              {isRtl ? 'العودة لليوم' : 'Return to Today'}
+            </button>
+          </div>
+        )}
 
         {/* Off-Wrist / No Skin Contact Amber Warning Banner */}
         {metadata.connected && metadata.onWrist === false && (
@@ -778,6 +975,17 @@ export const App: React.FC = () => {
           metrics={effectiveMetrics}
           settings={settings}
           session={shareSession}
+        />
+
+        {/* WHOOP Cycles Calendar Sheet */}
+        <WhoopCalendarSheet
+          isOpen={isCalendarSheetOpen}
+          onClose={() => setIsCalendarSheetOpen(false)}
+          selectedDateStr={selectedDateStr}
+          onSelectDate={(dateStr) => {
+            setSelectedDateStr(dateStr);
+            setDaysHistory(storageService.getDaysHistory(30));
+          }}
         />
       </div>
     </div>

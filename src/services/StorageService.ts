@@ -7,10 +7,18 @@ const SETTINGS_KEY = 'whoop_user_settings';
 const REAL_DAY_PREFIX = 'whoop_real_day_';
 
 export interface RealDayPersistedState {
+  date?: string;
   dayStrain: number;
   activeCalories: number;
+  bmrCalories?: number;
+  totalCalories?: number;
+  steps?: number;
   rhr: number | null;
   hrv: number | null;
+  respiratoryRate?: number | null;
+  skinTempCelsius?: number | null;
+  skinTempDelta?: number | null;
+  spO2?: number | null;
   recoveryScore: number | null;
   recoveryCategory: 'green' | 'yellow' | 'red' | 'calibrating';
   zoneSeconds: Record<number, number>;
@@ -23,9 +31,13 @@ export interface RealDayPersistedState {
   sleepNeededHours?: number | null;
   deepHours?: number | null;
   remHours?: number | null;
+  lightHours?: number | null;
+  awakeHours?: number | null;
   sleepEfficiency?: number | null;
   bedtime?: string | null;
   wakeTime?: string | null;
+  sleepTimeline?: any[];
+  workouts?: SessionRecord[];
 }
 
 export const DEFAULT_SETTINGS: UserSettings = {
@@ -146,21 +158,29 @@ class StorageService {
     }
   }
 
-  // --- 7-Day History from Real Stored Records ---
-  getDaysHistory(): DayHistoryRecord[] {
+  // --- Full History from Real Stored Records (Up to 60 Days) ---
+  getDaysHistory(numDays = 30): DayHistoryRecord[] {
     const records: DayHistoryRecord[] = [];
     const now = Date.now();
 
-    for (let offset = 0; offset < 7; offset++) {
+    for (let offset = 0; offset < numDays; offset++) {
       const targetTime = now - offset * 86400000;
       const dateStr = localDateKey(targetTime);
-      const saved = this.getRealDayState(dateStr);
+      let saved = this.getRealDayState(dateStr);
+
+      try {
+        const rawDay = localStorage.getItem(`whoop_day_${dateStr}`);
+        if (rawDay) {
+          const parsed = JSON.parse(rawDay);
+          saved = { ...(saved || {}), ...parsed };
+        }
+      } catch {}
 
       let label = 'TODAY';
       if (offset === 1) label = 'YESTERDAY';
       else if (offset > 1) label = `${offset} DAYS AGO`;
 
-      if (saved) {
+      if (saved && (saved.dayStrain > 0 || saved.recoveryScore !== null || (saved.activeCalories && saved.activeCalories > 0))) {
         records.push({
           offset,
           label,
@@ -176,13 +196,24 @@ class StorageService {
           sleepNeededHours: saved.sleepNeededHours ?? saved.sleepNeedHours ?? null,
           deepHours: saved.deepHours ?? null,
           remHours: saved.remHours ?? null,
+          lightHours: saved.lightHours ?? null,
+          awakeHours: saved.awakeHours ?? null,
           sleepEfficiency: saved.sleepEfficiency ?? null,
           bedtime: saved.bedtime ?? null,
           wakeTime: saved.wakeTime ?? null,
+          sleepTimeline: saved.sleepTimeline || [],
           rhr: saved.rhr || null,
           hrv: saved.hrv || null,
+          respiratoryRate: saved.respiratoryRate ?? null,
+          skinTempCelsius: saved.skinTempCelsius ?? null,
+          skinTempDelta: saved.skinTempDelta ?? null,
+          spO2: saved.spO2 ?? null,
           activeCalories: saved.activeCalories || 0,
-          sessions: [],
+          bmrCalories: saved.bmrCalories,
+          totalCalories: saved.totalCalories || ((saved.bmrCalories || 0) + (saved.activeCalories || 0)),
+          steps: saved.steps || 0,
+          zoneSeconds: saved.zoneSeconds || { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+          sessions: saved.workouts || [],
           stressPoints: saved.stressPoints || [],
           hasRealData: true,
         });
@@ -202,12 +233,23 @@ class StorageService {
           sleepNeededHours: null,
           deepHours: null,
           remHours: null,
+          lightHours: null,
+          awakeHours: null,
           sleepEfficiency: null,
           bedtime: null,
           wakeTime: null,
+          sleepTimeline: [],
           rhr: null,
           hrv: null,
+          respiratoryRate: null,
+          skinTempCelsius: null,
+          skinTempDelta: null,
+          spO2: null,
           activeCalories: 0,
+          bmrCalories: 0,
+          totalCalories: 0,
+          steps: 0,
+          zoneSeconds: { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
           sessions: [],
           stressPoints: [],
           hasRealData: false,
@@ -216,6 +258,22 @@ class StorageService {
     }
 
     return records;
+  }
+
+  // List all archived dates from localStorage and Dexie
+  getAllArchivedDates(): string[] {
+    const datesSet = new Set<string>();
+    if (typeof localStorage !== 'undefined') {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('whoop_day_')) {
+          datesSet.add(key.replace('whoop_day_', ''));
+        } else if (key && key.startsWith('whoop_real_day_')) {
+          datesSet.add(key.replace('whoop_real_day_', ''));
+        }
+      }
+    }
+    return Array.from(datesSet).sort().reverse();
   }
 
   // --- Sessions Store (Real Workouts, Sleep) ---
@@ -250,6 +308,17 @@ class StorageService {
       const d = localDateKey(s.startTime);
       return d === dateStr;
     });
+  }
+
+  getWorkoutsForDate(dateStr: string): SessionRecord[] {
+    try {
+      const raw = localStorage.getItem(`whoop_day_${dateStr}`);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed.workouts)) return parsed.workouts;
+      }
+    } catch {}
+    return [];
   }
 
   async deleteSession(id: string): Promise<void> {

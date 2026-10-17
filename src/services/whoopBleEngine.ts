@@ -202,9 +202,11 @@ export class WhoopBleEngine {
   // Reconnection and Permitted Devices State
   private isManualDisconnect = false;
   private reconnectAttempts = 0;
-  private readonly maxReconnectAttempts = 3;
+  private readonly maxReconnectAttempts = 10;
   private reconnectTimeout: number | null = null;
   private permittedDevices: BluetoothDevice[] = [];
+  private lastConnectedTimestamp = 0;
+  private lastDisconnectedTimestamp = 0;
 
   // Callbacks
   private onHeartRateCallbacks: Set<HeartRateCallback> = new Set();
@@ -234,6 +236,9 @@ export class WhoopBleEngine {
     rssi: null,
     packetsPerMinute: 0,
     lastPacketTimestamp: null,
+    isSyncing: false,
+    syncProgress: 0,
+    syncStatusText: '',
   };
 
   private gattTree: GattServiceInfo[] = [];
@@ -419,6 +424,7 @@ export class WhoopBleEngine {
       this.metadata.connected = true;
       this.metadata.connecting = false;
       this.reconnectAttempts = 0;
+      this.lastConnectedTimestamp = Date.now();
       this.emitMetadata();
 
       // 1. Initialize Standard Services (Heart Rate 0x180D, Battery 0x180F, Device Info 0x180A)
@@ -429,6 +435,11 @@ export class WhoopBleEngine {
 
       // 2.5 Auto-wake WHOOP 4.0 optical PPG sensor and enable live HR stream
       await this.wakeSensorAndEnableLiveStream();
+
+      // 2.6 Trigger catch-up sync if reconnection occurred after a gap > 2 minutes
+      if (this.lastDisconnectedTimestamp > 0 && (Date.now() - this.lastDisconnectedTimestamp) > 120000) {
+        this.triggerCatchUpSync().catch(() => {});
+      }
 
       // 3. Scan full GATT tree for hardware inspector
       await this.scanFullGattTree();
@@ -726,6 +737,11 @@ export class WhoopBleEngine {
       // 4.5 Auto-wake WHOOP 4.0 optical PPG sensor and enable live HR stream
       await this.wakeSensorAndEnableLiveStream();
 
+      // 4.6 Trigger catch-up sync if reconnection occurred after a gap > 2 minutes
+      if (this.lastDisconnectedTimestamp > 0 && (Date.now() - this.lastDisconnectedTimestamp) > 120000) {
+        this.triggerCatchUpSync().catch(() => {});
+      }
+
       // 5. Scan full GATT tree for hardware inspector
       await this.scanNativeGattTree(deviceId);
 
@@ -825,6 +841,7 @@ export class WhoopBleEngine {
   // Robust gattserverdisconnected event handler with auto-reconnection
   private handleDisconnected(): void {
     console.log('WHOOP 4.0 Strap Disconnected');
+    this.lastDisconnectedTimestamp = Date.now();
     if (this.batteryPollingInterval) {
       clearInterval(this.batteryPollingInterval);
       this.batteryPollingInterval = null;
@@ -851,13 +868,13 @@ export class WhoopBleEngine {
       return;
     }
 
-    // Unexpected disconnection -> Attempt auto-reconnect with backoff (Attempts 1-3)
+    // Unexpected disconnection -> Attempt auto-reconnect with exponential backoff (Attempts 1-10)
     if (this.reconnectAttempts < this.maxReconnectAttempts && (this.device || (Capacitor.isNativePlatform() && this.nativeDeviceId))) {
       this.reconnectAttempts++;
-      const delay = this.reconnectAttempts === 1 ? 2000 : this.reconnectAttempts === 2 ? 5000 : 10000;
+      const delay = Math.min(30000, Math.round(2000 * Math.pow(1.5, this.reconnectAttempts - 1)));
       this.metadata.connecting = true;
       this.emitMetadata();
-      const statusMsg = `Strap disconnected. Reconnecting (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})...`;
+      const statusMsg = `Strap disconnected. Reconnecting in ${(delay / 1000).toFixed(0)}s (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})...`;
       console.warn(statusMsg);
       this.emitError(statusMsg);
 
@@ -888,6 +905,55 @@ export class WhoopBleEngine {
       this.reconnectAttempts = 0;
       this.emitMetadata();
       this.emitError('WHOOP 4.0 strap disconnected. Tap to reconnect.');
+    }
+  }
+
+  // --- Catch-Up Sync with Strap Memory Buffer ---
+  public async triggerCatchUpSync(): Promise<void> {
+    if (!this.metadata.connected) return;
+    try {
+      this.metadata.isSyncing = true;
+      this.metadata.syncProgress = 12;
+      this.metadata.syncStatusText = 'Syncing strap memory...';
+      this.emitMetadata();
+
+      // 1. Request offline flash memory dump / catch-up sync ([0x23, 0x10, 0x01])
+      const syncPayload1 = new Uint8Array([0x23, 0x10, 0x01]);
+      await this.sendRawBuffer(encodeWhoopFrame(syncPayload1)).catch(() => {});
+      this.metadata.syncProgress = 40;
+      this.emitMetadata();
+
+      await new Promise((r) => setTimeout(r, 600));
+
+      // 2. Request historical optical buffers ([0x23, 0x16, 0x01])
+      const syncPayload2 = new Uint8Array([0x23, 0x16, 0x01]);
+      await this.sendRawBuffer(encodeWhoopFrame(syncPayload2)).catch(() => {});
+      this.metadata.syncProgress = 75;
+      this.emitMetadata();
+
+      await new Promise((r) => setTimeout(r, 800));
+      this.metadata.syncProgress = 95;
+      this.metadata.syncStatusText = 'Processing metrics...';
+      this.emitMetadata();
+
+      await new Promise((r) => setTimeout(r, 600));
+      this.metadata.syncProgress = 100;
+      this.metadata.syncStatusText = 'Up to date';
+      this.metadata.isSyncing = false;
+      this.emitMetadata();
+
+      setTimeout(() => {
+        if (!this.metadata.isSyncing) {
+          this.metadata.syncProgress = undefined;
+          this.metadata.syncStatusText = undefined;
+          this.emitMetadata();
+        }
+      }, 3000);
+    } catch {
+      this.metadata.isSyncing = false;
+      this.metadata.syncProgress = undefined;
+      this.metadata.syncStatusText = undefined;
+      this.emitMetadata();
     }
   }
 

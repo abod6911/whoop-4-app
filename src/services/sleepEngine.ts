@@ -312,6 +312,10 @@ export class SleepEngine {
     return this.isSleeping;
   }
 
+  public getHypnogram(): SleepStagePoint[] {
+    return [...this.timeline];
+  }
+
   public getSleepTimes(): { onsetTime: string | null; wakeTime: string | null } {
     const onsetTime = this.sleepOnsetTimestamp
       ? new Date(this.sleepOnsetTimestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })

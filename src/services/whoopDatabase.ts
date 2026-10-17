@@ -74,8 +74,16 @@ export class WhoopPulseDatabase extends Dexie {
     return this.daily_records.get(date);
   }
 
-  public async getRecentDailyRecords(limit = 30): Promise<DailyRecordEntity[]> {
+  public async getRecentDailyRecords(limit = 60): Promise<DailyRecordEntity[]> {
     return this.daily_records.orderBy('date').reverse().limit(limit).toArray();
+  }
+
+  public async getAllDailyRecords(): Promise<DailyRecordEntity[]> {
+    return this.daily_records.orderBy('date').reverse().toArray();
+  }
+
+  public async getDailyRecordCount(): Promise<number> {
+    return this.daily_records.count();
   }
 
   // --- Journal Entries ---
