@@ -4,7 +4,7 @@
  */
 
 export const STRAIN_TAU = 95;
-export const STRAIN_HRR_FLOOR = 0.3;
+export const STRAIN_HRR_FLOOR = 0.15;
 
 /**
  * Computes incremental TRIMP based on Banister's cardiac impulse-response model.

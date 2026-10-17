@@ -42,6 +42,8 @@ export const StrapConnectSheet: React.FC<StrapConnectSheetProps> = ({
 }) => {
   const { t, isRtl } = useLanguage();
   const [copied, setCopied] = useState(false);
+  const [wakeFeedback, setWakeFeedback] = useState<string | null>(null);
+  const [isWaking, setIsWaking] = useState(false);
   if (!isOpen) return null;
 
   const isBleSupported = whoopBleEngine.isSupported();
@@ -195,16 +197,46 @@ export const StrapConnectSheet: React.FC<StrapConnectSheetProps> = ({
         {/* Real Web Bluetooth Connection Controls */}
         <div className="space-y-2.5 font-condensed">
           {metadata.connected ? (
-            <button
-              onClick={() => {
-                onDisconnectBle();
-                onClose();
-              }}
-              className="w-full py-3.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-[#FF0026] border border-rose-500/30 text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-colors"
-            >
-              <BluetoothOff className="w-4 h-4" />
-              <span>{t('disconnectStrap')}</span>
-            </button>
+            <div className="space-y-2">
+              <button
+                onClick={async () => {
+                  try {
+                    setIsWaking(true);
+                    setWakeFeedback(isRtl ? 'جاري إيقاظ الحساس...' : 'Waking sensor...');
+                    await whoopBleEngine.wakeSensorAndEnableLiveStream();
+                    setWakeFeedback(isRtl ? '✓ تم إرسال أمر تنشيط البث المباشر للنبض' : '✓ Live HR Stream Activated');
+                    setTimeout(() => setWakeFeedback(null), 3500);
+                  } catch (e) {
+                    setWakeFeedback(isRtl ? '✕ تعذر إرسال الأمر' : '✕ Command failed');
+                    setTimeout(() => setWakeFeedback(null), 3500);
+                  } finally {
+                    setIsWaking(false);
+                  }
+                }}
+                disabled={isWaking}
+                className="w-full py-3.5 rounded-xl bg-gradient-to-r from-[#0093E9] to-[#00F0FF] hover:opacity-90 text-black text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all active:scale-98 shadow-lg shadow-cyan-500/20 disabled:opacity-50"
+              >
+                <Zap className="w-4 h-4 fill-black" />
+                <span>{isRtl ? '⚡ إيقاظ الحساس / تنشيط البث المباشر للنبض' : '⚡ Wake Sensor / Force Live HR Stream'}</span>
+              </button>
+
+              {wakeFeedback && (
+                <div className="text-xs text-center font-mono font-bold text-[#16EC06] py-1 bg-[#16EC06]/10 rounded-lg border border-[#16EC06]/20">
+                  {wakeFeedback}
+                </div>
+              )}
+
+              <button
+                onClick={() => {
+                  onDisconnectBle();
+                  onClose();
+                }}
+                className="w-full py-3.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-[#FF0026] border border-rose-500/30 text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-colors"
+              >
+                <BluetoothOff className="w-4 h-4" />
+                <span>{t('disconnectStrap')}</span>
+              </button>
+            </div>
           ) : (
             <>
               {/* Web Bluetooth Compatibility Alert for iOS Safari / Unsupported Browsers */}

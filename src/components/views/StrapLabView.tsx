@@ -194,6 +194,19 @@ export const StrapLabView: React.FC<StrapLabViewProps> = ({
               )}
             </div>
 
+            <button
+              onClick={() => handleCommand('Wake Sensor & Stream', () => whoopBleEngine.wakeSensorAndEnableLiveStream())}
+              className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-[#0093E9]/20 to-[#00F0FF]/20 border border-[#0093E9]/40 hover:bg-[#0093E9]/30 active:scale-98 text-start transition-all flex items-center justify-between"
+            >
+              <div className="flex items-center gap-2">
+                <Radio className="w-4 h-4 text-[#00F0FF] animate-pulse" />
+                <span className="text-xs font-black uppercase text-white font-condensed">
+                  {isRtl ? '⚡ إيقاظ الحساس وتنشيط بث النبض الحي' : '⚡ Wake Sensor & Force Live Stream'}
+                </span>
+              </div>
+              <span className="text-[10px] text-[#00F0FF] font-mono font-bold">Opcodes 0x23/0x11</span>
+            </button>
+
             <div className="grid grid-cols-2 gap-2">
               <button
                 onClick={() => handleCommand('Realtime Stream (0x11)', () => whoopBleEngine.sendToggleRealtimeHr(true))}
