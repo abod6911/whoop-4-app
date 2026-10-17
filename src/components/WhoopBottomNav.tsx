@@ -27,6 +27,7 @@ const PlanIcon = ({ active }: { active: boolean }) => (
 );
 
 import { useLanguage } from '../i18n/LanguageContext';
+import { hapticLight } from '../utils/haptics';
 
 export const WhoopBottomNav: React.FC<WhoopBottomNavProps> = ({
   activeTab,
@@ -34,12 +35,17 @@ export const WhoopBottomNav: React.FC<WhoopBottomNavProps> = ({
 }) => {
   const { t } = useLanguage();
 
+  const handleSelectTab = (tab: MainTabType) => {
+    hapticLight();
+    onChangeTab(tab);
+  };
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 bg-[#0B0D10]/95 backdrop-blur-md border-t border-white/5 pb-[env(safe-area-inset-bottom)]">
       <div className="max-w-[430px] mx-auto px-6 h-16 flex items-center justify-between">
         {/* Tab 1: Home (00:00) */}
         <button
-          onClick={() => onChangeTab('home')}
+          onClick={() => handleSelectTab('home')}
           className={`flex flex-col items-center justify-center transition-colors ${
             activeTab === 'home' ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'
           }`}
@@ -52,7 +58,7 @@ export const WhoopBottomNav: React.FC<WhoopBottomNavProps> = ({
 
         {/* Tab 2: Plan (02:15) */}
         <button
-          onClick={() => onChangeTab('plan')}
+          onClick={() => handleSelectTab('plan')}
           className={`flex flex-col items-center justify-center transition-colors ${
             activeTab === 'plan' ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'
           }`}
@@ -65,7 +71,7 @@ export const WhoopBottomNav: React.FC<WhoopBottomNavProps> = ({
 
         {/* Tab 3: Community (02:29) */}
         <button
-          onClick={() => onChangeTab('community')}
+          onClick={() => handleSelectTab('community')}
           className={`flex flex-col items-center justify-center transition-colors ${
             activeTab === 'community' ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'
           }`}
@@ -78,7 +84,7 @@ export const WhoopBottomNav: React.FC<WhoopBottomNavProps> = ({
 
         {/* Tab 4: More (02:43) */}
         <button
-          onClick={() => onChangeTab('more')}
+          onClick={() => handleSelectTab('more')}
           className={`flex flex-col items-center justify-center transition-colors ${
             activeTab === 'more' ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'
           }`}

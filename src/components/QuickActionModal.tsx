@@ -1,12 +1,14 @@
 import React from 'react';
-import { Dumbbell, Moon, Timer, X, BookOpen, Clock, Activity, Zap, Wind } from 'lucide-react';
+import { Dumbbell, Moon, Timer, X, BookOpen, Clock, Activity, Zap, Wind, Vibrate } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
+import { hapticMedium, hapticLight } from '../utils/haptics';
 
 export type QuickActionType =
   | 'strength'
   | 'activity'
   | 'journal'
   | 'sleep_planner'
+  | 'alarm'
   | 'sleep'
   | 'recovery_test'
   | 'breathe';
@@ -113,6 +115,7 @@ export const QuickActionModal: React.FC<QuickActionModalProps> = ({
           {/* 4. Sleep Planner & Smart Alarm */}
           <button
             onClick={() => {
+              hapticMedium();
               onClose();
               onSelectAction('sleep_planner');
             }}
@@ -128,6 +131,30 @@ export const QuickActionModal: React.FC<QuickActionModalProps> = ({
                 </div>
                 <div className="text-[11px] text-zinc-400">
                   {isRtl ? 'حاسبة وقت النوم والاستيقاظ في النوم الخفيف' : 'Target Bedtime Calculator & Light Sleep Wake'}
+                </div>
+              </div>
+            </div>
+          </button>
+
+          {/* 4b. Physical Haptic Alarm */}
+          <button
+            onClick={() => {
+              hapticMedium();
+              onClose();
+              onSelectAction('alarm');
+            }}
+            className="w-full p-3 rounded-2xl bg-[#0B0D10] hover:bg-[#12151A] border border-white/5 flex items-center justify-between transition-all group"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-[#0093E9]/20 text-[#0093E9] flex items-center justify-center border border-[#0093E9]/30 group-hover:scale-105 transition-transform flex-shrink-0">
+                <Vibrate className="w-5 h-5" />
+              </div>
+              <div className={isRtl ? 'text-right' : 'text-left'}>
+                <div className="text-sm font-black uppercase text-white">
+                  {isRtl ? 'منبه اهتزاز السوار الصامت' : 'Silent Strap Haptic Alarm'}
+                </div>
+                <div className="text-[11px] text-zinc-400">
+                  {isRtl ? 'وقت محدد، هدف النوم، أو التعافي الأخضر' : 'Exact Time, Sleep Need %, or Recovery Target'}
                 </div>
               </div>
             </div>

@@ -10,6 +10,7 @@ import {
   Heart,
   Plus,
   Target,
+  Vibrate,
 } from 'lucide-react';
 import type { LiveMetrics, UserSettings, DayHistoryRecord } from '../../types/whoop';
 import { useLanguage } from '../../i18n/LanguageContext';
@@ -18,6 +19,7 @@ interface PlanViewProps {
   metrics: LiveMetrics;
   settings: UserSettings;
   onOpenSleepPlanner: () => void;
+  onOpenAlarmModal?: () => void;
   daysHistory?: DayHistoryRecord[];
 }
 
@@ -35,6 +37,7 @@ export const PlanView: React.FC<PlanViewProps> = ({
   metrics,
   settings,
   onOpenSleepPlanner,
+  onOpenAlarmModal,
   daysHistory,
 }) => {
   const { t, isRtl } = useLanguage();
@@ -245,19 +248,19 @@ export const PlanView: React.FC<PlanViewProps> = ({
             </button>
 
             <button
-              onClick={() => {}}
+              onClick={onOpenAlarmModal}
               className={`p-3.5 rounded-[20px] bg-[#16191E] border border-white/5 hover:border-zinc-700 flex items-center justify-between transition-all active:scale-98 ${isRtl ? 'text-right' : 'text-left'}`}
             >
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-[#16EC06]/20 flex items-center justify-center text-[#16EC06]">
-                  <Plus className="w-4 h-4 stroke-[2.5]" />
+                <div className="w-8 h-8 rounded-xl bg-[#0093E9]/20 flex items-center justify-center text-[#0093E9]">
+                  <Vibrate className="w-4 h-4 stroke-[2.2]" />
                 </div>
                 <div>
                   <div className="text-xs font-black uppercase text-white font-condensed">
-                    {isRtl ? 'هدف مخصص' : 'Custom Goal'}
+                    {isRtl ? 'منبه الاهتزاز' : 'Haptic Alarm'}
                   </div>
                   <div className="text-[10px] text-zinc-400 font-mono">
-                    {isRtl ? 'بناء بروتوكول' : 'Build Protocol'}
+                    {isRtl ? 'اهتزاز السوار' : 'Silent Wake Motor'}
                   </div>
                 </div>
               </div>

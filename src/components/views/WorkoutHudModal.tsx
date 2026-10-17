@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { banisterTrimpIncrement, calculateStrainFromTrimp } from '../../utils/strainModel';
+import { hapticSuccess, hapticLight } from '../../utils/haptics';
 
 interface WorkoutHudModalProps {
   isOpen: boolean;
@@ -195,7 +196,10 @@ export const WorkoutHudModal: React.FC<WorkoutHudModalProps> = ({
         {/* Bottom End & Save Action */}
         <div className="space-y-3 pt-4 border-t border-white/10">
           <button
-            onClick={onEndAndSave}
+            onClick={() => {
+              hapticSuccess();
+              onEndAndSave();
+            }}
             className="w-full py-4 rounded-2xl bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/50 text-[#FF0026] font-black text-sm uppercase tracking-widest font-condensed flex items-center justify-center gap-2 transition-all active:scale-98 shadow-lg shadow-rose-950/40"
           >
             <Square className="w-4 h-4 fill-current" />

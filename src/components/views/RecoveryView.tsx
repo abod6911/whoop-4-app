@@ -23,11 +23,15 @@ import {
   Cell,
 } from 'recharts';
 
+import { useLanguage } from '../../i18n/LanguageContext';
+import { hapticMedium } from '../../utils/haptics';
+
 interface RecoveryViewProps {
   metrics: LiveMetrics;
   settings: UserSettings;
   daysHistory?: DayHistoryRecord[];
   onOpenRecoveryTest: () => void;
+  onOpenShareCard?: (type: 'recovery' | 'strain' | 'activity') => void;
 }
 
 export const getRecoveryColor = (score: number | null) => {
@@ -37,13 +41,12 @@ export const getRecoveryColor = (score: number | null) => {
   return '#FF0026';
 };
 
-import { useLanguage } from '../../i18n/LanguageContext';
-
 export const RecoveryView: React.FC<RecoveryViewProps> = ({
   metrics,
   settings,
   daysHistory,
   onOpenRecoveryTest,
+  onOpenShareCard,
 }) => {
   const { t, isRtl, dayNames } = useLanguage();
   const [shared, setShared] = useState(false);
@@ -51,6 +54,11 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
   const recoveryColor = getRecoveryColor(recoveryScore);
 
   const handleShare = async () => {
+    hapticMedium();
+    if (onOpenShareCard) {
+      onOpenShareCard('recovery');
+      return;
+    }
     const success = await shareWhoopScorecard(
       {
         recoveryScore: metrics.recoveryScore,

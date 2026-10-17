@@ -16,7 +16,8 @@ export interface WhoopNotification {
   timestamp: number;
   read: boolean;
   actionLabel?: string;
-  actionType?: 'open_breathe' | 'open_strap' | 'open_journal' | 'open_recovery' | 'dismiss';
+  actionType?: 'open_breathe' | 'open_strap' | 'open_journal' | 'open_recovery' | 'confirm_detected_activity' | 'dismiss';
+  priority?: 'low' | 'normal' | 'high';
 }
 
 type NotificationListener = (notifications: WhoopNotification[]) => void;
@@ -246,6 +247,10 @@ class NotificationEngine {
     }
 
     return item;
+  }
+
+  public addNotification(notification: Omit<WhoopNotification, 'id' | 'timestamp' | 'read'>): WhoopNotification {
+    return this.dispatch(notification);
   }
 
   // ==========================================

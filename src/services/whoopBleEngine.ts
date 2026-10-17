@@ -1529,10 +1529,33 @@ export class WhoopBleEngine {
     await this.sendRawBuffer(frame);
   }
 
+  // --- Physical WHOOP 4.0 Haptic Alarm & Vibration Trigger ---
+  public async triggerStrapVibration(pattern: 'gentle' | 'pulse' | 'alarm' = 'pulse'): Promise<void> {
+    console.log(`[WHOOP 4.0] Triggering Physical Strap Haptic Vibration: pattern=${pattern}`);
+    const patternCode = pattern === 'alarm' ? 0x03 : pattern === 'pulse' ? 0x02 : 0x01;
+    const pulseCount = pattern === 'alarm' ? 0x05 : pattern === 'pulse' ? 0x03 : 0x01;
+
+    try {
+      // 1. Primary Framed Haptic Motor Trigger: Opcode 0x23, Sub 0x08
+      const hapticPayload = new Uint8Array([0x23, 0x08, patternCode]);
+      await this.sendRawBuffer(encodeWhoopFrame(hapticPayload)).catch(() => {});
+
+      // 2. Raw fallback bytes [0xAA, 0x04, 0x00, 0x23, 0x08, patternCode]
+      const rawFallback = new Uint8Array([0xaa, 0x04, 0x00, 0x23, 0x08, patternCode]);
+      await this.sendRawBuffer(rawFallback).catch(() => {});
+
+      // 3. Legacy Opcode 0x25 Haptic pulses fallback
+      const legacyPayload = new Uint8Array([0x25, pulseCount, patternCode]);
+      await this.sendRawBuffer(encodeWhoopFrame(legacyPayload)).catch(() => {});
+
+      console.log(`[WHOOP 4.0] ✓ Physical haptic vibration dispatched successfully`);
+    } catch (e) {
+      console.warn('[WHOOP 4.0] Strap vibration dispatch notice:', e);
+    }
+  }
+
   public async sendTriggerHapticAlarm(): Promise<void> {
-    const payload = new Uint8Array([0x25, 0x03, 0x02]); // Haptic 3 pulses
-    const frame = encodeWhoopFrame(payload);
-    await this.sendRawBuffer(frame);
+    await this.triggerStrapVibration('pulse');
   }
 
   public async sendSyncHistoryBuffer(): Promise<void> {

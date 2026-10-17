@@ -47,8 +47,12 @@ import { SleepStageDetailModal } from './components/SleepStageDetailModal';
 import { WhoopCoachChatSheet } from './components/WhoopCoachChatSheet';
 import { HardwareDiagnosticsModal } from './components/HardwareDiagnosticsModal';
 import { HrvBreathePacer } from './components/HrvBreathePacer';
+import { HapticAlarmModal } from './components/HapticAlarmModal';
+import { ShareCardModal, type ShareCardType } from './components/ShareCardModal';
+import { alarmEngine } from './services/alarmEngine';
 import { notificationEngine } from './services/notificationEngine';
 import { telemetryWorkerManager } from './services/telemetryWorkerManager';
+import { hapticMedium, hapticLight } from './utils/haptics';
 
 import { AlertCircle, X, Plus, AlertTriangle, Wind } from 'lucide-react';
 import { useLanguage } from './i18n/LanguageContext';
@@ -88,6 +92,10 @@ export const App: React.FC = () => {
   const [isCoachChatOpen, setIsCoachChatOpen] = useState(false);
   const [isDiagnosticsOpen, setIsDiagnosticsOpen] = useState(false);
   const [isHrvBreatheOpen, setIsHrvBreatheOpen] = useState(false);
+  const [isHapticAlarmOpen, setIsHapticAlarmOpen] = useState(false);
+  const [isShareCardOpen, setIsShareCardOpen] = useState(false);
+  const [shareCardType, setShareCardType] = useState<ShareCardType>('recovery');
+  const [shareSession, setShareSession] = useState<SessionRecord | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Bluetooth Device Permissions API permitted devices cache
@@ -115,6 +123,9 @@ export const App: React.FC = () => {
     } else if (actionType === 'open_recovery') {
       setMainTab('home');
       setHomeSubTab('recovery');
+    } else if (actionType === 'confirm_detected_activity') {
+      setMainTab('home');
+      setHomeSubTab('overview');
     }
   };
 
@@ -324,6 +335,11 @@ export const App: React.FC = () => {
     return generateSleepMetrics(perf, settings, strain);
   }, [selectedDateIndex, liveMetrics.sleepPerformance, liveMetrics.dailyStrain, currentDayRecord, settings]);
 
+  // Live Biometric & Sleep Goal Alarm Evaluation
+  useEffect(() => {
+    alarmEngine.evaluateBiometricAlarm(liveMetrics, sleepData);
+  }, [liveMetrics, sleepData]);
+
   const effectiveMetrics: LiveMetrics = useMemo(() => {
     if (selectedDateIndex === 0) {
       return {
@@ -479,6 +495,11 @@ export const App: React.FC = () => {
                   onStartActivity={() => handleStartWorkout('Running')}
                   onOpenJournal={() => setIsDailyJournalOpen(true)}
                   onOpenSleepPlanner={() => setIsSleepPlannerOpen(true)}
+                  onOpenShareCard={(type) => {
+                    setShareCardType(type);
+                    setIsShareCardOpen(true);
+                  }}
+                  onRefreshSessions={refreshSessions}
                 />
               )}
 
@@ -497,6 +518,10 @@ export const App: React.FC = () => {
                   settings={settings}
                   daysHistory={daysHistory}
                   onOpenRecoveryTest={() => setIsRecoveryTestOpen(true)}
+                  onOpenShareCard={(type) => {
+                    setShareCardType(type);
+                    setIsShareCardOpen(true);
+                  }}
                 />
               )}
 
@@ -510,6 +535,10 @@ export const App: React.FC = () => {
                   onStopWorkout={handleStopWorkout}
                   isWorkoutActive={isWorkoutActive}
                   workoutElapsedSec={workoutElapsedSec}
+                  onOpenShareCard={(type) => {
+                    setShareCardType(type);
+                    setIsShareCardOpen(true);
+                  }}
                 />
               )}
             </>
@@ -522,6 +551,7 @@ export const App: React.FC = () => {
               settings={settings}
               daysHistory={daysHistory}
               onOpenSleepPlanner={() => setIsSleepPlannerOpen(true)}
+              onOpenAlarmModal={() => setIsHapticAlarmOpen(true)}
             />
           )}
 
@@ -555,7 +585,10 @@ export const App: React.FC = () => {
 
         {/* Floating Action Button (+) */}
         <button
-          onClick={() => setIsQuickActionOpen(true)}
+          onClick={() => {
+            hapticMedium();
+            setIsQuickActionOpen(true);
+          }}
           className={`w-14 h-14 rounded-full bg-white text-black shadow-2xl fixed bottom-24 ${isRtl ? 'left-5' : 'right-5'} z-40 flex items-center justify-center hover:scale-105 active:scale-95 transition-transform`}
           title={isRtl ? 'بدء تمرين مباشر أو نوم' : 'Start Live Workout or Sleep'}
         >
@@ -578,6 +611,7 @@ export const App: React.FC = () => {
             if (action === 'activity') handleStartWorkout('Running');
             if (action === 'journal') setIsDailyJournalOpen(true);
             if (action === 'sleep_planner') setIsSleepPlannerOpen(true);
+            if (action === 'alarm') setIsHapticAlarmOpen(true);
             if (action === 'sleep') setIsOledNightLockOpen(true);
             if (action === 'recovery_test') setIsRecoveryTestOpen(true);
             if (action === 'breathe') setIsHrvBreatheOpen(true);
@@ -729,6 +763,22 @@ export const App: React.FC = () => {
             </div>
           </div>
         )}
+
+        {/* WHOOP Silent Haptic Alarm Modal */}
+        <HapticAlarmModal
+          isOpen={isHapticAlarmOpen}
+          onClose={() => setIsHapticAlarmOpen(false)}
+        />
+
+        {/* WHOOP High-Resolution Social Scorecard Share Modal */}
+        <ShareCardModal
+          isOpen={isShareCardOpen}
+          onClose={() => setIsShareCardOpen(false)}
+          initialType={shareCardType}
+          metrics={effectiveMetrics}
+          settings={settings}
+          session={shareSession}
+        />
       </div>
     </div>
   );

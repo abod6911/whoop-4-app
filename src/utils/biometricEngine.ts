@@ -11,6 +11,7 @@ import { storageService } from '../services/StorageService';
 import { notificationEngine } from '../services/notificationEngine';
 import { pedometerEngine } from '../services/pedometerEngine';
 import { sleepEngine } from '../services/sleepEngine';
+import { activityDetectionEngine } from '../services/activityDetectionEngine';
 import { whoopDb } from '../services/whoopDatabase';
 import { caloriesEngine } from './caloriesEngine';
 import { localDateKey } from './dateKey';
@@ -921,6 +922,19 @@ export class BiometricEngine {
     const motionIntensity = isBandOnWrist ? Math.min(1.0, pedoCurrent.cadence / 160.0) : 0;
     sleepEngine.ingestSample(isBandOnWrist ? bpm : 0, currentHrv, onWrist, rhr || this.userSettings.restingHrBaseline, timestamp, motionIntensity);
     const sleepMetrics = sleepEngine.getSleepMetrics(this.userSettings, this.dailyStrain);
+
+    // 4. Automatic Activity Detection Engine Ingestion
+    activityDetectionEngine.ingestSample({
+      bpm: isBandOnWrist ? bpm : 0,
+      hrv: currentHrv,
+      cadence: pedoCurrent.cadence,
+      motionIntensity,
+      timestamp,
+      onWrist: isBandOnWrist,
+      dtSec,
+      settings: this.userSettings,
+      rhr: rhr || this.userSettings.restingHrBaseline,
+    });
 
     // Automatic Morning Recovery Locking upon sleep session completion
     const isSleepingNow = sleepEngine.getIsSleeping();

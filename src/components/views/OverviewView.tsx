@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { LiveMetrics, HomeSubTab, HealthMonitorMetric, SessionRecord, UserSettings, DeviceMetadata, DayHistoryRecord } from '../../types/whoop';
 import { WhoopConcentricTripleGauge } from '../WhoopConcentricTripleGauge';
 import { WhoopEmblemIcon } from '../WhoopLogo';
 import { DailyOutlookModal } from '../DailyOutlookModal';
 import { CustomizeDashboardModal, type DashboardPreferences, DEFAULT_DASHBOARD_PREFS } from '../CustomizeDashboardModal';
 import { biometricEngine } from '../../utils/biometricEngine';
+import { activityDetectionEngine, type DetectedActivity } from '../../services/activityDetectionEngine';
+import { hapticLight, hapticMedium, hapticSuccess } from '../../utils/haptics';
 import {
   ChevronRight,
   Maximize2,
@@ -24,6 +26,7 @@ import {
   TrendingUp,
   Footprints,
   Scale,
+  Share2,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -51,6 +54,8 @@ interface OverviewViewProps {
   onStartActivity: () => void;
   onOpenJournal?: () => void;
   onOpenSleepPlanner?: () => void;
+  onOpenShareCard?: (type: 'recovery' | 'strain' | 'activity') => void;
+  onRefreshSessions?: () => void;
 }
 
 import { useLanguage } from '../../i18n/LanguageContext';
@@ -70,10 +75,41 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   onStartActivity,
   onOpenJournal,
   onOpenSleepPlanner,
+  onOpenShareCard,
+  onRefreshSessions,
 }) => {
   const { t, isRtl, dayNames, formatNumber } = useLanguage();
   const [isOutlookModalOpen, setIsOutlookModalOpen] = useState(false);
   const [isCustomizeOpen, setIsCustomizeOpen] = useState(false);
+  const [pendingActivity, setPendingActivity] = useState<DetectedActivity | null>(() =>
+    activityDetectionEngine.getPendingActivity()
+  );
+  const [editingSport, setEditingSport] = useState<string>('');
+
+  useEffect(() => {
+    return activityDetectionEngine.subscribe(() => {
+      const act = activityDetectionEngine.getPendingActivity();
+      setPendingActivity(act);
+      if (act) setEditingSport(act.sport);
+    });
+  }, []);
+
+  const handleConfirmActivity = async () => {
+    hapticSuccess();
+    const finalSport = editingSport || pendingActivity?.sport || 'Workout';
+    await activityDetectionEngine.confirmPendingActivity(finalSport);
+    setPendingActivity(null);
+    if (onRefreshSessions) {
+      onRefreshSessions();
+    }
+  };
+
+  const handleDiscardActivity = () => {
+    hapticMedium();
+    activityDetectionEngine.discardPendingActivity();
+    setPendingActivity(null);
+  };
+
   const [dashboardPrefs, setDashboardPrefs] = useState<DashboardPreferences>(() => {
     try {
       const saved = localStorage.getItem('whoop_dashboard_customization');
@@ -158,6 +194,84 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
 
   return (
     <div className="space-y-4 pb-28 animate-in fade-in duration-300">
+      {/* Interactive Auto-Detected Activity Banner */}
+      {pendingActivity && (
+        <div className="p-4 rounded-[24px] bg-[#12151A] border-2 border-[#00F0FF]/50 shadow-xl shadow-[#00F0FF]/10 space-y-3 animate-in slide-in-from-top-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-[#00F0FF]/20 text-[#00F0FF] flex items-center justify-center border border-[#00F0FF]/30">
+                <Activity className="w-5 h-5 animate-pulse" />
+              </div>
+              <div>
+                <span className="text-[10px] font-black uppercase tracking-wider text-[#00F0FF] font-condensed">
+                  {isRtl ? 'تم رصد نشاط رياضي تلقائياً' : 'AUTO-DETECTED ACTIVITY'}
+                </span>
+                <h4 className="text-sm font-black uppercase text-white font-condensed">
+                  {editingSport || pendingActivity.sport}
+                </h4>
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#0093E9]/20 border border-[#0093E9]/40 text-[#0093E9] text-xs font-black font-condensed">
+              <Flame className="w-3.5 h-3.5" />
+              <span>{pendingActivity.strain.toFixed(1)} {isRtl ? 'جهد' : 'Strain'}</span>
+            </div>
+          </div>
+
+          {/* Metric details: Duration, Avg HR, Calories */}
+          <div className="grid grid-cols-3 gap-2 text-center">
+            <div className="p-2 rounded-xl bg-[#0B0D10] border border-white/5">
+              <div className="text-[10px] text-zinc-400 font-condensed uppercase">{isRtl ? 'المدة' : 'Duration'}</div>
+              <div className="text-sm font-black font-condensed text-white">{Math.round(pendingActivity.durationSec / 60)} min</div>
+            </div>
+            <div className="p-2 rounded-xl bg-[#0B0D10] border border-white/5">
+              <div className="text-[10px] text-zinc-400 font-condensed uppercase">{isRtl ? 'متوسط النبض' : 'Avg HR'}</div>
+              <div className="text-sm font-black font-condensed text-[#00F0FF]">{pendingActivity.avgHr} bpm</div>
+            </div>
+            <div className="p-2 rounded-xl bg-[#0B0D10] border border-white/5">
+              <div className="text-[10px] text-zinc-400 font-condensed uppercase">{isRtl ? 'السعرات' : 'Calories'}</div>
+              <div className="text-sm font-black font-condensed text-[#FF8A00]">{pendingActivity.calories} kcal</div>
+            </div>
+          </div>
+
+          {/* Sport tag selector */}
+          <div className="flex items-center gap-1.5 overflow-x-auto py-1 scrollbar-none text-[11px] font-condensed font-bold">
+            {['Running', 'Outdoor Walk', 'Functional Fitness', 'Cycling', 'Weightlifting'].map((sp) => (
+              <button
+                key={sp}
+                onClick={() => {
+                  hapticLight();
+                  setEditingSport(sp);
+                }}
+                className={`px-2.5 py-1 rounded-lg border transition-all ${
+                  (editingSport || pendingActivity.sport) === sp
+                    ? 'bg-white text-black border-white'
+                    : 'bg-[#16191E] text-zinc-400 border-white/5 hover:text-white'
+                }`}
+              >
+                {sp}
+              </button>
+            ))}
+          </div>
+
+          {/* Action buttons: Confirm & Save vs Discard */}
+          <div className="flex items-center gap-2 pt-1 font-condensed">
+            <button
+              onClick={handleConfirmActivity}
+              className="flex-1 py-2.5 rounded-xl bg-[#16EC06] text-black font-black text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 active:scale-98 transition-transform"
+            >
+              <CheckCircle2 className="w-4 h-4 stroke-[2.5]" />
+              <span>{isRtl ? 'تأكيد وحفظ النشاط' : 'Confirm & Save'}</span>
+            </button>
+            <button
+              onClick={handleDiscardActivity}
+              className="px-4 py-2.5 rounded-xl bg-[#1E232B] text-zinc-400 hover:text-white font-bold text-xs uppercase tracking-wider active:scale-98 transition-transform"
+            >
+              {isRtl ? 'تجاهل' : 'Discard'}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* 1. Official WHOOP Concentric 3-Layer Ring Gauge around the "W" Logo (00:01) */}
       <div className="py-1">
         <WhoopConcentricTripleGauge

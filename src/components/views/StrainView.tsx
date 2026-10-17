@@ -23,6 +23,9 @@ import {
   Tooltip,
 } from 'recharts';
 
+import { useLanguage } from '../../i18n/LanguageContext';
+import { hapticMedium } from '../../utils/haptics';
+
 interface StrainViewProps {
   metrics: LiveMetrics;
   zones: HrZoneInfo[];
@@ -32,9 +35,8 @@ interface StrainViewProps {
   onStopWorkout: () => void;
   isWorkoutActive: boolean;
   workoutElapsedSec: number;
+  onOpenShareCard?: (type: 'recovery' | 'strain' | 'activity') => void;
 }
-
-import { useLanguage } from '../../i18n/LanguageContext';
 
 export const StrainView: React.FC<StrainViewProps> = ({
   metrics,
@@ -45,12 +47,18 @@ export const StrainView: React.FC<StrainViewProps> = ({
   onStopWorkout,
   isWorkoutActive,
   workoutElapsedSec,
+  onOpenShareCard,
 }) => {
   const { t, isRtl, dayNames } = useLanguage();
   const [selectedSport, setSelectedSport] = useState('Running');
   const [shared, setShared] = useState(false);
 
   const handleShare = async () => {
+    hapticMedium();
+    if (onOpenShareCard) {
+      onOpenShareCard('strain');
+      return;
+    }
     const success = await shareWhoopScorecard(
       {
         recoveryScore: metrics.recoveryScore,
