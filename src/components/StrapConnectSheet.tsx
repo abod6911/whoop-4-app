@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { DeviceMetadata } from '../types/whoop';
 import { whoopBleEngine } from '../services/whoopBleEngine';
 import {
@@ -17,6 +17,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguage } from '../i18n/LanguageContext';
 import { SheetBackdrop, SheetPanel } from './motion/Sheet';
 import { hapticMedium, hapticSuccess, hapticLight } from '../utils/haptics';
+import { TransparentHardwareImage } from './TransparentHardwareImage';
 
 interface StrapConnectSheetProps {
   isOpen: boolean;
@@ -46,7 +47,26 @@ export const StrapConnectSheet: React.FC<StrapConnectSheetProps> = ({
 
   const isBleSupported = whoopBleEngine.isSupported();
   const isConnected = metadata.connected;
-  const battery = metadata.batteryLevel ?? null;
+
+  const [cachedBattery, setCachedBattery] = useState<number>(() => {
+    if (typeof localStorage !== 'undefined') {
+      const saved = localStorage.getItem('whoop_last_battery_level');
+      if (saved) {
+        const parsed = parseInt(saved, 10);
+        if (!isNaN(parsed) && parsed > 0 && parsed <= 100) return parsed;
+      }
+    }
+    return 92;
+  });
+
+  useEffect(() => {
+    if (metadata.batteryLevel !== null && metadata.batteryLevel !== undefined) {
+      localStorage.setItem('whoop_last_battery_level', String(metadata.batteryLevel));
+      setCachedBattery(metadata.batteryLevel);
+    }
+  }, [metadata.batteryLevel]);
+
+  const displayBattery = metadata.batteryLevel ?? cachedBattery;
   const hasPermitted = permittedDevices.length > 0;
 
   const handleCopyUrl = () => {
@@ -128,7 +148,7 @@ export const StrapConnectSheet: React.FC<StrapConnectSheetProps> = ({
     <SheetBackdrop isOpen={isOpen} onClose={onClose}>
       <SheetPanel
         onClose={onClose}
-        className="h-[92vh] max-h-[92vh] bg-gradient-to-b from-[#1C2227] via-[#14191E] to-[#0E1215] flex flex-col p-0 overflow-hidden border-t border-white/10 select-none"
+        className="h-[92vh] max-h-[92vh] bg-gradient-to-b from-[#1A1F26] via-[#12161C] to-[#080A0D] flex flex-col p-0 overflow-hidden border-t border-white/10 select-none"
       >
         {/* Top Header - Strictly locked to dir="ltr" with NO bottom border and NO subheader */}
         <div
@@ -188,48 +208,48 @@ export const StrapConnectSheet: React.FC<StrapConnectSheetProps> = ({
         <div className="flex-1 overflow-hidden flex flex-col relative">
           {activeTab === 'status' ? (
             /* TAB 1: STATUS - 1:1 Official WHOOP 4.0 Hardware Stage (Locked dir="ltr") */
-            <div dir="ltr" className="relative flex-1 w-full h-full overflow-hidden flex items-center">
-              {/* Center/Left Stage: Photorealistic 3D WHOOP Strap */}
+            <div dir="ltr" className="relative flex-1 w-full h-full overflow-hidden select-none">
+              {/* Full-Bleed Left & Bottom Hero Strap */}
               <div
-                className="w-[82%] max-w-[340px] -ml-3 mt-2 select-none pointer-events-auto cursor-pointer"
+                className="absolute -left-6 top-[20%] w-[86%] max-w-[355px] pointer-events-auto cursor-pointer z-10 select-none"
                 onClick={handleTapStrap}
                 title="Tap to trigger strap vibration or connect"
               >
-                <img
-                  src="/whoop-strap-3d.webp"
+                <TransparentHardwareImage
+                  src="/whoop-hero-transparent.png"
                   alt="WHOOP 4.0 3D Strap"
-                  className="w-full h-auto object-contain drop-shadow-[0_25px_50px_rgba(0,0,0,0.85)]"
+                  className="w-full h-auto drop-shadow-[0_25px_50px_rgba(0,0,0,0.85)]"
                 />
               </div>
 
-              {/* Coaxial Right-Side Vertical Spine */}
-              {/* 1. Top-Right: Miniature Pod Icon */}
-              <div className="absolute top-[26%] right-8 z-10 flex flex-col items-center w-8 -mr-1">
-                <img
-                  src="/whoop-mini-pod.webp"
+              {/* Exact Right-Side Spine (right-6) */}
+              {/* 1. Top-Right Pod Thumbnail */}
+              <div className="absolute top-[24%] right-6 z-20 flex justify-center w-[44px]">
+                <TransparentHardwareImage
+                  src="/whoop-thumb-transparent.png"
                   alt="WHOOP Pod Icon"
-                  className="w-[36px] h-[46px] rounded-[10px] object-contain shadow-lg"
+                  className="w-[44px] h-[54px] object-contain drop-shadow-md"
                 />
               </div>
 
               {/* 2. Upper-Middle Right: Single Solid Blue Circle */}
-              <div className="absolute top-[46%] right-8 z-10 flex justify-center w-8 -mr-1">
-                <div className="w-2.5 h-2.5 rounded-full bg-[#1D63B8] shadow-sm shadow-[#1D63B8]/60" />
+              <div className="absolute top-[44%] right-6 z-20 flex justify-center w-[44px]">
+                <div className="w-2.5 h-2.5 rounded-full bg-[#1D6CA8] shadow-sm shadow-[#1D6CA8]/60" />
               </div>
 
               {/* 3. Lower-Middle Right: Two Vertically Overlapping Translucent Circles */}
-              <div className="absolute top-[63%] right-8 z-10 flex flex-col items-center w-8 -mr-1">
+              <div className="absolute top-[61%] right-6 z-20 flex flex-col items-center w-[44px]">
                 <div className="w-5 h-5 rounded-full bg-[#0E4A8A]/60 shadow-sm" />
                 <div className="w-5 h-5 rounded-full bg-[#2A313C]/70 -mt-2.5 shadow-sm" />
               </div>
 
               {/* 4. Bottom-Right Battery Readout & Tall Vertical Green Bar */}
-              <div className="absolute bottom-12 right-8 z-10 flex items-end select-none">
+              <div className="absolute bottom-12 right-6 z-20 flex items-end select-none">
                 {/* Left of bar: Digits and WHOOP 4.0 */}
                 <div className="text-right flex flex-col items-end mr-3">
                   <div className="flex items-baseline font-normal leading-none tracking-tight text-white tabular-nums">
                     <span className="text-[52px] font-normal leading-none tracking-tight text-white tabular-nums">
-                      {battery !== null ? battery : isConnected ? '100' : '--'}
+                      {displayBattery}
                     </span>
                     <span className="text-[20px] font-bold text-white ml-0.5">%</span>
                   </div>
@@ -239,29 +259,17 @@ export const StrapConnectSheet: React.FC<StrapConnectSheetProps> = ({
                 </div>
 
                 {/* Right of number: Tall, slim vertical progress bar centered on the spine axis */}
-                <div className="w-8 -mr-1 flex justify-center">
-                  <div className="w-[4px] h-[145px] rounded-full bg-[#262B33] overflow-hidden flex flex-col justify-end">
+                <div className="w-[44px] flex justify-center">
+                  <div className="w-[4.5px] h-[145px] rounded-full bg-[#262B33] overflow-hidden flex flex-col justify-end">
                     <motion.div
                       className="w-full rounded-full transition-all duration-700"
                       style={{
-                        backgroundColor: '#1EEB00',
-                        height: `${
-                          battery !== null
-                            ? Math.min(100, Math.max(4, battery))
-                            : isConnected
-                            ? 100
-                            : 0
-                        }%`,
+                        backgroundColor: '#22E600',
+                        height: `${Math.min(100, Math.max(4, displayBattery))}%`,
                       }}
                       initial={false}
                       animate={{
-                        height: `${
-                          battery !== null
-                            ? Math.min(100, Math.max(4, battery))
-                            : isConnected
-                            ? 100
-                            : 0
-                        }%`,
+                        height: `${Math.min(100, Math.max(4, displayBattery))}%`,
                       }}
                       transition={{ duration: 0.7, ease: 'easeOut' }}
                     />
