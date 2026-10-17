@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Flame } from 'lucide-react';
+import { Flame, ChevronRight, CheckCircle2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { streakEngine, type StreakSummary } from '../services/streakEngine';
 import { useLanguage } from '../i18n/LanguageContext';
-import { hapticMedium } from '../utils/haptics';
+import { hapticLight, hapticMedium } from '../utils/haptics';
 
 interface StreakBadgeProps {
   onClick: () => void;
@@ -32,75 +32,89 @@ export const StreakBadge: React.FC<StreakBadgeProps> = ({
     onClick();
   };
 
+  // 1. Executive Card Variant for Overview / Home Tab
   if (variant === 'card') {
     return (
-      <motion.button
+      <div
         onClick={handleClick}
-        whileHover={{ scale: 1.02 }}
-        whileTap={{ scale: 0.98 }}
-        className={`w-full p-4 rounded-2xl bg-gradient-to-br from-[#1A1813] via-[#121418] to-[#0D0F14] border border-[#FF7A00]/20 hover:border-[#FF7A00]/40 flex items-center justify-between text-start shadow-lg group relative overflow-hidden transition-all ${className}`}
+        className={`rounded-[24px] bg-[#12151A] border border-white/5 hover:border-white/15 p-4 relative overflow-hidden cursor-pointer transition-all group select-none shadow-lg shadow-black/40 ${className}`}
       >
-        {/* Ambient flame glow background */}
-        <div className="absolute -top-12 -right-12 w-32 h-32 bg-[#FF6A00]/10 rounded-full blur-2xl pointer-events-none" />
-
-        <div className="flex items-center gap-3.5 relative z-10">
-          <div className="w-11 h-11 rounded-xl bg-gradient-to-tr from-[#FF5100]/20 to-[#FF9E00]/30 border border-[#FF7A00]/40 flex items-center justify-center shadow-inner group-hover:scale-105 transition-transform">
-            <Flame className="w-5 h-5 text-[#FF7A00] fill-[#FF7A00] animate-pulse" />
-          </div>
-          <div>
-            <div className="text-[10px] font-black uppercase tracking-[0.12em] text-[#FF9E00] font-condensed">
-              {isRtl ? 'الالتزام والستريك' : 'WEAR STREAK'}
+        <div className="flex items-center justify-between pb-2 border-b border-white/5">
+          <div className="flex items-center gap-2">
+            <div className="w-5 h-5 rounded-md bg-[#FF8800]/15 flex items-center justify-center">
+              <Flame className="w-3.5 h-3.5 text-[#FF8800] fill-[#FF8800]" />
             </div>
-            <div className="flex items-baseline gap-1.5 mt-0.5">
-              <span className="text-2xl font-black font-condensed text-white tabular-nums tracking-tight">
+            <span className="text-[11px] font-black uppercase tracking-[0.08em] text-zinc-300 font-condensed">
+              {isRtl ? 'سلسلة البيانات المتصلة' : 'DATA STREAK'}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-1.5 text-zinc-400 group-hover:text-white transition-colors">
+            <span className="text-[10px] font-mono text-zinc-400">
+              {isRtl ? 'عرض المسيرة' : 'View Details'}
+            </span>
+            <ChevronRight className={`w-3.5 h-3.5 ${isRtl ? 'rotate-180' : ''}`} />
+          </div>
+        </div>
+
+        {/* Main Content */}
+        <div className="pt-3 flex items-end justify-between">
+          <div>
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-3xl font-black font-condensed text-white tabular-nums tracking-tight">
                 {streak}
               </span>
-              <span className="text-xs font-bold font-condensed text-zinc-400 uppercase">
-                {isRtl ? 'أيام متتالية' : streak === 1 ? 'DAY' : 'DAYS'}
+              <span className="text-xs font-bold font-condensed text-zinc-400 uppercase tracking-wider">
+                {isRtl
+                  ? streak === 1
+                    ? 'يوم متتالي'
+                    : 'أيام متتالية'
+                  : streak === 1
+                  ? 'DAY'
+                  : 'DAYS'}
               </span>
+            </div>
+            <p className="text-[11px] text-zinc-400 font-sans mt-0.5">
+              {streakData.nextMilestone
+                ? isRtl
+                  ? `باقي ${streakData.nextMilestone.daysRemaining} أيام على محطة ${streakData.nextMilestone.titleAr}`
+                  : `${streakData.nextMilestone.daysRemaining} days until ${streakData.nextMilestone.title}`
+                : isRtl
+                ? 'اكتمال كافة محطات الرصد السنوية'
+                : 'All annual cycle milestones achieved'}
+            </p>
+          </div>
+
+          {/* Quick Metrics */}
+          <div className="flex flex-col items-end gap-1">
+            <div className="flex items-center gap-1.5 text-[10px] font-mono text-zinc-400">
+              <span>{isRtl ? 'أطول سلسلة:' : 'Best:'}</span>
+              <span className="text-white font-bold" dir="ltr">{streakData.longestStreak}d</span>
+            </div>
+            <div className="flex items-center gap-1 text-[10px] font-mono text-[#16EC06]">
+              <CheckCircle2 className="w-3 h-3" />
+              <span>{streakData.consistencyRate}% {isRtl ? 'انتظام' : 'sync'}</span>
             </div>
           </div>
         </div>
-
-        <div className="flex flex-col items-end relative z-10">
-          <span className="text-[10px] font-bold font-mono text-[#16EC06] bg-[#16EC06]/10 px-2 py-0.5 rounded-full border border-[#16EC06]/20">
-            {streakData.consistencyRate}% {isRtl ? 'انتظام' : 'CONSISTENCY'}
-          </span>
-          <span className="text-[10px] text-zinc-500 font-condensed uppercase mt-1">
-            {streakData.nextMilestone
-              ? isRtl
-                ? `باقي ${streakData.nextMilestone.daysRemaining} يوم للنادي التالي`
-                : `${streakData.nextMilestone.daysRemaining}d to next club`
-              : isRtl
-              ? 'مستوى أسطوري'
-              : 'Legendary'}
-          </span>
-        </div>
-      </motion.button>
+      </div>
     );
   }
 
+  // 2. Compact Minimalist Pill for Top Header (Identical to WHOOP iOS Header)
   return (
-    <motion.button
+    <button
       onClick={handleClick}
-      whileHover={{ scale: 1.05 }}
-      whileTap={{ scale: 0.94 }}
-      className={`relative flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gradient-to-r from-[#FF6A00]/15 via-[#FF3B00]/10 to-[#FF9E00]/15 border border-[#FF7A00]/30 hover:border-[#FF7A00]/60 active:border-[#FF7A00] transition-all shadow-[0_0_12px_rgba(255,106,0,0.15)] group ${className}`}
-      title={isRtl ? `التزامك الحالي: ${streak} أيام` : `Current Streak: ${streak} Days`}
+      className={`flex items-center gap-1.5 bg-[#16191E] border border-white/5 hover:border-zinc-700 px-2.5 py-1 rounded-full transition-all active:scale-95 select-none ${className}`}
+      title={isRtl ? `سلسلة البيانات: ${streak} أيام متتالية` : `Data Streak: ${streak} consecutive days`}
     >
-      {/* Animated Flame Icon */}
-      <div className="relative flex items-center justify-center">
-        <Flame className="w-3.5 h-3.5 text-[#FF7A00] fill-[#FF7A00] group-hover:scale-110 transition-transform drop-shadow-[0_0_6px_rgba(255,122,0,0.6)]" />
-        <span className="absolute -inset-1 rounded-full bg-[#FF7A00]/20 animate-ping opacity-40 pointer-events-none" />
-      </div>
-
-      {/* Streak Number */}
-      <span className="text-xs font-black font-condensed tracking-wide text-white tabular-nums drop-shadow-sm">
+      <Flame className="w-3.5 h-3.5 text-[#FF8800] fill-[#FF8800]" />
+      <span className="text-xs font-bold font-condensed tabular-nums tracking-wide text-white">
         {streak}
-        <span className="text-[10px] font-bold text-[#FF9E00] ml-0.5 uppercase">
-          {isRtl ? 'ي' : 'd'}
-        </span>
       </span>
-    </motion.button>
+      <span className="text-[10px] font-medium font-condensed text-zinc-500 uppercase">
+        {isRtl ? 'ي' : 'd'}
+      </span>
+    </button>
   );
 };
