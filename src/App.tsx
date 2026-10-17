@@ -318,6 +318,12 @@ export const App: React.FC = () => {
   // --- Effective Metrics based on Date Carousel (Real Records Only) ---
   const currentDayRecord = daysHistory[selectedDateIndex] || daysHistory[0];
 
+  const sleepData: SleepMetrics = useMemo(() => {
+    const perf = selectedDateIndex === 0 ? liveMetrics.sleepPerformance : currentDayRecord.sleepPerformance;
+    const strain = selectedDateIndex === 0 ? liveMetrics.dailyStrain : currentDayRecord.dayStrain;
+    return generateSleepMetrics(perf, settings, strain);
+  }, [selectedDateIndex, liveMetrics.sleepPerformance, liveMetrics.dailyStrain, currentDayRecord, settings]);
+
   const effectiveMetrics: LiveMetrics = useMemo(() => {
     if (selectedDateIndex === 0) {
       return {
@@ -366,7 +372,7 @@ export const App: React.FC = () => {
       onWrist: null,
       timestamp: Date.now(),
     };
-  }, [selectedDateIndex, liveMetrics, currentDayRecord, settings]);
+  }, [selectedDateIndex, liveMetrics, sleepData, currentDayRecord, settings]);
 
   const effectiveSessions: SessionRecord[] = useMemo(() => {
     if (selectedDateIndex === 0) {
@@ -395,10 +401,6 @@ export const App: React.FC = () => {
     effectiveMetrics.skinTempDelta,
     settings,
   ]);
-
-  const sleepData: SleepMetrics = useMemo(() => {
-    return generateSleepMetrics(effectiveMetrics.sleepPerformance, settings, effectiveMetrics.dailyStrain);
-  }, [effectiveMetrics.sleepPerformance, settings, effectiveMetrics.dailyStrain]);
 
   const zones = biometricEngine.getZones();
   const maxDayIndex = Math.min(6, daysHistory.length - 1);
