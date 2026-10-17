@@ -6,6 +6,7 @@ import type {
   StressPoint,
   PoincarePoint,
   SessionRecord,
+  DailyRecoveryLock,
 } from '../types/whoop';
 import { storageService } from '../services/StorageService';
 import { notificationEngine } from '../services/notificationEngine';
@@ -35,13 +36,8 @@ export class BiometricEngine {
   private rsaBuffer: Array<{ timestamp: number; rr: number }> = [];
   private cumulativeRsaTimeMs = 0;
 
-  // Locked Morning Recovery State for the current day
-  private lockedRecovery: {
-    score: number;
-    category: 'green' | 'yellow' | 'red';
-    morningHrv: number;
-    morningRhr: number;
-  } | null = null;
+  // Strict Official WHOOP Daily Recovery Lock for the current calendar day
+  private dailyRecoveryLock: DailyRecoveryLock | null = null;
   private lastSleepState = false;
 
   // Rolling 5-minute window for true Resting Heart Rate (RHR)
@@ -125,18 +121,30 @@ export class BiometricEngine {
     const todayStr = localDateKey();
     caloriesEngine.loadPersistedState(todayStr);
 
-    // Load locked morning recovery if established today
+    // Load strict locked recovery for today: primary key `whoop_daily_recovery_lock_${todayStr}`, fallback to legacy key
     try {
-      const lockRaw = localStorage.getItem(`whoop_recovery_lock_${todayStr}`);
-      if (lockRaw) {
-        const parsedLock = JSON.parse(lockRaw);
-        if (parsedLock && typeof parsedLock.lockedRecoveryScore === 'number') {
-          this.lockedRecovery = {
-            score: parsedLock.lockedRecoveryScore,
-            category: parsedLock.recoveryCategory || 'yellow',
-            morningHrv: parsedLock.morningHrv,
-            morningRhr: parsedLock.morningRhr,
-          };
+      const dailyLockRaw = localStorage.getItem(`whoop_daily_recovery_lock_${todayStr}`);
+      if (dailyLockRaw) {
+        const parsed = JSON.parse(dailyLockRaw) as DailyRecoveryLock;
+        if (parsed && typeof parsed.recoveryScore === 'number' && parsed.date === todayStr) {
+          this.dailyRecoveryLock = parsed;
+        }
+      } else {
+        const legacyLockRaw = localStorage.getItem(`whoop_recovery_lock_${todayStr}`);
+        if (legacyLockRaw) {
+          const parsedLegacy = JSON.parse(legacyLockRaw);
+          if (parsedLegacy && typeof parsedLegacy.lockedRecoveryScore === 'number') {
+            this.dailyRecoveryLock = {
+              date: todayStr,
+              recoveryScore: parsedLegacy.lockedRecoveryScore,
+              recoveryCategory: parsedLegacy.recoveryCategory || 'yellow',
+              lockedHrv: parsedLegacy.morningHrv ?? this.userSettings.hrvBaseline,
+              lockedRhr: parsedLegacy.morningRhr ?? this.userSettings.restingHrBaseline,
+              lockedRespiratoryRate: null,
+              lockedAt: parsedLegacy.lockedAt || Date.now(),
+              source: 'morning_test',
+            };
+          }
         }
       }
     } catch {}
@@ -174,6 +182,23 @@ export class BiometricEngine {
       this.zoneSeconds = saved.zoneSeconds || { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
       this.realRhrObserved = saved.rhr || null;
       this.stressPoints = saved.stressPoints || [];
+
+      // If today has a persisted recovery score but memory lock was not loaded, lock it to prevent fluctuation
+      if (!this.dailyRecoveryLock && typeof saved.recoveryScore === 'number' && saved.recoveryScore > 0) {
+        this.dailyRecoveryLock = {
+          date: todayStr,
+          recoveryScore: saved.recoveryScore,
+          recoveryCategory: (saved.recoveryCategory as 'green' | 'yellow' | 'red') || 'yellow',
+          lockedHrv: saved.hrv || this.userSettings.hrvBaseline,
+          lockedRhr: saved.rhr || this.userSettings.restingHrBaseline,
+          lockedRespiratoryRate: null,
+          lockedAt: Date.now(),
+          source: 'initial_calibration',
+        };
+        try {
+          localStorage.setItem(`whoop_daily_recovery_lock_${todayStr}`, JSON.stringify(this.dailyRecoveryLock));
+        } catch {}
+      }
     }
   }
 
@@ -184,6 +209,9 @@ export class BiometricEngine {
     const rhr = this.getRestingHeartRate();
     const sleepMetrics = sleepEngine.getSleepMetrics(this.userSettings, this.dailyStrain);
     const recovery = this.calculateRecovery(currentHrv, rhr, this.calculateRespiratoryRate(), sleepMetrics.sleepPerformance);
+    const lock = this.getDailyRecoveryLock();
+    const effectiveHrv = lock?.lockedHrv ?? currentHrv;
+    const effectiveRhr = lock?.lockedRhr ?? rhr;
     const pedo = pedometerEngine.getState();
     const bmrToday = this.getBmrCaloriesElapsedToday();
     const totalCal = Math.round(bmrToday + this.activeCalories);
@@ -201,8 +229,8 @@ export class BiometricEngine {
     const snapshot = {
       dayStrain: this.dailyStrain,
       activeCalories: Math.round(this.activeCalories),
-      rhr,
-      hrv: currentHrv,
+      rhr: effectiveRhr,
+      hrv: effectiveHrv,
       recoveryScore: recovery.score,
       recoveryCategory: recovery.category,
       zoneSeconds: this.zoneSeconds,
@@ -246,8 +274,8 @@ export class BiometricEngine {
       totalCalories: totalCal,
       steps: pedo.steps,
       cadence: pedo.cadence,
-      rhr,
-      hrv: currentHrv,
+      rhr: effectiveRhr,
+      hrv: effectiveHrv,
       sleepPerformance: sleepMetrics.sleepPerformance,
       hoursAsleep: sleepMetrics.hoursAsleep,
       hoursInBed: sleepMetrics.hoursInBed,
@@ -723,9 +751,10 @@ export class BiometricEngine {
     currentResp: number | null = null,
     sleepPerformance: number | null = null
   ): { score: number | null; category: 'green' | 'yellow' | 'red' | 'calibrating' } {
-    // If morning recovery is locked for today, return the locked readiness score
-    if (this.lockedRecovery) {
-      return { score: this.lockedRecovery.score, category: this.lockedRecovery.category };
+    // If daily recovery is locked for today, return the locked readiness score strictly
+    const lock = this.getDailyRecoveryLock();
+    if (lock) {
+      return { score: lock.recoveryScore, category: lock.recoveryCategory };
     }
 
     if (currentHrv === null || currentRhr === null) {
@@ -757,27 +786,79 @@ export class BiometricEngine {
     return { score, category };
   }
 
-  // --- Lock Morning Recovery for Calendar Day ---
+  // --- Strict Official WHOOP Daily Recovery Lock API ---
+  public getDailyRecoveryLock(): DailyRecoveryLock | null {
+    const todayStr = localDateKey();
+    if (this.dailyRecoveryLock && this.dailyRecoveryLock.date !== todayStr) {
+      this.dailyRecoveryLock = null;
+    }
+    return this.dailyRecoveryLock;
+  }
+
+  public lockDailyRecovery(lock: DailyRecoveryLock): void {
+    this.dailyRecoveryLock = lock;
+    const todayStr = lock.date || localDateKey();
+    try {
+      localStorage.setItem(`whoop_daily_recovery_lock_${todayStr}`, JSON.stringify(lock));
+      // Backwards compatibility legacy key
+      localStorage.setItem(
+        `whoop_recovery_lock_${todayStr}`,
+        JSON.stringify({
+          lockedRecoveryScore: lock.recoveryScore,
+          recoveryCategory: lock.recoveryCategory,
+          morningHrv: lock.lockedHrv,
+          morningRhr: lock.lockedRhr,
+          lockedAt: lock.lockedAt,
+        })
+      );
+    } catch {}
+
+    const saved = storageService.getRealDayState(todayStr) || {
+      dayStrain: this.dailyStrain,
+      activeCalories: this.activeCalories,
+      rhr: lock.lockedRhr,
+      hrv: lock.lockedHrv,
+      recoveryScore: lock.recoveryScore,
+      recoveryCategory: lock.recoveryCategory,
+      zoneSeconds: { ...this.zoneSeconds },
+      stressPoints: [...this.stressPoints],
+    };
+    saved.rhr = lock.lockedRhr;
+    saved.hrv = lock.lockedHrv;
+    saved.recoveryScore = lock.recoveryScore;
+    saved.recoveryCategory = lock.recoveryCategory;
+    storageService.saveRealDayState(todayStr, saved);
+  }
+
+  public clearDailyRecoveryLock(): void {
+    this.dailyRecoveryLock = null;
+    const todayStr = localDateKey();
+    try {
+      localStorage.removeItem(`whoop_daily_recovery_lock_${todayStr}`);
+      localStorage.removeItem(`whoop_recovery_lock_${todayStr}`);
+    } catch {}
+  }
+
+  // Backward compatibility wrapper
   public lockRecoveryForToday(
     score: number,
     category: 'green' | 'yellow' | 'red',
     morningHrv: number,
-    morningRhr: number
+    morningRhr: number,
+    source: 'sleep' | 'morning_test' | 'initial_calibration' = 'morning_test',
+    respiratoryRate: number | null = null
   ): void {
     const todayStr = localDateKey();
-    this.lockedRecovery = { score, category, morningHrv, morningRhr };
-    try {
-      localStorage.setItem(
-        `whoop_recovery_lock_${todayStr}`,
-        JSON.stringify({
-          lockedRecoveryScore: score,
-          recoveryCategory: category,
-          morningHrv,
-          morningRhr,
-          lockedAt: Date.now(),
-        })
-      );
-    } catch {}
+    this.lockDailyRecovery({
+      date: todayStr,
+      recoveryScore: score,
+      recoveryCategory: category,
+      lockedHrv: morningHrv,
+      lockedRhr: morningRhr,
+      lockedRespiratoryRate: respiratoryRate,
+      lockedAt: Date.now(),
+      source,
+    });
   }
 
   // --- Apply Manual Morning Recovery Assessment from 3-Min Resonant Protocol ---
@@ -785,17 +866,27 @@ export class BiometricEngine {
     score: number,
     category: 'green' | 'yellow' | 'red',
     rhr: number,
-    hrv: number
+    hrv: number,
+    resp: number | null = null
   ): void {
     this.realRhrObserved = rhr;
-    this.lockRecoveryForToday(score, category, hrv, rhr);
+    const todayStr = localDateKey();
+    this.lockDailyRecovery({
+      date: todayStr,
+      recoveryScore: score,
+      recoveryCategory: category,
+      lockedHrv: hrv,
+      lockedRhr: rhr,
+      lockedRespiratoryRate: resp ?? this.calculateRespiratoryRate(),
+      lockedAt: Date.now(),
+      source: 'morning_test',
+    });
 
     // Preload representative RR interval from HRV & RHR into buffer
     const rrEstimate = Math.round(60000.0 / rhr);
     if (this.rrBuffer.length === 0) {
       this.rrBuffer = [rrEstimate, rrEstimate + hrv, rrEstimate - hrv, rrEstimate];
     }
-    const todayStr = localDateKey();
     const saved = storageService.getRealDayState(todayStr) || {
       dayStrain: this.dailyStrain,
       activeCalories: this.activeCalories,
@@ -958,27 +1049,61 @@ export class BiometricEngine {
       rhr: rhr || this.userSettings.restingHrBaseline,
     });
 
+    const todayStr = localDateKey();
+
+    // Check midnight rollover: if stored lock is from a previous day, clear it
+    if (this.dailyRecoveryLock && this.dailyRecoveryLock.date !== todayStr) {
+      this.dailyRecoveryLock = null;
+      this.resetDayCounters();
+    }
+
     // Automatic Morning Recovery Locking upon sleep session completion
     const isSleepingNow = sleepEngine.getIsSleeping();
-    if (this.lastSleepState && !isSleepingNow && !this.lockedRecovery) {
+    if (this.lastSleepState && !isSleepingNow) {
       const rec = this.calculateRecovery(currentHrv, rhr, this.calculateRespiratoryRate(), sleepMetrics.sleepPerformance);
       if (rec.score !== null) {
-        this.lockRecoveryForToday(
-          rec.score,
-          rec.category as 'green' | 'yellow' | 'red',
-          currentHrv || this.userSettings.hrvBaseline,
-          rhr || this.userSettings.restingHrBaseline
-        );
+        this.lockDailyRecovery({
+          date: todayStr,
+          recoveryScore: rec.score,
+          recoveryCategory: rec.category as 'green' | 'yellow' | 'red',
+          lockedHrv: currentHrv || this.userSettings.hrvBaseline,
+          lockedRhr: rhr || this.userSettings.restingHrBaseline,
+          lockedRespiratoryRate: this.calculateRespiratoryRate(),
+          lockedAt: Date.now(),
+          source: 'sleep',
+        });
       }
     }
     this.lastSleepState = isSleepingNow;
+
+    // Fast Initial Calibration Lock: Once >= 8 clean hardware beats are acquired on-wrist and HRV is valid
+    if (!this.dailyRecoveryLock && isBandOnWrist && this.rrBuffer.length >= 8 && currentHrv !== null) {
+      const initialRhr = rhr || this.userSettings.restingHrBaseline;
+      const initialResp = this.calculateRespiratoryRate();
+      const rec = this.calculateRecovery(currentHrv, initialRhr, initialResp, sleepMetrics.sleepPerformance);
+      if (rec.score !== null) {
+        this.lockDailyRecovery({
+          date: todayStr,
+          recoveryScore: rec.score,
+          recoveryCategory: rec.category as 'green' | 'yellow' | 'red',
+          lockedHrv: currentHrv,
+          lockedRhr: initialRhr,
+          lockedRespiratoryRate: initialResp,
+          lockedAt: Date.now(),
+          source: 'initial_calibration',
+        });
+      }
+    }
 
     // 4. Compute Metrics
     const sdnn = this.calculateSDNN();
     const meanRR = this.getMeanRR();
     const lastRR = this.getLastRR();
     const respiratoryRate = this.calculateRespiratoryRate();
-    const recovery = this.calculateRecovery(currentHrv, rhr, respiratoryRate, sleepMetrics.sleepPerformance);
+    const lock = this.getDailyRecoveryLock();
+    const recovery = lock
+      ? { score: lock.recoveryScore, category: lock.recoveryCategory }
+      : this.calculateRecovery(currentHrv, rhr, respiratoryRate, sleepMetrics.sleepPerformance);
     const pedo = pedometerEngine.getState();
     const bmrToday = this.getBmrCaloriesElapsedToday();
     const totalCalories = Math.round(bmrToday + this.activeCalories);
@@ -996,6 +1121,7 @@ export class BiometricEngine {
     }
 
     // 6. Compute Stress Score every 5 seconds (only when on-wrist)
+    // Real-time daytime HRV changes strictly drive this live Stress Monitor without affecting locked Recovery %
     if (isBandOnWrist && timestamp - this.lastStressTick >= 5000) {
       this.lastStressTick = timestamp;
       const stressResult = this.computeStressScore(bpm, currentHrv);
@@ -1037,14 +1163,16 @@ export class BiometricEngine {
 
     return {
       currentHr: isBandOnWrist ? bpm : null,
-      currentHrv: isBandOnWrist ? currentHrv : null,
+      currentHrv: isBandOnWrist ? currentHrv : null, // Live daytime HRV for real-time stress & ECG wave
+      lockedHrv: lock ? lock.lockedHrv : null, // Locked baseline morning HRV
+      dailyRecoveryLock: lock,
       sdnn: isBandOnWrist ? sdnn : null,
       meanRR: isBandOnWrist ? meanRR : null,
       lastRR: isBandOnWrist ? lastRR : null,
       minHr: this.minHrObserved,
       maxHr: this.maxHrObserved,
       avgHr: this.hrCount > 0 ? Math.round(this.hrSum / this.hrCount) : null,
-      restingHr: rhr,
+      restingHr: lock ? lock.lockedRhr : rhr,
       dailyStrain: this.dailyStrain,
       recoveryScore: recovery.score,
       recoveryCategory: recovery.category,
@@ -1079,6 +1207,7 @@ export class BiometricEngine {
   public getInitialDisconnectedMetrics(): LiveMetrics {
     const todayStr = localDateKey();
     const saved = storageService.getRealDayState(todayStr);
+    const lock = this.getDailyRecoveryLock();
     const pedo = pedometerEngine.getState();
     const bmrToday = this.getBmrCaloriesElapsedToday();
     const totalCalories = Math.round(bmrToday + (saved?.activeCalories || 0));
@@ -1086,17 +1215,19 @@ export class BiometricEngine {
 
     return {
       currentHr: null,
-      currentHrv: saved?.hrv || null,
+      currentHrv: lock?.lockedHrv ?? saved?.hrv ?? null,
+      lockedHrv: lock?.lockedHrv ?? saved?.hrv ?? null,
+      dailyRecoveryLock: lock,
       sdnn: null,
       meanRR: null,
       lastRR: null,
       minHr: null,
       maxHr: null,
       avgHr: null,
-      restingHr: saved?.rhr || null,
+      restingHr: lock?.lockedRhr ?? saved?.rhr ?? null,
       dailyStrain: saved?.dayStrain || 0,
-      recoveryScore: saved?.recoveryScore || null,
-      recoveryCategory: saved?.recoveryCategory || 'calibrating',
+      recoveryScore: lock?.recoveryScore ?? saved?.recoveryScore ?? null,
+      recoveryCategory: lock?.recoveryCategory ?? (saved?.recoveryCategory as any) ?? 'calibrating',
       sleepPerformance: sleepMetrics.sleepPerformance,
       activeCalories: saved?.activeCalories || 0,
       bmrCalories: bmrToday,
@@ -1204,7 +1335,7 @@ export class BiometricEngine {
     this.rolling5MinSamples = [];
     this.stressPoints = [];
     this.skinTempReadings = [];
-    this.lockedRecovery = null;
+    this.dailyRecoveryLock = null;
     caloriesEngine.resetDay();
 
     const todayStr = localDateKey();
@@ -1212,6 +1343,7 @@ export class BiometricEngine {
     try {
       localStorage.removeItem(`whoop_day_${todayStr}`);
       localStorage.removeItem(`whoop_recovery_lock_${todayStr}`);
+      localStorage.removeItem(`whoop_daily_recovery_lock_${todayStr}`);
     } catch {}
   }
 }

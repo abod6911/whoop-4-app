@@ -616,45 +616,55 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
         </div>
 
         {/* Metric Row 1: HEART RATE VARIABILITY */}
-        {dashboardPrefs.hrv && (
-          <div className="w-full p-4 rounded-[22px] bg-[#12151A] border border-white/5 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-white/[0.04] flex items-center justify-center text-[#8A94A6]">
-                <Activity className="w-5 h-5 stroke-[1.8]" />
-              </div>
-              <div>
-                <div className="text-xs font-black uppercase tracking-wider text-zinc-300 font-condensed">
-                  {t('hrvFull')}
+        {dashboardPrefs.hrv && (() => {
+          const displayHrv = metrics.lockedHrv ?? metrics.currentHrv;
+          return (
+            <div className="w-full p-4 rounded-[22px] bg-[#12151A] border border-white/5 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-white/[0.04] flex items-center justify-center text-[#8A94A6]">
+                  <Activity className="w-5 h-5 stroke-[1.8]" />
                 </div>
-                <div className="text-[10px] text-zinc-500 font-mono">
-                  {t('baseline')}: {settings.hrvBaseline} ms
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-black uppercase tracking-wider text-zinc-300 font-condensed">
+                      {t('hrvFull')}
+                    </span>
+                    {metrics.dailyRecoveryLock && (
+                      <span className="text-[9px] font-mono text-[#16EC06] bg-[#16EC06]/10 px-1.5 py-0.5 rounded border border-[#16EC06]/20">
+                        {isRtl ? 'مقفل' : 'LOCKED'}
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-[10px] text-zinc-500 font-mono">
+                    {t('baseline')}: {settings.hrvBaseline} ms
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div className="text-end">
-              <div className="flex items-baseline justify-end gap-1">
-                <span className="text-2xl font-black font-condensed text-white tabular-nums">
-                  {metrics.currentHrv !== null ? metrics.currentHrv : '--'}
-                </span>
-                <span className="text-xs text-zinc-400 font-sans">ms</span>
-              </div>
-              {metrics.currentHrv !== null && settings.hrvBaseline ? (
-                <div
-                  className={`text-[10px] font-mono font-bold ${
-                    metrics.currentHrv >= settings.hrvBaseline ? 'text-[#16EC06]' : 'text-[#FF453A]'
-                  }`}
-                  dir="ltr"
-                >
-                  {metrics.currentHrv >= settings.hrvBaseline ? '+' : ''}
-                  {metrics.currentHrv - settings.hrvBaseline} ms
+              <div className="text-end">
+                <div className="flex items-baseline justify-end gap-1">
+                  <span className="text-2xl font-black font-condensed text-white tabular-nums">
+                    {displayHrv !== null ? displayHrv : '--'}
+                  </span>
+                  <span className="text-xs text-zinc-400 font-sans">ms</span>
                 </div>
-              ) : (
-                <div className="text-[10px] text-zinc-500 font-mono">--</div>
-              )}
+                {displayHrv !== null && settings.hrvBaseline ? (
+                  <div
+                    className={`text-[10px] font-mono font-bold ${
+                      displayHrv >= settings.hrvBaseline ? 'text-[#16EC06]' : 'text-[#FF453A]'
+                    }`}
+                    dir="ltr"
+                  >
+                    {displayHrv >= settings.hrvBaseline ? '+' : ''}
+                    {displayHrv - settings.hrvBaseline} ms
+                  </div>
+                ) : (
+                  <div className="text-[10px] text-zinc-500 font-mono">--</div>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Metric Row 2: SLEEP PERFORMANCE */}
         {dashboardPrefs.sleep && (

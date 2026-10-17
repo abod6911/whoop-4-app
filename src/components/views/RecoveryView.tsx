@@ -57,6 +57,7 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
   const recoveryScore = metrics.recoveryScore;
   const recoveryColor = getRecoveryColor(recoveryScore);
   const baseline = biometricEngine.getPersonalBaseline();
+  const displayHrv = metrics.lockedHrv ?? metrics.currentHrv;
 
   const handleShare = async () => {
     hapticMedium();
@@ -70,7 +71,7 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
         recoveryCategory: metrics.recoveryCategory,
         dailyStrain: metrics.dailyStrain,
         sleepPerformance: metrics.sleepPerformance,
-        currentHrv: metrics.currentHrv,
+        currentHrv: displayHrv,
         restingHr: metrics.restingHr,
       },
       isRtl
@@ -104,7 +105,7 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
     const day = isNaN(dateObj.getTime()) ? d.label : dayNames[dateObj.getDay()];
     return {
       day: d.offset === 0 ? t('today') : day,
-      hrv: d.offset === 0 ? metrics.currentHrv : d.hrv,
+      hrv: d.offset === 0 ? displayHrv : d.hrv,
     };
   });
 
@@ -180,6 +181,18 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
                     : (isRtl ? 'أحمر (يحتاج راحة)' : 'RED')
                   : t('calibrating')}
               </span>
+              {metrics.dailyRecoveryLock && (
+                <div className="mt-1.5 flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-white/[0.04] border border-white/5 text-[9px] font-mono text-zinc-400 uppercase tracking-wider">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#16EC06]" />
+                  <span>
+                    {metrics.dailyRecoveryLock.source === 'sleep'
+                      ? (isRtl ? 'مقفل من النوم' : 'LOCKED (SLEEP)')
+                      : metrics.dailyRecoveryLock.source === 'morning_test'
+                      ? (isRtl ? 'مقفل من الاختبار' : 'LOCKED (TEST)')
+                      : (isRtl ? 'مقفل لليوم' : 'LOCKED TODAY')}
+                  </span>
+                </div>
+              )}
             </div>
           </AnimatedRing>
         </div>
@@ -191,13 +204,13 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
             {recoveryScore !== null ? (
               isRtl ? (
                 <>
-                  جاهزية جهازك العصبي المستقل محسوبة من بيانات سوار WHOOP 4.0 الحقيقية. نبض الراحة{' '}
-                  {metrics.restingHr ?? '--'} ن/د وتقلب النبض HRV بمقدار {metrics.currentHrv ?? '--'} ms يوضحان قدرتك البدنية والذهنية اليوم.
+                  جاهزية جهازك العصبي المستقل مقفلة لليوم وفق معايير WHOOP الرسمية. نبض الراحة{' '}
+                  {metrics.restingHr ?? '--'} ن/د وتقلب النبض الأساسي {displayHrv ?? '--'} ms يوضحان قدرتك البدنية لليوم كاملاً.
                 </>
               ) : (
                 <>
-                  Your autonomic nervous system readiness is calculated from real WHOOP 4.0 telemetry. Resting heart rate of{' '}
-                  {metrics.restingHr ?? '--'} bpm and HRV of {metrics.currentHrv ?? '--'} ms indicate your current autonomic capacity.
+                  Your autonomic recovery is locked for the calendar day per official WHOOP standards. Resting heart rate of{' '}
+                  {metrics.restingHr ?? '--'} bpm and baseline HRV of {displayHrv ?? '--'} ms indicate your current autonomic capacity.
                 </>
               )
             ) : (
@@ -231,8 +244,13 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
               <span className="uppercase">{t('hrv')}</span>
             </div>
             <span className="text-white font-mono font-bold">
-              {metrics.currentHrv !== null ? `${metrics.currentHrv} ms` : '--'}
+              {displayHrv !== null ? `${displayHrv} ms` : '--'}
             </span>
+            {metrics.dailyRecoveryLock && (
+              <span className="text-[9px] font-mono text-[#16EC06] ml-1">
+                ({metrics.dailyRecoveryLock.source === 'sleep' ? 'Sleep' : 'Locked'})
+              </span>
+            )}
           </div>
 
           <div className="py-2.5 flex items-center justify-between text-xs font-condensed font-bold">

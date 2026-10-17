@@ -268,7 +268,7 @@ export const RecoveryTestModal: React.FC<RecoveryTestModalProps> = ({
               }}
               className="w-full py-3.5 rounded-xl bg-white text-black font-black text-xs uppercase tracking-wider font-condensed transition-all active:scale-98 shadow-lg hover:bg-zinc-200"
             >
-              {isRtl ? 'Ø§Ø¹ØªÙ…Ø§Ø¯ Ø§Ù„ØªÙ‚ÙŠÙŠÙ… Ù„Ù„ÙŠÙˆÙ…' : 'Apply Assessment to Today'}
+              {isRtl ? 'اعتماد التقييم وقفل التعافي لليوم' : 'Apply Assessment & Lock for Today'}
             </button>
           </div>
         )}

@@ -92,9 +92,22 @@ export interface PoincarePoint {
   timestamp: number;
 }
 
+export interface DailyRecoveryLock {
+  date: string;              // YYYY-MM-DD (localDateKey)
+  recoveryScore: number;     // 1 - 100% (LOCKED for the day)
+  recoveryCategory: 'green' | 'yellow' | 'red';
+  lockedHrv: number;         // Morning / Sleep baseline RMSSD (ms)
+  lockedRhr: number;         // Morning / Sleep Resting HR (bpm)
+  lockedRespiratoryRate: number | null;
+  lockedAt: number;          // Timestamp when locked
+  source: 'sleep' | 'morning_test' | 'initial_calibration';
+}
+
 export interface LiveMetrics {
   currentHr: number | null;
-  currentHrv: number | null; // RMSSD in ms
+  currentHrv: number | null; // RMSSD in ms (Live Daytime HRV)
+  lockedHrv?: number | null; // Morning / Baseline RMSSD locked for today
+  dailyRecoveryLock?: DailyRecoveryLock | null;
   sdnn: number | null;
   meanRR: number | null;
   lastRR: number | null; // latest beat-to-beat interval in ms
