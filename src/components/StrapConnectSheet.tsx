@@ -191,7 +191,7 @@ export const StrapConnectSheet: React.FC<StrapConnectSheetProps> = ({
             <div dir="ltr" className="relative flex-1 w-full h-full overflow-hidden flex items-center">
               {/* Center/Left Stage: Photorealistic 3D WHOOP Strap */}
               <div
-                className="w-[90%] max-w-[370px] -ml-6 mt-6 select-none pointer-events-auto cursor-pointer"
+                className="w-[82%] max-w-[340px] -ml-3 mt-2 select-none pointer-events-auto cursor-pointer"
                 onClick={handleTapStrap}
                 title="Tap to trigger strap vibration or connect"
               >
