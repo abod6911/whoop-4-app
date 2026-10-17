@@ -1,12 +1,10 @@
 import React, { useState } from 'react';
 import type { DeviceMetadata } from '../types/whoop';
-import { WhoopHardwareRender } from './WhoopHardwareRender';
 import { whoopBleEngine } from '../services/whoopBleEngine';
 import {
   Bluetooth,
   BluetoothOff,
   Zap,
-  Radio,
   RefreshCw,
   Vibrate,
   Activity,
@@ -14,8 +12,6 @@ import {
   AlertTriangle,
   Copy,
   ExternalLink,
-  ShieldCheck,
-  CheckCircle2,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -39,11 +35,10 @@ export const StrapConnectSheet: React.FC<StrapConnectSheetProps> = ({
   metadata,
   permittedDevices = [],
   onConnectBle,
-  onReconnectPermitted,
   onDisconnectBle,
   onOpenDiagnostics,
 }) => {
-  const { t, isRtl } = useLanguage();
+  const { isRtl } = useLanguage();
   const [activeTab, setActiveTab] = useState<'status' | 'advanced'>('status');
   const [copied, setCopied] = useState(false);
   const [actionFeedback, setActionFeedback] = useState<string | null>(null);
@@ -52,15 +47,29 @@ export const StrapConnectSheet: React.FC<StrapConnectSheetProps> = ({
   const isBleSupported = whoopBleEngine.isSupported();
   const isConnected = metadata.connected;
   const battery = metadata.batteryLevel ?? null;
-  const isCharging = metadata.isCharging;
   const hasPermitted = permittedDevices.length > 0;
-  const primaryPermitted = permittedDevices[0];
 
   const handleCopyUrl = () => {
     if (typeof navigator !== 'undefined' && navigator.clipboard) {
       navigator.clipboard.writeText(window.location.href);
       setCopied(true);
       setTimeout(() => setCopied(false), 2500);
+    }
+  };
+
+  const handleTapStrap = async () => {
+    hapticMedium();
+    if (isConnected) {
+      try {
+        await whoopBleEngine.triggerStrapVibration('pulse');
+        await whoopBleEngine.sendRequestBatteryTemp();
+        setActionFeedback('✓ Strap Haptic Confirmed');
+        setTimeout(() => setActionFeedback(null), 2500);
+      } catch {
+        // ignore
+      }
+    } else {
+      onConnectBle('filtered');
     }
   };
 
@@ -115,58 +124,52 @@ export const StrapConnectSheet: React.FC<StrapConnectSheetProps> = ({
     }
   };
 
-  const batteryColor =
-    battery === null
-      ? '#52525B'
-      : battery < 20
-      ? '#FF3344'
-      : battery < 50
-      ? '#FFDE00'
-      : '#16EC06';
-
-  const batteryFillHeight = battery !== null ? `${Math.min(100, Math.max(5, battery))}%` : '0%';
-
   return (
     <SheetBackdrop isOpen={isOpen} onClose={onClose}>
       <SheetPanel
         onClose={onClose}
-        className="h-[92vh] max-h-[92vh] bg-gradient-to-b from-[#161B22] via-[#0F1318] to-[#090B0E] flex flex-col p-0 overflow-hidden border-t border-white/10"
+        className="h-[92vh] max-h-[92vh] bg-[#11151C] flex flex-col p-0 overflow-hidden border-t border-white/10 select-none"
       >
-        {/* Header Tabs (STATUS | ADVANCED) */}
-        <div className="px-6 pt-4 pb-2 flex items-center justify-between border-b border-white/5 flex-shrink-0">
-          <div className="flex items-center gap-6">
+        {/* Top Header - Strictly locked to dir="ltr" with NO bottom border and NO subheader */}
+        <div
+          dir="ltr"
+          className="pt-6 pl-6 pr-6 flex items-center justify-between flex-shrink-0 z-20"
+        >
+          <div className="flex items-center gap-8">
+            {/* STATUS Tab */}
             <button
               onClick={() => {
                 hapticLight();
                 setActiveTab('status');
               }}
-              className={`text-xs font-black tracking-[0.16em] uppercase font-condensed relative pb-2 transition-colors ${
-                activeTab === 'status' ? 'text-white' : 'text-[#6E7681] hover:text-zinc-300'
+              className={`text-xs font-black tracking-[0.14em] uppercase relative pb-2 transition-colors ${
+                activeTab === 'status' ? 'text-white' : 'text-[#7A828E] hover:text-zinc-300'
               }`}
             >
-              <span>{isRtl ? 'حالة السوار' : 'STATUS'}</span>
+              <span>STATUS</span>
               {activeTab === 'status' && (
                 <motion.div
                   layoutId="deviceTabUnderline"
-                  className="absolute bottom-0 left-0 right-0 h-[2px] bg-white rounded-full"
+                  className="absolute bottom-0 left-0 w-12 h-[2px] bg-white rounded-full"
                 />
               )}
             </button>
 
+            {/* ADVANCED Tab */}
             <button
               onClick={() => {
                 hapticLight();
                 setActiveTab('advanced');
               }}
-              className={`text-xs font-black tracking-[0.16em] uppercase font-condensed relative pb-2 transition-colors ${
-                activeTab === 'advanced' ? 'text-white' : 'text-[#6E7681] hover:text-zinc-300'
+              className={`text-xs font-black tracking-[0.14em] uppercase relative pb-2 transition-colors ${
+                activeTab === 'advanced' ? 'text-white' : 'text-[#7A828E] hover:text-zinc-300'
               }`}
             >
-              <span>{isRtl ? 'متقدم والعتاد' : 'ADVANCED'}</span>
+              <span>ADVANCED</span>
               {activeTab === 'advanced' && (
                 <motion.div
                   layoutId="deviceTabUnderline"
-                  className="absolute bottom-0 left-0 right-0 h-[2px] bg-white rounded-full"
+                  className="absolute bottom-0 left-0 w-16 h-[2px] bg-white rounded-full"
                 />
               )}
             </button>
@@ -174,212 +177,138 @@ export const StrapConnectSheet: React.FC<StrapConnectSheetProps> = ({
 
           <button
             onClick={onClose}
-            className="w-7 h-7 rounded-full bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white flex items-center justify-center transition-colors active:scale-95"
+            className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white flex items-center justify-center transition-colors active:scale-95"
+            aria-label="Close"
           >
-            <X className="w-3.5 h-3.5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Tab Body */}
-        <div className="flex-1 overflow-y-auto px-6 py-4 flex flex-col">
+        <div className="flex-1 overflow-hidden flex flex-col relative">
           {activeTab === 'status' ? (
-            /* TAB 1: STATUS - 1:1 Official WHOOP 4.0 Device Status Stage */
-            <div className="flex-1 flex flex-col justify-between">
-              {/* Top Banner / Device Identification */}
-              <div className="flex items-center justify-between pt-1">
-                <div>
-                  <div className="text-[10px] font-black uppercase tracking-widest text-[#6E7681] font-condensed">
-                    {metadata.name || 'WHOOP 4.0'}
-                  </div>
-                  <div className="text-sm font-bold text-white font-sans flex items-center gap-1.5 mt-0.5">
-                    <span
-                      className={`w-2 h-2 rounded-full ${
-                        isConnected ? 'bg-[#16EC06] shadow-sm shadow-[#16EC06]/50' : 'bg-zinc-600'
-                      }`}
-                    />
-                    <span>
-                      {isConnected
-                        ? isRtl
-                          ? 'متصل ومقترن'
-                          : 'Connected'
-                        : isRtl
-                        ? 'غير متصل'
-                        : 'Disconnected'}
+            /* TAB 1: STATUS - 1:1 Official WHOOP 4.0 Hardware Stage (Locked dir="ltr") */
+            <div dir="ltr" className="relative flex-1 w-full h-full overflow-hidden flex items-center">
+              {/* Center/Left Stage: Photorealistic 3D WHOOP Strap */}
+              <div
+                className="w-[88%] max-w-[360px] -ml-6 mt-8 select-none pointer-events-auto cursor-pointer"
+                onClick={handleTapStrap}
+                title="Tap to trigger strap vibration or connect"
+              >
+                <img
+                  src="/whoop-strap-3d.webp"
+                  alt="WHOOP 4.0 3D Strap"
+                  className="w-full h-auto object-contain drop-shadow-[0_25px_50px_rgba(0,0,0,0.85)]"
+                  style={{
+                    maskImage: 'radial-gradient(ellipse 95% 95% at 50% 50%, black 75%, transparent 100%)',
+                    WebkitMaskImage: 'radial-gradient(ellipse 95% 95% at 50% 50%, black 75%, transparent 100%)',
+                  }}
+                />
+              </div>
+
+              {/* Exact Right-Side Vertical Spine */}
+              {/* 1. Top-Right: Miniature Pod Icon */}
+              <div className="absolute top-[24%] right-6 z-10 flex flex-col items-center">
+                <img
+                  src="/whoop-mini-pod.webp"
+                  alt="WHOOP Pod Icon"
+                  className="w-[46px] h-[56px] rounded-[12px] object-contain shadow-lg"
+                />
+              </div>
+
+              {/* 2. Upper-Middle Right: Single Solid Blue Circle */}
+              <div className="absolute top-[44%] right-[39px] z-10">
+                <div className="w-3 h-3 rounded-full bg-[#1D63B8] shadow-sm shadow-[#1D63B8]/60" />
+              </div>
+
+              {/* 3. Lower-Middle Right: Two Vertically Overlapping Translucent Circles */}
+              <div className="absolute top-[61%] right-[33px] z-10 flex flex-col items-center">
+                <div className="w-6 h-6 rounded-full bg-[#0E4A8A]/60 shadow-sm" />
+                <div className="w-6 h-6 rounded-full bg-[#2A313C]/70 -mt-3 shadow-sm" />
+              </div>
+
+              {/* 4. Bottom-Right Battery Readout & Tall Vertical Green Bar */}
+              <div className="absolute bottom-12 right-6 z-10 flex items-end gap-3 select-none">
+                {/* Left of bar: Digits and WHOOP 4.0 */}
+                <div className="text-right flex flex-col items-end">
+                  <div className="flex items-baseline font-normal leading-none tracking-tight text-white tabular-nums">
+                    <span className="text-[54px] font-normal leading-none tracking-tight text-white tabular-nums">
+                      {battery !== null ? battery : isConnected ? '100' : '--'}
                     </span>
+                    <span className="text-[22px] font-bold text-white ml-0.5">%</span>
+                  </div>
+                  <div className="text-[12px] font-medium tracking-[0.06em] text-[#5C6470] uppercase mt-1">
+                    WHOOP 4.0
                   </div>
                 </div>
 
-                {metadata.onWrist !== null && (
-                  <div className="px-2.5 py-1 rounded-full bg-[#181C23] border border-white/5 text-[10px] font-condensed font-bold text-zinc-300">
-                    {metadata.onWrist
-                      ? isRtl
-                        ? '✓ على المعصم'
-                        : '✓ On Wrist'
-                      : isRtl
-                      ? '✕ خارج المعصم'
-                      : '✕ Off Wrist'}
-                  </div>
-                )}
-              </div>
-
-              {/* Hardware Centerpiece & Right-Side Vertical Spine */}
-              <div className="relative flex items-center justify-between my-auto py-4">
-                {/* 3D Hardware Illustration Stage */}
-                <div className="flex-1 flex items-center justify-center">
-                  <WhoopHardwareRender
-                    metadata={metadata}
-                    className="max-w-[280px]"
-                    onTap={() => {
-                      if (isConnected) {
-                        setActionFeedback(isRtl ? 'تم تحديث نسبة البطارية' : 'Battery Refreshed');
-                        setTimeout(() => setActionFeedback(null), 2500);
-                      }
+                {/* Right of number: Tall, slim vertical progress bar */}
+                <div className="w-[5px] h-[140px] rounded-full bg-[#262B33] overflow-hidden flex flex-col justify-end">
+                  <motion.div
+                    className="w-full rounded-full transition-all duration-700"
+                    style={{
+                      backgroundColor: '#1EEB00',
+                      height: `${
+                        battery !== null
+                          ? Math.min(100, Math.max(4, battery))
+                          : isConnected
+                          ? 100
+                          : 0
+                      }%`,
                     }}
+                    initial={false}
+                    animate={{
+                      height: `${
+                        battery !== null
+                          ? Math.min(100, Math.max(4, battery))
+                          : isConnected
+                          ? 100
+                          : 0
+                      }%`,
+                    }}
+                    transition={{ duration: 0.7, ease: 'easeOut' }}
                   />
                 </div>
-
-                {/* Right-Side Vertical Spine (Telemetry Nodes & Giant Battery) */}
-                <div className="flex flex-col items-center justify-between h-72 py-1 pl-2">
-                  {/* Top: Mini Hardware Pod Thumbnail */}
-                  <div className="w-10 h-12 rounded-xl bg-[#181C23] border border-white/10 flex flex-col items-center justify-center p-1 shadow-md">
-                    <div
-                      className="w-4 h-1 rounded-full mb-1"
-                      style={{ backgroundColor: isConnected ? '#16EC06' : '#52525B' }}
-                    />
-                    <div className="w-6 h-6 rounded-md bg-[#0F1217] flex items-center justify-center">
-                      <span className="text-[8px] font-black font-condensed text-zinc-400">W</span>
-                    </div>
-                  </div>
-
-                  {/* Middle: Connected BLE Status Nodes */}
-                  <div className="flex flex-col items-center gap-2 my-auto">
-                    {/* Blue Connected Node */}
-                    <div
-                      className={`w-6 h-6 rounded-full flex items-center justify-center border transition-all ${
-                        isConnected
-                          ? 'bg-[#007AFF]/20 border-[#007AFF] text-[#007AFF]'
-                          : 'bg-white/5 border-white/10 text-zinc-600'
-                      }`}
-                    >
-                      <Bluetooth className="w-3.5 h-3.5" />
-                    </div>
-
-                    {/* Dual Concentric Rings */}
-                    <div className="relative w-4 h-4 flex items-center justify-center">
-                      <span
-                        className={`absolute inset-0 rounded-full border ${
-                          isConnected
-                            ? 'border-[#00F0FF]/40 animate-ping'
-                            : 'border-white/10'
-                        }`}
-                      />
-                      <span
-                        className={`w-2 h-2 rounded-full ${
-                          isConnected ? 'bg-[#00F0FF]' : 'bg-zinc-700'
-                        }`}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Bottom: Giant Battery Readout + Vertical Bar */}
-                  <div className="flex items-end gap-2.5">
-                    {/* Battery Digits */}
-                    <div className="text-right flex flex-col items-end">
-                      <div className="flex items-baseline font-light font-condensed tabular-nums">
-                        <span className="text-4xl font-extralight text-white">
-                          {battery !== null ? battery : '--'}
-                        </span>
-                        <span className="text-xs text-zinc-400 ml-0.5">%</span>
-                      </div>
-                      <span className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest mt-0.5">
-                        {isCharging ? (isRtl ? 'شحن' : 'CHG') : (isRtl ? 'بطارية' : 'BAT')}
-                      </span>
-                    </div>
-
-                    {/* Vertical Battery Fill Bar */}
-                    <div className="w-2 h-28 rounded-full bg-[#181C23] border border-white/10 p-[1.5px] flex flex-col justify-end overflow-hidden shadow-inner">
-                      <motion.div
-                        className="w-full rounded-full transition-all"
-                        style={{ backgroundColor: batteryColor, height: batteryFillHeight }}
-                        initial={false}
-                        animate={{ height: batteryFillHeight }}
-                        transition={{ duration: 0.8, ease: 'easeOut' }}
-                      />
-                    </div>
-                  </div>
-                </div>
               </div>
 
-              {/* Feedback Alert Pill */}
+              {/* Action feedback toast */}
               <AnimatePresence>
                 {actionFeedback && (
                   <motion.div
-                    initial={{ opacity: 0, y: 8 }}
+                    initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -8 }}
-                    className="mb-2 py-2 px-3 rounded-xl bg-white/5 border border-white/10 text-center text-xs font-mono font-bold text-[#16EC06]"
+                    exit={{ opacity: 0, y: -10 }}
+                    className="absolute bottom-4 left-6 z-20 py-1.5 px-3 rounded-full bg-white/10 backdrop-blur-md text-xs font-mono text-[#1EEB00] border border-white/10"
                   >
                     {actionFeedback}
                   </motion.div>
                 )}
               </AnimatePresence>
 
-              {/* Bottom Actions */}
-              <div className="pt-2 pb-1 space-y-2 flex-shrink-0">
-                {!isConnected ? (
-                  <div className="space-y-2">
-                    {hasPermitted && onReconnectPermitted && (
-                      <button
-                        onClick={() => onReconnectPermitted(primaryPermitted)}
-                        className="w-full py-3.5 rounded-2xl bg-[#00A3FF] hover:bg-[#008AE6] text-white font-condensed font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 active:scale-98 transition-all shadow-lg shadow-[#00A3FF]/25"
-                      >
-                        <Bluetooth className="w-4 h-4" />
-                        <span>
-                          {isRtl
-                            ? `إعادة الاتصال السريع بـ ${primaryPermitted.name || 'WHOOP'}`
-                            : `Quick Reconnect to ${primaryPermitted.name || 'WHOOP'}`}
-                        </span>
-                      </button>
-                    )}
-
-                    <button
-                      onClick={() => onConnectBle('filtered')}
-                      className={`w-full py-3.5 rounded-2xl font-condensed font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 active:scale-98 transition-all ${
-                        hasPermitted
-                          ? 'bg-[#181C23] border border-white/10 text-white hover:bg-[#20252E]'
-                          : 'bg-white text-black hover:bg-zinc-200 shadow-xl'
-                      }`}
-                    >
-                      <Bluetooth className="w-4 h-4" />
-                      <span>{isRtl ? 'اقتران / ربط سوار WHOOP 4.0' : 'PAIR / CONNECT STRAP'}</span>
-                    </button>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      onClick={handleWakeSensor}
-                      disabled={isBusy}
-                      className="py-3 px-3 rounded-xl bg-[#181C23] hover:bg-[#20252E] border border-white/10 text-white font-condensed font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all active:scale-98 disabled:opacity-50"
-                    >
-                      <Zap className="w-3.5 h-3.5 text-[#00A3FF]" />
-                      <span>{isRtl ? 'إيقاظ الحساس' : 'Wake PPG'}</span>
-                    </button>
-
-                    <button
-                      onClick={handleTestVibration}
-                      disabled={isBusy}
-                      className="py-3 px-3 rounded-xl bg-[#181C23] hover:bg-[#20252E] border border-white/10 text-white font-condensed font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all active:scale-98 disabled:opacity-50"
-                    >
-                      <Vibrate className="w-3.5 h-3.5 text-[#16EC06]" />
-                      <span>{isRtl ? 'اهتزاز السوار' : 'Buzz Strap'}</span>
-                    </button>
-                  </div>
-                )}
-              </div>
+              {/* Clean bottom connect pill (ONLY when disconnected) */}
+              {!isConnected && (
+                <div className="absolute bottom-4 left-6 right-6 flex justify-center z-20">
+                  <button
+                    onClick={() => onConnectBle('filtered')}
+                    className="px-5 py-2.5 rounded-full bg-white/10 hover:bg-white/15 border border-white/15 text-white text-xs font-condensed font-bold tracking-wider uppercase backdrop-blur-md active:scale-95 transition-all flex items-center gap-2 shadow-lg"
+                  >
+                    <Bluetooth className="w-3.5 h-3.5 text-[#00A3FF]" />
+                    <span>
+                      {hasPermitted
+                        ? isRtl
+                          ? 'إعادة الاتصال بالسوار'
+                          : 'Connect Strap'
+                        : isRtl
+                        ? 'ربط سوار WHOOP 4.0'
+                        : 'Pair WHOOP 4.0'}
+                    </span>
+                  </button>
+                </div>
+              )}
             </div>
           ) : (
             /* TAB 2: ADVANCED - Technical Controls & Live BLE Inspector */
-            <div className="space-y-4">
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
               {/* Web Bluetooth Compatibility Helper */}
               {!isBleSupported && (
                 <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-start space-y-2">
@@ -487,6 +416,34 @@ export const StrapConnectSheet: React.FC<StrapConnectSheetProps> = ({
                 </div>
               </div>
 
+              {/* Pairing / Connection Actions in ADVANCED Tab */}
+              <div className="p-4 rounded-2xl bg-[#12151A] border border-white/5 space-y-3">
+                <div className="text-xs font-black uppercase tracking-wider text-white font-condensed">
+                  {isRtl ? 'إدارة اقتران البلوتوث' : 'Bluetooth Pairing & Connection'}
+                </div>
+
+                {!isConnected ? (
+                  <button
+                    onClick={() => onConnectBle('filtered')}
+                    className="w-full py-3.5 rounded-xl bg-white text-black hover:bg-zinc-200 font-condensed font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 active:scale-98 transition-all shadow-xl"
+                  >
+                    <Bluetooth className="w-4 h-4" />
+                    <span>{isRtl ? 'اقتران / ربط سوار WHOOP 4.0' : 'PAIR / CONNECT STRAP'}</span>
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => {
+                      onDisconnectBle();
+                      onClose();
+                    }}
+                    className="w-full py-3.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-[#FF3344] border border-rose-500/30 font-condensed font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-colors active:scale-98"
+                  >
+                    <BluetoothOff className="w-4 h-4" />
+                    <span>{isRtl ? 'فصل اتصال السوار' : 'DISCONNECT STRAP'}</span>
+                  </button>
+                )}
+              </div>
+
               {/* Live BLE Telemetry Strip */}
               <div className="p-4 rounded-2xl bg-[#12151A] border border-white/5 space-y-2.5 font-condensed">
                 <div className="flex items-center justify-between text-xs font-black uppercase tracking-wider text-zinc-400">
@@ -533,20 +490,6 @@ export const StrapConnectSheet: React.FC<StrapConnectSheetProps> = ({
                   </button>
                 )}
               </div>
-
-              {/* Disconnect Button if Connected */}
-              {isConnected && (
-                <button
-                  onClick={() => {
-                    onDisconnectBle();
-                    onClose();
-                  }}
-                  className="w-full py-3.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-[#FF3344] border border-rose-500/30 font-condensed font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-colors active:scale-98"
-                >
-                  <BluetoothOff className="w-4 h-4" />
-                  <span>{isRtl ? 'فصل اتصال السوار' : 'DISCONNECT STRAP'}</span>
-                </button>
-              )}
             </div>
           )}
         </div>
