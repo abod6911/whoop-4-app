@@ -62,9 +62,11 @@ interface OverviewViewProps {
   onOpenSleepPlanner?: () => void;
   onOpenShareCard?: (type: 'recovery' | 'strain' | 'activity') => void;
   onRefreshSessions?: () => void;
+  onOpenStreakModal?: () => void;
 }
 
 import { useLanguage } from '../../i18n/LanguageContext';
+import { StreakBadge } from '../StreakBadge';
 
 export const OverviewView: React.FC<OverviewViewProps> = ({
   metrics,
@@ -83,6 +85,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   onOpenSleepPlanner,
   onOpenShareCard,
   onRefreshSessions,
+  onOpenStreakModal,
 }) => {
   const { t, isRtl, dayNames, formatNumber } = useLanguage();
   const [isOutlookModalOpen, setIsOutlookModalOpen] = useState(false);
@@ -286,6 +289,11 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
           activeSubTab="overview"
         />
       </div>
+
+      {/* WHOOP Wear Streak Milestone Hero Card */}
+      {onOpenStreakModal && (
+        <StreakBadge variant="card" onClick={onOpenStreakModal} />
+      )}
 
       {/* Live Heartbeat & High-DPI Real-Time ECG Wave Card */}
       {metrics.currentHr !== null && metrics.onWrist !== false && (

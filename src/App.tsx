@@ -50,6 +50,8 @@ import { HrvBreathePacer } from './components/HrvBreathePacer';
 import { HapticAlarmModal } from './components/HapticAlarmModal';
 import { ShareCardModal, type ShareCardType } from './components/ShareCardModal';
 import { WhoopCalendarSheet } from './components/WhoopCalendarSheet';
+import { StreakModal } from './components/StreakModal';
+import { streakEngine } from './services/streakEngine';
 import { alarmEngine } from './services/alarmEngine';
 import { notificationEngine } from './services/notificationEngine';
 import { telemetryWorkerManager } from './services/telemetryWorkerManager';
@@ -97,6 +99,9 @@ export const App: React.FC = () => {
   const [isHrvBreatheOpen, setIsHrvBreatheOpen] = useState(false);
   const [isHapticAlarmOpen, setIsHapticAlarmOpen] = useState(false);
   const [isShareCardOpen, setIsShareCardOpen] = useState(false);
+  const [isStreakModalOpen, setIsStreakModalOpen] = useState(() =>
+    typeof window !== 'undefined' && (window.location.search.includes('sheet=streak') || window.location.hash === '#streak')
+  );
   const [shareCardType, setShareCardType] = useState<ShareCardType>('recovery');
   const [shareSession, setShareSession] = useState<SessionRecord | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -193,6 +198,7 @@ export const App: React.FC = () => {
   useEffect(() => {
     if (metadata.connected) {
       telemetryWorkerManager.enableBackgroundKeepAlive();
+      streakEngine.recordDayActivity();
     } else {
       telemetryWorkerManager.disableBackgroundKeepAlive();
     }
@@ -205,6 +211,10 @@ export const App: React.FC = () => {
   const handleMeasurement = useCallback((measurement: Parameters<typeof biometricEngine.ingestSample>[0]) => {
     const updated = biometricEngine.ingestSample(measurement);
     setLiveMetrics(updated);
+
+    if (measurement.bpm > 0) {
+      streakEngine.recordDayActivity();
+    }
 
     if (isWorkoutActive && measurement.bpm > 0) {
       setWorkoutSamples((prev) => [
@@ -682,6 +692,7 @@ export const App: React.FC = () => {
           onPrevDate={handlePrevDate}
           onNextDate={handleNextDate}
           onOpenCalendar={() => setIsCalendarSheetOpen(true)}
+          onOpenStreakModal={() => setIsStreakModalOpen(true)}
         />
 
         {/* Historical Cycle Banner with Quick Return Button */}
@@ -756,6 +767,7 @@ export const App: React.FC = () => {
                     setIsShareCardOpen(true);
                   }}
                   onRefreshSessions={refreshSessions}
+                  onOpenStreakModal={() => setIsStreakModalOpen(true)}
                 />
               )}
 
@@ -912,6 +924,12 @@ export const App: React.FC = () => {
           onReconnectPermitted={handleReconnectPermitted}
           onDisconnectBle={handleDisconnectBle}
           onOpenDiagnostics={() => setIsDiagnosticsOpen(true)}
+        />
+
+        {/* WHOOP Wear Streak & Milestones Modal */}
+        <StreakModal
+          isOpen={isStreakModalOpen}
+          onClose={() => setIsStreakModalOpen(false)}
         />
 
         {/* Real Hardware Diagnostics Modal */}

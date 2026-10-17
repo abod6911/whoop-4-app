@@ -15,6 +15,7 @@ interface WhoopTopBarProps {
   onPrevDate: () => void;
   onNextDate: () => void;
   onOpenCalendar?: () => void;
+  onOpenStreakModal?: () => void;
 }
 
 export const SignalBarsIcon: React.FC<{ isConnected: boolean; className?: string }> = ({
@@ -60,6 +61,7 @@ export const VerticalWhoopStrapIcon: React.FC<{ isConnected: boolean; className?
 );
 
 import { useLanguage } from '../i18n/LanguageContext';
+import { StreakBadge } from './StreakBadge';
 
 export const WhoopTopBar: React.FC<WhoopTopBarProps> = ({
   metadata,
@@ -73,6 +75,7 @@ export const WhoopTopBar: React.FC<WhoopTopBarProps> = ({
   onPrevDate,
   onNextDate,
   onOpenCalendar,
+  onOpenStreakModal,
 }) => {
   const { t, isRtl } = useLanguage();
   const isBatteryLow = metadata.batteryLevel !== null && metadata.batteryLevel < 15;
@@ -130,7 +133,7 @@ export const WhoopTopBar: React.FC<WhoopTopBarProps> = ({
 
       {/* Row 1: Top Bar (00:00 in Video) */}
       <div className="px-4 pt-3 pb-2 flex items-center justify-between gap-2 max-w-[430px] mx-auto">
-        {/* Left: Neutral User Avatar Circle (AB) + Notification Bell Badge */}
+        {/* Left: Neutral User Avatar Circle (AB) + Notification Bell Badge + Streak Badge */}
         <div className="flex items-center gap-2">
           <button
             onClick={onOpenNotifications}
@@ -156,6 +159,11 @@ export const WhoopTopBar: React.FC<WhoopTopBarProps> = ({
               </span>
             )}
           </button>
+
+          {/* Interactive WHOOP Wear Streak Badge */}
+          {onOpenStreakModal && (
+            <StreakBadge onClick={onOpenStreakModal} />
+          )}
         </div>
 
         {/* Center: Date Selector < TODAY > with Chevrons and Click-to-Calendar */}
