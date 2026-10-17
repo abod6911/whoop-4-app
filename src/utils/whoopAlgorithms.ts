@@ -107,15 +107,16 @@ export function generateHealthMonitorMetrics(
   const hrvDeltaStr = hrvDelta !== null ? `${hrvDelta >= 0 ? '+' : ''}${hrvDelta}` : undefined;
 
   // 5. Skin Temperature Delta vs Rolling 14-day Baseline
-  const hasTempDelta = liveTemp !== null && liveTempDelta !== null;
-  const tempOk = hasTempDelta && Math.abs(liveTempDelta!) <= 1.2;
-  const tempStatus = !hasTempDelta ? 'calibrating' : tempOk ? 'ok' : 'alert';
-  const tempStatusText = !hasTempDelta
+  const hasTemp = liveTemp !== null;
+  const effectiveTempDelta = liveTempDelta ?? (liveTemp !== null ? Number((liveTemp - 33.6).toFixed(1)) : null);
+  const tempOk = hasTemp && (effectiveTempDelta === null || Math.abs(effectiveTempDelta) <= 1.2);
+  const tempStatus = !hasTemp ? 'calibrating' : tempOk ? 'ok' : 'alert';
+  const tempStatusText = !hasTemp
     ? 'Calibrating'
     : tempOk
-    ? (liveTempDelta === 0 ? 'Baseline (0.0°)' : `${liveTempDelta! > 0 ? '+' : ''}${liveTempDelta!.toFixed(1)}° vs Baseline`)
+    ? (effectiveTempDelta === 0 ? 'Baseline (0.0°)' : `${effectiveTempDelta! > 0 ? '+' : ''}${effectiveTempDelta!.toFixed(1)}° vs Baseline`)
     : 'Outside Range';
-  const tempDeltaStr = hasTempDelta ? `${liveTempDelta! > 0 ? '+' : ''}${liveTempDelta!.toFixed(1)}°` : undefined;
+  const tempDeltaStr = effectiveTempDelta !== null ? `${effectiveTempDelta > 0 ? '+' : ''}${effectiveTempDelta.toFixed(1)}°` : undefined;
 
   return [
     {

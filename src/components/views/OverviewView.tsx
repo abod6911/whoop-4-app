@@ -117,23 +117,24 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   // Active health metrics count & dynamic status
   const activeHealthCount = healthMetrics.filter((m) => m.value !== null).length;
   const anyAlertHealth = healthMetrics.some((m) => m.status === 'alert');
-  const allCalibratingHealth = healthMetrics.every((m) => m.status === 'calibrating');
+  const allCalibratingHealth = activeHealthCount === 0;
+  const isHealthyWithinRange = activeHealthCount >= 3 && !anyAlertHealth;
   const healthStatusText = anyAlertHealth
     ? (isRtl ? 'خارج النطاق' : 'Outside Range')
     : allCalibratingHealth
     ? t('calibrating')
-    : t('withinRange');
+    : (isRtl ? `ضمن النطاق (${activeHealthCount}/5)` : `Within Range (${activeHealthCount}/5)`);
   const healthBadgeStyle = anyAlertHealth
     ? 'bg-[#351515] text-[#FF453A] border-[#FF453A]/30'
-    : allCalibratingHealth
+    : (allCalibratingHealth || !isHealthyWithinRange)
     ? 'bg-[#16191E] text-zinc-400 border-white/5'
     : 'bg-[#0D3528] text-[#16EC06] border-[#16EC06]/30';
   const healthStatusColor = anyAlertHealth
     ? 'text-[#FF453A]'
-    : allCalibratingHealth
+    : (allCalibratingHealth || !isHealthyWithinRange)
     ? 'text-zinc-400'
     : 'text-[#16EC06]';
-  const healthBadgeIcon = anyAlertHealth ? '!' : allCalibratingHealth ? '⋯' : '✓';
+  const healthBadgeIcon = anyAlertHealth ? '!' : isHealthyWithinRange ? '✓' : '⋯';
 
   // 7-Day Strain & Recovery Dual-Axis Chart Data derived from real records (Zero Fake Data)
   const dualAxisData = (daysHistory || []).slice(0, 7).reverse().map((d) => {

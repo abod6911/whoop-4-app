@@ -211,9 +211,11 @@ export const HealthMonitorModal: React.FC<HealthMonitorModalProps> = ({
                 {metrics.respiratoryRate !== null ? `${metrics.respiratoryRate}` : '--'}
                 <span className="text-xs font-sans text-zinc-400 font-normal ml-1">rpm</span>
               </div>
-              <div className="flex items-center gap-1.5 text-[10px] text-[#16EC06] font-mono">
-                <span className="w-2 h-2 rounded-full bg-[#16EC06]" />
-                <span>{t('withinRange')}</span>
+              <div className="flex items-center gap-1.5 text-[10px] font-mono">
+                <span className={`w-2 h-2 rounded-full ${metrics.respiratoryRate !== null ? 'bg-[#16EC06]' : 'bg-zinc-600'}`} />
+                <span className={metrics.respiratoryRate !== null ? 'text-[#16EC06]' : 'text-zinc-500'}>
+                  {metrics.respiratoryRate !== null ? t('withinRange') : t('calibrating')}
+                </span>
               </div>
             </div>
 
