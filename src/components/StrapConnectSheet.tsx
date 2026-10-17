@@ -1,24 +1,26 @@
 import React, { useState } from 'react';
 import type { DeviceMetadata } from '../types/whoop';
-import { WhoopLogo } from './WhoopLogo';
+import { WhoopHardwareRender } from './WhoopHardwareRender';
 import { whoopBleEngine } from '../services/whoopBleEngine';
 import {
   Bluetooth,
   BluetoothOff,
-  Battery,
-  X,
-  Radio,
-  ShieldCheck,
-  CheckCircle2,
-  AlertTriangle,
   Zap,
+  Radio,
+  RefreshCw,
+  Vibrate,
   Activity,
+  X,
+  AlertTriangle,
   Copy,
   ExternalLink,
+  ShieldCheck,
+  CheckCircle2,
 } from 'lucide-react';
-
+import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguage } from '../i18n/LanguageContext';
 import { SheetBackdrop, SheetPanel } from './motion/Sheet';
+import { hapticMedium, hapticSuccess, hapticLight } from '../utils/haptics';
 
 interface StrapConnectSheetProps {
   isOpen: boolean;
@@ -42,12 +44,15 @@ export const StrapConnectSheet: React.FC<StrapConnectSheetProps> = ({
   onOpenDiagnostics,
 }) => {
   const { t, isRtl } = useLanguage();
+  const [activeTab, setActiveTab] = useState<'status' | 'advanced'>('status');
   const [copied, setCopied] = useState(false);
-  const [wakeFeedback, setWakeFeedback] = useState<string | null>(null);
-  const [isWaking, setIsWaking] = useState(false);
+  const [actionFeedback, setActionFeedback] = useState<string | null>(null);
+  const [isBusy, setIsBusy] = useState(false);
 
   const isBleSupported = whoopBleEngine.isSupported();
-  const isBatteryLow = metadata.batteryLevel !== null && metadata.batteryLevel < 15;
+  const isConnected = metadata.connected;
+  const battery = metadata.batteryLevel ?? null;
+  const isCharging = metadata.isCharging;
   const hasPermitted = permittedDevices.length > 0;
   const primaryPermitted = permittedDevices[0];
 
@@ -59,297 +64,493 @@ export const StrapConnectSheet: React.FC<StrapConnectSheetProps> = ({
     }
   };
 
+  const handleWakeSensor = async () => {
+    hapticMedium();
+    try {
+      setIsBusy(true);
+      setActionFeedback(isRtl ? 'جاري إيقاظ الحساس وتنشيط البث...' : 'Waking sensor...');
+      await whoopBleEngine.wakeSensorAndEnableLiveStream();
+      hapticSuccess();
+      setActionFeedback(isRtl ? '✓ تم إيقاظ الحساس وبث النبض المباشر' : '✓ Live HR Stream Activated');
+      setTimeout(() => setActionFeedback(null), 3500);
+    } catch {
+      setActionFeedback(isRtl ? '✕ تعذر إرسال الأمر' : '✕ Command failed');
+      setTimeout(() => setActionFeedback(null), 3500);
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  const handleTestVibration = async () => {
+    hapticMedium();
+    try {
+      setIsBusy(true);
+      setActionFeedback(isRtl ? 'جاري تشغيل اهتزاز السوار...' : 'Triggering strap vibration...');
+      await whoopBleEngine.triggerStrapVibration('pulse');
+      hapticSuccess();
+      setActionFeedback(isRtl ? '✓ تم اهتزاز السوار' : '✓ Strap Haptic Confirmed');
+      setTimeout(() => setActionFeedback(null), 3500);
+    } catch {
+      setActionFeedback(isRtl ? '✕ تعذر تشغيل الاهتزاز' : '✕ Vibration failed');
+      setTimeout(() => setActionFeedback(null), 3500);
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  const handleSyncMemory = async () => {
+    hapticMedium();
+    try {
+      setIsBusy(true);
+      setActionFeedback(isRtl ? 'جاري مزامنة الذاكرة والبيانات...' : 'Syncing flash memory...');
+      await whoopBleEngine.triggerCatchUpSync();
+      hapticSuccess();
+      setActionFeedback(isRtl ? '✓ تمت المزامنة بنجاح' : '✓ Catch-Up Sync Complete');
+      setTimeout(() => setActionFeedback(null), 3500);
+    } catch {
+      setActionFeedback(isRtl ? '✕ تعذر مزامنة الذاكرة' : '✕ Sync failed');
+      setTimeout(() => setActionFeedback(null), 3500);
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  const batteryColor =
+    battery === null
+      ? '#52525B'
+      : battery < 20
+      ? '#FF3344'
+      : battery < 50
+      ? '#FFDE00'
+      : '#16EC06';
+
+  const batteryFillHeight = battery !== null ? `${Math.min(100, Math.max(5, battery))}%` : '0%';
+
   return (
     <SheetBackdrop isOpen={isOpen} onClose={onClose}>
-      <SheetPanel onClose={onClose} className="p-5 max-h-[90vh] overflow-y-auto space-y-4">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-white/5 pb-3">
-          <div className="flex items-center gap-2.5">
-            <WhoopLogo size="sm" showWordmark={true} />
-            <span className="text-[10px] font-mono bg-[#0B0D10] px-2 py-0.5 rounded text-white border border-white/5">
-              {t('strapTitle')}
-            </span>
+      <SheetPanel
+        onClose={onClose}
+        className="h-[92vh] max-h-[92vh] bg-gradient-to-b from-[#161B22] via-[#0F1318] to-[#090B0E] flex flex-col p-0 overflow-hidden border-t border-white/10"
+      >
+        {/* Header Tabs (STATUS | ADVANCED) */}
+        <div className="px-6 pt-4 pb-2 flex items-center justify-between border-b border-white/5 flex-shrink-0">
+          <div className="flex items-center gap-6">
+            <button
+              onClick={() => {
+                hapticLight();
+                setActiveTab('status');
+              }}
+              className={`text-xs font-black tracking-[0.16em] uppercase font-condensed relative pb-2 transition-colors ${
+                activeTab === 'status' ? 'text-white' : 'text-[#6E7681] hover:text-zinc-300'
+              }`}
+            >
+              <span>{isRtl ? 'حالة السوار' : 'STATUS'}</span>
+              {activeTab === 'status' && (
+                <motion.div
+                  layoutId="deviceTabUnderline"
+                  className="absolute bottom-0 left-0 right-0 h-[2px] bg-white rounded-full"
+                />
+              )}
+            </button>
+
+            <button
+              onClick={() => {
+                hapticLight();
+                setActiveTab('advanced');
+              }}
+              className={`text-xs font-black tracking-[0.16em] uppercase font-condensed relative pb-2 transition-colors ${
+                activeTab === 'advanced' ? 'text-white' : 'text-[#6E7681] hover:text-zinc-300'
+              }`}
+            >
+              <span>{isRtl ? 'متقدم والعتاد' : 'ADVANCED'}</span>
+              {activeTab === 'advanced' && (
+                <motion.div
+                  layoutId="deviceTabUnderline"
+                  className="absolute bottom-0 left-0 right-0 h-[2px] bg-white rounded-full"
+                />
+              )}
+            </button>
           </div>
+
           <button
             onClick={onClose}
-            className="p-1.5 rounded-full bg-[#222730] text-zinc-400 hover:text-white transition-colors"
+            className="w-7 h-7 rounded-full bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white flex items-center justify-center transition-colors active:scale-95"
           >
-            <X className="w-4 h-4" />
+            <X className="w-3.5 h-3.5" />
           </button>
         </div>
 
-        {/* Hardware Status Strip */}
-        <div className="p-4 rounded-2xl bg-[#0B0D10] border border-white/5 space-y-3">
-          {/* Connection Status */}
-          <div className="flex items-center justify-between text-xs font-condensed">
-            <span className="text-zinc-400 uppercase font-bold tracking-wide">{t('status')}</span>
-            <span className="flex items-center gap-1.5 font-black text-white">
-              <span
-                className={`w-2 h-2 rounded-full ${
-                  metadata.connected
-                    ? 'bg-[#16EC06] animate-ping'
-                    : metadata.connecting
-                    ? 'bg-[#FFDE00] animate-pulse'
-                    : 'bg-zinc-600'
-                }`}
-              />
-              {metadata.connected
-                ? metadata.name || t('connected')
-                : metadata.connecting
-                ? t('connecting')
-                : t('disconnected')}
-            </span>
-          </div>
+        {/* Tab Body */}
+        <div className="flex-1 overflow-y-auto px-6 py-4 flex flex-col">
+          {activeTab === 'status' ? (
+            /* TAB 1: STATUS - 1:1 Official WHOOP 4.0 Device Status Stage */
+            <div className="flex-1 flex flex-col justify-between">
+              {/* Top Banner / Device Identification */}
+              <div className="flex items-center justify-between pt-1">
+                <div>
+                  <div className="text-[10px] font-black uppercase tracking-widest text-[#6E7681] font-condensed">
+                    {metadata.name || 'WHOOP 4.0'}
+                  </div>
+                  <div className="text-sm font-bold text-white font-sans flex items-center gap-1.5 mt-0.5">
+                    <span
+                      className={`w-2 h-2 rounded-full ${
+                        isConnected ? 'bg-[#16EC06] shadow-sm shadow-[#16EC06]/50' : 'bg-zinc-600'
+                      }`}
+                    />
+                    <span>
+                      {isConnected
+                        ? isRtl
+                          ? 'متصل ومقترن'
+                          : 'Connected'
+                        : isRtl
+                        ? 'غير متصل'
+                        : 'Disconnected'}
+                    </span>
+                  </div>
+                </div>
 
-          {/* Real Battery Level */}
-          <div className="flex items-center justify-between text-xs font-condensed border-t border-white/5 pt-2.5">
-            <span className="text-zinc-400 uppercase font-bold tracking-wide">{t('battery')}</span>
-            <div className="flex items-center gap-1.5 font-mono font-bold">
-              {metadata.isCharging ? (
-                <span className="flex items-center gap-1 text-[#16EC06] text-xs font-black font-condensed animate-pulse">
-                  <Zap className="w-3.5 h-3.5 fill-[#16EC06] text-[#16EC06]" />
-                  <span>{metadata.batteryLevel !== null ? `${metadata.batteryLevel}%` : '--'}</span>
-                  <span className="text-[9px] px-1.5 py-0.5 bg-[#16EC06]/20 rounded font-condensed uppercase tracking-wider">{t('charging')}</span>
-                </span>
-              ) : (
-                <>
-                  <Battery
-                    className={`w-4 h-4 ${
-                      metadata.batteryLevel === null
-                        ? 'text-zinc-500'
-                        : isBatteryLow
-                        ? 'text-[#FF3344]'
-                        : metadata.batteryLevel < 50
-                        ? 'text-[#FFDE00]'
-                        : 'text-[#16EC06]'
-                    }`}
+                {metadata.onWrist !== null && (
+                  <div className="px-2.5 py-1 rounded-full bg-[#181C23] border border-white/5 text-[10px] font-condensed font-bold text-zinc-300">
+                    {metadata.onWrist
+                      ? isRtl
+                        ? '✓ على المعصم'
+                        : '✓ On Wrist'
+                      : isRtl
+                      ? '✕ خارج المعصم'
+                      : '✕ Off Wrist'}
+                  </div>
+                )}
+              </div>
+
+              {/* Hardware Centerpiece & Right-Side Vertical Spine */}
+              <div className="relative flex items-center justify-between my-auto py-4">
+                {/* 3D Hardware Illustration Stage */}
+                <div className="flex-1 flex items-center justify-center">
+                  <WhoopHardwareRender
+                    metadata={metadata}
+                    className="max-w-[280px]"
+                    onTap={() => {
+                      if (isConnected) {
+                        setActionFeedback(isRtl ? 'تم تحديث نسبة البطارية' : 'Battery Refreshed');
+                        setTimeout(() => setActionFeedback(null), 2500);
+                      }
+                    }}
                   />
-                  <span className={metadata.batteryLevel !== null ? 'text-white' : 'text-zinc-500'}>
-                    {metadata.batteryLevel !== null ? `${metadata.batteryLevel}%` : '--'}
-                  </span>
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Wrist Contact Detection */}
-          <div className="flex items-center justify-between text-xs font-condensed border-t border-white/5 pt-2.5">
-            <span className="text-zinc-400 uppercase font-bold tracking-wide">{t('wristPlacement')}</span>
-            <span
-              className={`text-xs font-bold font-condensed uppercase ${
-                metadata.onWrist === true
-                  ? 'text-[#16EC06]'
-                  : metadata.onWrist === false
-                  ? 'text-[#FFDE00]'
-                  : 'text-zinc-500'
-              }`}
-            >
-              {metadata.onWrist === true
-                ? (isRtl ? 'âœ“ Ø¹Ù„Ù‰ Ø§Ù„Ù…Ø¹ØµÙ… (Ù…ÙØ­ÙƒÙ…)' : 'âœ“ On Wrist (Locked)')
-                : metadata.onWrist === false
-                ? t('offWrist')
-                : metadata.connected
-                ? (isRtl ? 'Ø¬Ø§Ø±ÙŠ Ø§Ù„ÙØ­Øµ...' : 'Detecting...')
-                : '--'}
-            </span>
-          </div>
-
-          {/* Firmware & Serial */}
-          <div className="flex items-center justify-between text-xs font-condensed border-t border-white/5 pt-2.5">
-            <span className="text-zinc-400 uppercase font-bold tracking-wide">{t('firmware')}</span>
-            <span className="font-mono text-zinc-300 text-[11px]">
-              {metadata.firmwareRevision || '--'}
-            </span>
-          </div>
-
-          <div className="flex items-center justify-between text-xs font-condensed border-t border-white/5 pt-2.5">
-            <span className="text-zinc-400 uppercase font-bold tracking-wide">{t('serialNumber')}</span>
-            <span className="font-mono text-zinc-300 text-[11px]">
-              {metadata.serialNumber || '--'}
-            </span>
-          </div>
-
-          {/* Hardware Diagnostics Trigger */}
-          {onOpenDiagnostics && (
-            <div className="border-t border-white/5 pt-2.5">
-              <button
-                onClick={() => {
-                  onClose();
-                  onOpenDiagnostics();
-                }}
-                className="w-full py-2 px-3 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-black uppercase text-zinc-300 hover:text-white flex items-center justify-between transition-colors active:scale-98"
-              >
-                <div className="flex items-center gap-2">
-                  <Activity className="w-3.5 h-3.5 text-[#0093E9]" />
-                  <span>{t('hardwareDiagnostics')}</span>
                 </div>
-                <span className="text-[10px] font-mono text-zinc-400">
-                  {metadata.packetsPerMinute || 0} {t('packetsPerMin')} â€º
-                </span>
-              </button>
-            </div>
-          )}
-        </div>
 
-        {/* Real Web Bluetooth Connection Controls */}
-        <div className="space-y-2.5 font-condensed">
-          {metadata.connected ? (
-            <div className="space-y-2">
-              <button
-                onClick={async () => {
-                  try {
-                    setIsWaking(true);
-                    setWakeFeedback(isRtl ? 'Ø¬Ø§Ø±ÙŠ Ø¥ÙŠÙ‚Ø§Ø¸ Ø§Ù„Ø­Ø³Ø§Ø³...' : 'Waking sensor...');
-                    await whoopBleEngine.wakeSensorAndEnableLiveStream();
-                    setWakeFeedback(isRtl ? 'âœ“ ØªÙ… Ø¥Ø±Ø³Ø§Ù„ Ø£Ù…Ø± ØªÙ†Ø´ÙŠØ· Ø§Ù„Ø¨Ø« Ø§Ù„Ù…Ø¨Ø§Ø´Ø± Ù„Ù„Ù†Ø¨Ø¶' : 'âœ“ Live HR Stream Activated');
-                    setTimeout(() => setWakeFeedback(null), 3500);
-                  } catch (e) {
-                    setWakeFeedback(isRtl ? 'âœ• ØªØ¹Ø°Ø± Ø¥Ø±Ø³Ø§Ù„ Ø§Ù„Ø£Ù…Ø±' : 'âœ• Command failed');
-                    setTimeout(() => setWakeFeedback(null), 3500);
-                  } finally {
-                    setIsWaking(false);
-                  }
-                }}
-                disabled={isWaking}
-                className="w-full py-3.5 rounded-xl bg-gradient-to-r from-[#0093E9] to-[#00F0FF] hover:opacity-90 text-black text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all active:scale-98 shadow-lg shadow-cyan-500/20 disabled:opacity-50"
-              >
-                <Zap className="w-4 h-4 fill-black" />
-                <span>{isRtl ? 'âš¡ Ø¥ÙŠÙ‚Ø§Ø¸ Ø§Ù„Ø­Ø³Ø§Ø³ / ØªÙ†Ø´ÙŠØ· Ø§Ù„Ø¨Ø« Ø§Ù„Ù…Ø¨Ø§Ø´Ø± Ù„Ù„Ù†Ø¨Ø¶' : 'âš¡ Wake Sensor / Force Live HR Stream'}</span>
-              </button>
+                {/* Right-Side Vertical Spine (Telemetry Nodes & Giant Battery) */}
+                <div className="flex flex-col items-center justify-between h-72 py-1 pl-2">
+                  {/* Top: Mini Hardware Pod Thumbnail */}
+                  <div className="w-10 h-12 rounded-xl bg-[#181C23] border border-white/10 flex flex-col items-center justify-center p-1 shadow-md">
+                    <div
+                      className="w-4 h-1 rounded-full mb-1"
+                      style={{ backgroundColor: isConnected ? '#16EC06' : '#52525B' }}
+                    />
+                    <div className="w-6 h-6 rounded-md bg-[#0F1217] flex items-center justify-center">
+                      <span className="text-[8px] font-black font-condensed text-zinc-400">W</span>
+                    </div>
+                  </div>
 
-              {wakeFeedback && (
-                <div className="text-xs text-center font-mono font-bold text-[#16EC06] py-1 bg-[#16EC06]/10 rounded-lg border border-[#16EC06]/20">
-                  {wakeFeedback}
+                  {/* Middle: Connected BLE Status Nodes */}
+                  <div className="flex flex-col items-center gap-2 my-auto">
+                    {/* Blue Connected Node */}
+                    <div
+                      className={`w-6 h-6 rounded-full flex items-center justify-center border transition-all ${
+                        isConnected
+                          ? 'bg-[#007AFF]/20 border-[#007AFF] text-[#007AFF]'
+                          : 'bg-white/5 border-white/10 text-zinc-600'
+                      }`}
+                    >
+                      <Bluetooth className="w-3.5 h-3.5" />
+                    </div>
+
+                    {/* Dual Concentric Rings */}
+                    <div className="relative w-4 h-4 flex items-center justify-center">
+                      <span
+                        className={`absolute inset-0 rounded-full border ${
+                          isConnected
+                            ? 'border-[#00F0FF]/40 animate-ping'
+                            : 'border-white/10'
+                        }`}
+                      />
+                      <span
+                        className={`w-2 h-2 rounded-full ${
+                          isConnected ? 'bg-[#00F0FF]' : 'bg-zinc-700'
+                        }`}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Bottom: Giant Battery Readout + Vertical Bar */}
+                  <div className="flex items-end gap-2.5">
+                    {/* Battery Digits */}
+                    <div className="text-right flex flex-col items-end">
+                      <div className="flex items-baseline font-light font-condensed tabular-nums">
+                        <span className="text-4xl font-extralight text-white">
+                          {battery !== null ? battery : '--'}
+                        </span>
+                        <span className="text-xs text-zinc-400 ml-0.5">%</span>
+                      </div>
+                      <span className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest mt-0.5">
+                        {isCharging ? (isRtl ? 'شحن' : 'CHG') : (isRtl ? 'بطارية' : 'BAT')}
+                      </span>
+                    </div>
+
+                    {/* Vertical Battery Fill Bar */}
+                    <div className="w-2 h-28 rounded-full bg-[#181C23] border border-white/10 p-[1.5px] flex flex-col justify-end overflow-hidden shadow-inner">
+                      <motion.div
+                        className="w-full rounded-full transition-all"
+                        style={{ backgroundColor: batteryColor, height: batteryFillHeight }}
+                        initial={false}
+                        animate={{ height: batteryFillHeight }}
+                        transition={{ duration: 0.8, ease: 'easeOut' }}
+                      />
+                    </div>
+                  </div>
                 </div>
-              )}
+              </div>
 
-              <button
-                onClick={() => {
-                  onDisconnectBle();
-                  onClose();
-                }}
-                className="w-full py-3.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-[#FF3344] border border-rose-500/30 text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-colors"
-              >
-                <BluetoothOff className="w-4 h-4" />
-                <span>{t('disconnectStrap')}</span>
-              </button>
+              {/* Feedback Alert Pill */}
+              <AnimatePresence>
+                {actionFeedback && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    className="mb-2 py-2 px-3 rounded-xl bg-white/5 border border-white/10 text-center text-xs font-mono font-bold text-[#16EC06]"
+                  >
+                    {actionFeedback}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Bottom Actions */}
+              <div className="pt-2 pb-1 space-y-2 flex-shrink-0">
+                {!isConnected ? (
+                  <div className="space-y-2">
+                    {hasPermitted && onReconnectPermitted && (
+                      <button
+                        onClick={() => onReconnectPermitted(primaryPermitted)}
+                        className="w-full py-3.5 rounded-2xl bg-[#00A3FF] hover:bg-[#008AE6] text-white font-condensed font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 active:scale-98 transition-all shadow-lg shadow-[#00A3FF]/25"
+                      >
+                        <Bluetooth className="w-4 h-4" />
+                        <span>
+                          {isRtl
+                            ? `إعادة الاتصال السريع بـ ${primaryPermitted.name || 'WHOOP'}`
+                            : `Quick Reconnect to ${primaryPermitted.name || 'WHOOP'}`}
+                        </span>
+                      </button>
+                    )}
+
+                    <button
+                      onClick={() => onConnectBle('filtered')}
+                      className={`w-full py-3.5 rounded-2xl font-condensed font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 active:scale-98 transition-all ${
+                        hasPermitted
+                          ? 'bg-[#181C23] border border-white/10 text-white hover:bg-[#20252E]'
+                          : 'bg-white text-black hover:bg-zinc-200 shadow-xl'
+                      }`}
+                    >
+                      <Bluetooth className="w-4 h-4" />
+                      <span>{isRtl ? 'اقتران / ربط سوار WHOOP 4.0' : 'PAIR / CONNECT STRAP'}</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={handleWakeSensor}
+                      disabled={isBusy}
+                      className="py-3 px-3 rounded-xl bg-[#181C23] hover:bg-[#20252E] border border-white/10 text-white font-condensed font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all active:scale-98 disabled:opacity-50"
+                    >
+                      <Zap className="w-3.5 h-3.5 text-[#00A3FF]" />
+                      <span>{isRtl ? 'إيقاظ الحساس' : 'Wake PPG'}</span>
+                    </button>
+
+                    <button
+                      onClick={handleTestVibration}
+                      disabled={isBusy}
+                      className="py-3 px-3 rounded-xl bg-[#181C23] hover:bg-[#20252E] border border-white/10 text-white font-condensed font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all active:scale-98 disabled:opacity-50"
+                    >
+                      <Vibrate className="w-3.5 h-3.5 text-[#16EC06]" />
+                      <span>{isRtl ? 'اهتزاز السوار' : 'Buzz Strap'}</span>
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           ) : (
-            <>
-              {/* Web Bluetooth Compatibility Alert for iOS Safari / Unsupported Browsers */}
+            /* TAB 2: ADVANCED - Technical Controls & Live BLE Inspector */
+            <div className="space-y-4">
+              {/* Web Bluetooth Compatibility Helper */}
               {!isBleSupported && (
-                <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-start space-y-2.5">
+                <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-start space-y-2">
                   <div className="flex items-center gap-2 text-amber-300 font-bold font-condensed uppercase tracking-wider text-xs">
                     <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0 animate-pulse" />
-                    <span>{isRtl ? 'Ù…ØªØµÙØ­Ùƒ Ø§Ù„Ø­Ø§Ù„ÙŠ Ù„Ø§ ÙŠØ¯Ø¹Ù… Web Bluetooth' : 'Web Bluetooth Unsupported In This Browser'}</span>
+                    <span>
+                      {isRtl
+                        ? 'متصفحك الحالي لا يدعم Web Bluetooth'
+                        : 'Web Bluetooth Unsupported In This Browser'}
+                    </span>
                   </div>
                   <p className="text-[11px] text-zinc-300 leading-relaxed font-sans">
                     {isRtl ? (
                       <>
-                        Ù…ØªØµÙØ­ <strong className="text-white">Safari Ø¹Ù„Ù‰ Ø§Ù„Ø¢ÙŠÙÙˆÙ†</strong> Ù„Ø§ ÙŠØ¯Ø¹Ù… ØªÙ‚Ù†ÙŠØ© Web Bluetooth Ù…Ø¨Ø§Ø´Ø±Ø©. Ù„Ù„Ø§ØªØµØ§Ù„ Ø¨Ø³ÙˆØ§Ø±Ùƒ WHOOP 4.0 Ù…Ù† Ø§Ù„Ø¢ÙŠÙÙˆÙ†:
+                        متصفح <strong className="text-white">Safari على الآيفون</strong> لا يدعم
+                        البلوتوث مباشرة. للاتصال بسوارك WHOOP من الآيفون:
                         <br />
-                        1. Ø­Ù…Ù‘Ù„ ØªØ·Ø¨ÙŠÙ‚ <strong className="text-[#00F0FF]">Bluefy - Web BLE Browser</strong> Ù…Ø¬Ø§Ù†Ø§Ù‹ Ù…Ù† App Store.
+                        1. حمّل تطبيق{' '}
+                        <strong className="text-[#00F0FF]">Bluefy - Web BLE Browser</strong> مجاناً
+                        من App Store.
                         <br />
-                        2. Ø§ÙØªØ­ Ù‡Ø°Ø§ Ø§Ù„Ø±Ø§Ø¨Ø· Ø¯Ø§Ø®Ù„Ù‡ Ù„Ù„Ø§ØªØµØ§Ù„ ÙÙˆØ±ÙŠØ§Ù‹.
-                        <br />
-                        Ø¹Ù„Ù‰ Ø£Ø¬Ù‡Ø²Ø© Ø§Ù„ÙƒÙ…Ø¨ÙŠÙˆØªØ± (Windows/Mac): Ø§Ø³ØªØ®Ø¯Ù… <strong className="text-white">Google Chrome</strong> Ø£Ùˆ <strong className="text-white">Microsoft Edge</strong>.
+                        2. افتح هذا الرابط داخله للاتصال فورياً.
                       </>
                     ) : (
                       <>
-                        <strong className="text-white">Apple Safari on iOS</strong> restricts the Web Bluetooth API. To connect your WHOOP 4.0 strap on iPhone/iPad:
-                        <br />
-                        1. Install the free <strong className="text-[#00F0FF]">Bluefy - Web BLE Browser</strong> from the App Store.
-                        <br />
-                        2. Open this website inside Bluefy to pair directly.
-                        <br />
-                        On Desktop (PC/Mac): Use <strong className="text-white">Google Chrome</strong> or <strong className="text-white">Microsoft Edge</strong>.
+                        iOS Safari does not support Web Bluetooth. Please use{' '}
+                        <strong className="text-[#00F0FF]">Bluefy Web BLE Browser</strong> from the
+                        App Store, or Google Chrome / Microsoft Edge on desktop.
                       </>
                     )}
                   </p>
-                  <div className="pt-1 flex flex-wrap gap-2">
+                  <div className="flex gap-2 pt-1">
                     <button
-                      type="button"
                       onClick={handleCopyUrl}
-                      className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-condensed font-bold flex items-center gap-1.5 transition-colors"
+                      className="flex-1 py-2 px-3 rounded-xl bg-[#222730] border border-white/10 text-xs font-mono font-bold text-white flex items-center justify-center gap-1.5 active:scale-95"
                     >
                       <Copy className="w-3.5 h-3.5" />
-                      <span>{copied ? (isRtl ? 'ØªÙ… Ù†Ø³Ø® Ø§Ù„Ø±Ø§Ø¨Ø·!' : 'Copied!') : (isRtl ? 'Ù†Ø³Ø® Ø±Ø§Ø¨Ø· Ø§Ù„Ù…ÙˆÙ‚Ø¹' : 'Copy Web URL')}</span>
+                      <span>
+                        {copied
+                          ? isRtl
+                            ? 'تم نسخ الرابط!'
+                            : 'Copied!'
+                          : isRtl
+                          ? 'نسخ رابط الموقع'
+                          : 'Copy URL'}
+                      </span>
                     </button>
                     <a
                       href="https://apps.apple.com/app/bluefy-web-ble-browser/id1492822055"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="px-3 py-1.5 rounded-lg bg-[#0093E9]/20 hover:bg-[#0093E9]/30 text-[#00F0FF] border border-[#0093E9]/30 text-xs font-condensed font-bold flex items-center gap-1.5 transition-colors"
+                      className="py-2 px-3 rounded-xl bg-[#0093E9] text-black text-xs font-condensed font-black uppercase flex items-center gap-1 active:scale-95"
                     >
+                      <span>Bluefy</span>
                       <ExternalLink className="w-3.5 h-3.5" />
-                      <span>{isRtl ? 'ØªØ­Ù…ÙŠÙ„ Bluefy (App Store)' : 'Get Bluefy (App Store)'}</span>
                     </a>
                   </div>
                 </div>
               )}
 
-              {/* 1-Click Reconnect to Previously Permitted WHOOP Band */}
-              {hasPermitted && onReconnectPermitted && (
-                <button
-                  onClick={() => onReconnectPermitted(primaryPermitted)}
-                  disabled={metadata.connecting}
-                  className="w-full py-3.5 rounded-xl bg-[#16EC06] hover:bg-[#14d605] text-black text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-lg shadow-emerald-500/20 active:scale-95 disabled:opacity-50"
-                >
-                  <Bluetooth className="w-4 h-4 stroke-[2.5]" />
-                  <span>
-                    {metadata.connecting
-                      ? t('connecting')
-                      : `${t('oneClickReconnect')} ${primaryPermitted.name || 'WHOOP 4.0'}`}
+              {/* Proprietary Sensor Triggers */}
+              <div className="p-4 rounded-2xl bg-[#12151A] border border-white/5 space-y-3">
+                <div className="text-xs font-black uppercase tracking-wider text-white font-condensed">
+                  {isRtl
+                    ? 'أوامر العتاد الحصرية لسوار WHOOP 4.0'
+                    : 'Proprietary WHOOP 4.0 Hardware Triggers'}
+                </div>
+
+                <div className="grid grid-cols-1 gap-2 font-condensed text-xs">
+                  <button
+                    onClick={handleWakeSensor}
+                    disabled={!isConnected || isBusy}
+                    className="py-3 px-4 rounded-xl bg-[#181C23] hover:bg-[#20252E] border border-white/10 text-white font-bold flex items-center justify-between transition-colors disabled:opacity-40"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Zap className="w-4 h-4 text-[#00A3FF]" />
+                      <span>{isRtl ? '⚡ إيقاظ الحساس وتنشيط بث النبض الحي' : '⚡ Wake Sensor & Force Live Stream'}</span>
+                    </div>
+                    <span className="text-[10px] text-zinc-500 font-mono">0x23 0x03 0x01</span>
+                  </button>
+
+                  <button
+                    onClick={handleTestVibration}
+                    disabled={!isConnected || isBusy}
+                    className="py-3 px-4 rounded-xl bg-[#181C23] hover:bg-[#20252E] border border-white/10 text-white font-bold flex items-center justify-between transition-colors disabled:opacity-40"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Vibrate className="w-4 h-4 text-[#16EC06]" />
+                      <span>{isRtl ? '🔔 اختبار اهتزاز المحرك اللمسي' : '🔔 Test Haptic Vibration Motor'}</span>
+                    </div>
+                    <span className="text-[10px] text-zinc-500 font-mono">0x23 0x08 0x01</span>
+                  </button>
+
+                  <button
+                    onClick={handleSyncMemory}
+                    disabled={!isConnected || isBusy}
+                    className="py-3 px-4 rounded-xl bg-[#181C23] hover:bg-[#20252E] border border-white/10 text-white font-bold flex items-center justify-between transition-colors disabled:opacity-40"
+                  >
+                    <div className="flex items-center gap-2">
+                      <RefreshCw className="w-4 h-4 text-[#FFDE00]" />
+                      <span>{isRtl ? '🔄 مزامنة الذاكرة والبيانات المتراكمة' : '🔄 Catch-Up Flash Memory Sync'}</span>
+                    </div>
+                    <span className="text-[10px] text-zinc-500 font-mono">Flash Ingestion</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Live BLE Telemetry Strip */}
+              <div className="p-4 rounded-2xl bg-[#12151A] border border-white/5 space-y-2.5 font-condensed">
+                <div className="flex items-center justify-between text-xs font-black uppercase tracking-wider text-zinc-400">
+                  <span>{isRtl ? 'معلومات العتاد وقنوات BLE' : 'Hardware & BLE Telemetry'}</span>
+                  <span className="font-mono text-[10px] text-[#00F0FF]">
+                    {metadata.packetsPerMinute || 0} pkt/min
                   </span>
+                </div>
+
+                <div className="divide-y divide-white/5 text-xs">
+                  <div className="py-2 flex items-center justify-between">
+                    <span className="text-zinc-400">{isRtl ? 'طراز الجهاز' : 'Model'}</span>
+                    <span className="font-mono text-white">{metadata.name || 'WHOOP 4.0'}</span>
+                  </div>
+                  <div className="py-2 flex items-center justify-between">
+                    <span className="text-zinc-400">{isRtl ? 'إصدار البرنامج الثابت' : 'Firmware'}</span>
+                    <span className="font-mono text-white">{metadata.firmwareRevision || '--'}</span>
+                  </div>
+                  <div className="py-2 flex items-center justify-between">
+                    <span className="text-zinc-400">{isRtl ? 'الرقم التسلسلي' : 'Serial Number'}</span>
+                    <span className="font-mono text-white">{metadata.serialNumber || '--'}</span>
+                  </div>
+                  <div className="py-2 flex items-center justify-between">
+                    <span className="text-zinc-400">{isRtl ? 'معرف Bluetooth' : 'Device ID'}</span>
+                    <span className="font-mono text-zinc-400 text-[10px] truncate max-w-[180px]">
+                      {metadata.id || '--'}
+                    </span>
+                  </div>
+                </div>
+
+                {onOpenDiagnostics && (
+                  <button
+                    onClick={() => {
+                      onClose();
+                      onOpenDiagnostics();
+                    }}
+                    className="w-full mt-2 py-2 px-3 rounded-xl bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white text-xs font-black uppercase flex items-center justify-between transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Activity className="w-3.5 h-3.5 text-[#00A3FF]" />
+                      <span>{isRtl ? 'فتح محلل حزم البلوتوث GATT' : 'Open GATT Packet Sniffer'}</span>
+                    </div>
+                    <span>→</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Disconnect Button if Connected */}
+              {isConnected && (
+                <button
+                  onClick={() => {
+                    onDisconnectBle();
+                    onClose();
+                  }}
+                  className="w-full py-3.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-[#FF3344] border border-rose-500/30 font-condensed font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-colors active:scale-98"
+                >
+                  <BluetoothOff className="w-4 h-4" />
+                  <span>{isRtl ? 'فصل اتصال السوار' : 'DISCONNECT STRAP'}</span>
                 </button>
               )}
-
-              {/* Primary Search: Filtered for WHOOP 4.0 */}
-              <button
-                onClick={() => onConnectBle('filtered')}
-                disabled={metadata.connecting}
-                className="w-full py-3.5 rounded-xl bg-[#0093E9] hover:bg-[#00B4D8] text-black text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-lg shadow-cyan-500/20 active:scale-95 disabled:opacity-50"
-              >
-                <Bluetooth className="w-4 h-4" />
-                <span>{t('pairFiltered')}</span>
-              </button>
-
-              {/* Fallback Search: Show All Devices */}
-              <button
-                onClick={() => onConnectBle('all')}
-                disabled={metadata.connecting}
-                className="w-full py-2.5 rounded-xl bg-[#1A1F26] hover:bg-[#222832] text-zinc-300 border border-white/10 text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all active:scale-95"
-              >
-                <Radio className="w-3.5 h-3.5 text-zinc-400" />
-                <span>{t('showAllDevices')}</span>
-              </button>
-
-              {/* Troubleshooting Instructions */}
-              <div className="p-3.5 rounded-xl bg-[#0B0D10] border border-white/5 text-[11px] text-zinc-300 space-y-2 font-sans text-start">
-                <div className="flex items-center gap-1.5 text-white font-bold font-condensed uppercase tracking-wider text-xs">
-                  <AlertTriangle className="w-3.5 h-3.5 text-[#FFDE00]" />
-                  <span>{t('connectionGuide')}</span>
-                </div>
-                <ul className="space-y-1 list-disc list-inside text-zinc-300 leading-relaxed text-[11px]">
-                  <li>
-                    <strong className="text-white">{isRtl ? 'ÙØµÙ„ ØªØ·Ø¨ÙŠÙ‚ Ø§Ù„Ù‡Ø§ØªÙ: ' : 'Disconnect phone app: '}</strong>
-                    {isRtl ? 'Ø£ØºÙ„Ù‚ ØªØ·Ø¨ÙŠÙ‚ WHOOP Ø¹Ù„Ù‰ Ù‡Ø§ØªÙÙƒ (Ø§Ù„Ø³ÙˆØ§Ø± ÙŠÙ‚Ø¨Ù„ Ø§ØªØµØ§Ù„Ø§Ù‹ ÙˆØ§Ø­Ø¯Ø§Ù‹ ÙÙ‚Ø·).' : 'Close official WHOOP app on your phone (single connection limit).'}
-                  </li>
-                  <li>
-                    <strong className="text-white">{isRtl ? 'ØªÙØ¹ÙŠÙ„ ÙˆØ¶Ø¹ Ø§Ù„Ø¥Ù‚Ø±Ø§Ù†: ' : 'Enable Pairing Mode: '}</strong>
-                    {isRtl ? 'Ø§Ù†Ù‚Ø± Ù…Ø±ØªÙŠÙ† Ø¨Ù‚ÙˆØ© Ø¹Ù„Ù‰ Ø£Ø¹Ù„Ù‰ Ø§Ù„Ø³ÙˆØ§Ø± Ø­ØªÙ‰ ØªÙˆÙ…Ø¶ Ù„Ù…Ø¨Ø§Øª LED.' : 'Firmly double-tap the top of the sensor until LEDs pulse.'}
-                  </li>
-                  <li>
-                    <strong className="text-white">{isRtl ? 'ØªØ´ØºÙŠÙ„ Ø§Ù„Ø¨Ù„ÙˆØªÙˆØ«: ' : 'Bluetooth ON: '}</strong>
-                    {isRtl ? 'ØªØ£ÙƒØ¯ Ù…Ù† ØªÙØ¹ÙŠÙ„ Ø§Ù„Ø¨Ù„ÙˆØªÙˆØ« ÙÙŠ Ø¬Ù‡Ø§Ø² Ø§Ù„ÙƒÙ…Ø¨ÙŠÙˆØªØ± Ø£Ùˆ Ø§Ù„Ù…ØªØµÙØ­.' : 'Verify Bluetooth is active in your system settings.'}
-                  </li>
-                </ul>
-              </div>
-            </>
+            </div>
           )}
         </div>
       </SheetPanel>
     </SheetBackdrop>
   );
 };
-

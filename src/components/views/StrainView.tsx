@@ -195,10 +195,10 @@ export const StrainView: React.FC<StrainViewProps> = ({
           <p>
             {strainScore >= metrics.optimalStrainTarget.min
               ? isRtl
-                ? 'ØªÙ… ØªØ­Ù‚ÙŠÙ‚ Ø§Ù„ØªØ­ÙÙŠØ² Ø§Ù„Ø¨Ø¯Ù†ÙŠ Ø§Ù„Ù…Ø«Ø§Ù„ÙŠ. Ù„Ù‚Ø¯ Ø¨Ù†ÙŠØª Ù„ÙŠØ§Ù‚ØªÙƒ Ø¶Ù…Ù† Ø³Ø¹ØªÙƒ Ø§Ù„Ù‚Ù„Ø¨ÙŠØ© Ø§Ù„ÙˆØ¹Ø§Ø¦ÙŠØ©.'
+                ? 'تم تحقيق التحفيز البدني المثالي. لقد بنيت لياقتك ضمن سعتك القلبية الوعائية.'
                 : 'Optimal stimulus achieved. You have built fitness while staying within your cardiovascular capacity.'
               : isRtl
-                ? 'Ù„Ø¯ÙŠÙƒ Ù…ØªØ³Ø¹ Ù„Ù…Ø²ÙŠØ¯ Ù…Ù† Ø§Ù„Ø¥Ø¬Ù‡Ø§Ø¯ Ø§Ù„ÙŠÙˆÙ…. Ù…Ø§Ø±Ø³ 20-30 Ø¯Ù‚ÙŠÙ‚Ø© Ù…Ù† Ø§Ù„ØªÙ…Ø§Ø±ÙŠÙ† Ø§Ù„Ù‡ÙˆØ§Ø¦ÙŠØ© Ù„Ù„ÙˆØµÙˆÙ„ Ù„Ù†Ø·Ø§Ù‚Ùƒ Ø§Ù„Ù…Ø³ØªÙ‡Ø¯Ù.'
+                ? 'لديك متسع لمزيد من الإجهاد اليوم. مارس 20-30 دقيقة من التمارين الهوائية للوصول لنطاقك المستهدف.'
                 : 'You have room for more strain today. Engage in 20-30 minutes of aerobic exertion to hit your target bracket.'}
           </p>
         </div>
@@ -366,7 +366,7 @@ export const StrainView: React.FC<StrainViewProps> = ({
         </div>
       </div>
 
-      {/* 4. 3 Dedicated 7-Day Charts (02:02 â€“ 02:13 in Video) */}
+      {/* 4. 3 Dedicated 7-Day Charts (02:02 – 02:13 in Video) */}
       <div className="space-y-4">
         {/* Chart 1: STRAIN Bright Blue Vertical Bars */}
         <div className="p-4 rounded-[24px] bg-[#12151A] border border-white/5 space-y-2">

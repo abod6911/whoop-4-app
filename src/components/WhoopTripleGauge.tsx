@@ -79,7 +79,7 @@ export const WhoopTripleGauge: React.FC<WhoopTripleGaugeProps> = ({
           </div>
         </div>
         <span className="text-[11px] font-black uppercase tracking-wider text-zinc-400 mt-2 font-condensed group-hover:text-white transition-colors">
-          {t('sleep')} {isRtl ? 'â€¹' : 'â€º'}
+          {t('sleep')} {isRtl ? '‹' : '›'}
         </span>
       </button>
 
@@ -124,7 +124,7 @@ export const WhoopTripleGauge: React.FC<WhoopTripleGaugeProps> = ({
           </div>
         </div>
         <span className="text-[11px] font-black uppercase tracking-wider text-zinc-400 mt-2 font-condensed group-hover:text-white transition-colors">
-          {t('recoveryScore')} {isRtl ? 'â€¹' : 'â€º'}
+          {t('recoveryScore')} {isRtl ? '‹' : '›'}
         </span>
       </button>
 
@@ -164,7 +164,7 @@ export const WhoopTripleGauge: React.FC<WhoopTripleGaugeProps> = ({
           </div>
         </div>
         <span className="text-[11px] font-black uppercase tracking-wider text-zinc-400 mt-2 font-condensed group-hover:text-white transition-colors">
-          {t('strain')} {isRtl ? 'â€¹' : 'â€º'}
+          {t('strain')} {isRtl ? '‹' : '›'}
         </span>
       </button>
     </div>

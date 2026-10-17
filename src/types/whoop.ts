@@ -177,7 +177,7 @@ export interface DeviceMetadata {
   syncStatusText?: string;
 }
 
-export type SessionType = 'workout' | 'sleep' | 'recovery_test';
+export type SessionType = 'workout' | 'sleep';
 
 export interface SessionRecord {
   id: string;

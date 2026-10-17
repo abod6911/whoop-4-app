@@ -33,7 +33,6 @@ import { SleepView } from './components/views/SleepView';
 import { StrapLabView } from './components/views/StrapLabView';
 import { MoreView } from './components/views/MoreView';
 import { OledSleepOverlay } from './components/views/OledSleepOverlay';
-import { RecoveryTestModal } from './components/RecoveryTestModal';
 import { QuickActionModal } from './components/QuickActionModal';
 import { StrapConnectSheet } from './components/StrapConnectSheet';
 import { WorkoutHudModal } from './components/views/WorkoutHudModal';
@@ -56,7 +55,7 @@ import { notificationEngine } from './services/notificationEngine';
 import { telemetryWorkerManager } from './services/telemetryWorkerManager';
 import { hapticMedium, hapticLight } from './utils/haptics';
 
-import { AlertCircle, X, Plus, AlertTriangle, Wind } from 'lucide-react';
+import { AlertCircle, X, Plus, AlertTriangle, Wind, Dumbbell, Moon, Clock, ShieldCheck } from 'lucide-react';
 import { useLanguage } from './i18n/LanguageContext';
 
 export const App: React.FC = () => {
@@ -80,7 +79,6 @@ export const App: React.FC = () => {
   // --- Modal States ---
   const [isStrapSheetOpen, setIsStrapSheetOpen] = useState(false);
   const [isWorkoutHudOpen, setIsWorkoutHudOpen] = useState(false);
-  const [isRecoveryTestOpen, setIsRecoveryTestOpen] = useState(false);
   const [isOledNightLockOpen, setIsOledNightLockOpen] = useState(false);
   const [isQuickActionOpen, setIsQuickActionOpen] = useState(false);
   const [isNotificationDrawerOpen, setIsNotificationDrawerOpen] = useState(false);
@@ -600,9 +598,69 @@ export const App: React.FC = () => {
   const zones = biometricEngine.getZones();
 
   return (
-    <div className="min-h-screen bg-[#0B0D10] text-white flex justify-center font-sans antialiased selection:bg-[#0093E9] selection:text-black">
-      {/* Mobile Shell Container with subtle top atmospheric gradient */}
-      <div className="w-full max-w-[430px] min-h-dvh bg-gradient-to-b from-[#161B22] via-[#0B0D10] to-[#000000] flex flex-col relative border-x border-white/5 shadow-2xl">
+    <div className="min-h-screen bg-[#07090C] text-white flex justify-center items-center font-sans antialiased selection:bg-[#0093E9] selection:text-black relative overflow-x-hidden md:py-6">
+      {/* Studio Radial Atmospheric Ambient Glows on Desktop */}
+      <div className="fixed inset-0 pointer-events-none hidden md:block overflow-hidden" aria-hidden="true">
+        <div className="absolute top-[-10%] left-[20%] w-[600px] h-[600px] bg-[#00A3FF]/10 blur-[150px] rounded-full" />
+        <div className="absolute bottom-[-10%] right-[20%] w-[500px] h-[500px] bg-[#16EC06]/8 blur-[160px] rounded-full" />
+      </div>
+
+      {/* Desktop Companion Wing - Left (visible on xl screens) */}
+      <div className="hidden xl:flex flex-col justify-between w-64 h-[860px] p-6 text-zinc-400 select-none border-y border-l border-white/5 bg-[#0C0F14]/80 rounded-l-[32px] backdrop-blur-xl shadow-2xl">
+        <div className="space-y-4">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-white text-black flex items-center justify-center font-black text-sm">
+              W
+            </div>
+            <div>
+              <div className="text-sm font-black tracking-widest text-white uppercase font-condensed">WHOOP 4.0</div>
+              <div className="text-[10px] text-zinc-500 font-mono">WEB BLE INTERFACE</div>
+            </div>
+          </div>
+
+          <div className="p-3.5 rounded-2xl bg-[#12161E] border border-white/5 space-y-2">
+            <div className="text-[10px] font-black uppercase tracking-wider text-zinc-400 font-condensed">
+              {isRtl ? 'حالة السوار الفعلي' : 'STRAP HARDWARE STATUS'}
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-white truncate max-w-[140px]">
+                {metadata.connected ? metadata.name : (isRtl ? 'غير متصل' : 'Disconnected')}
+              </span>
+              <span className={`w-2.5 h-2.5 rounded-full ${metadata.connected ? 'bg-[#16EC06] shadow-sm shadow-[#16EC06]' : 'bg-zinc-600'}`} />
+            </div>
+            {metadata.connected ? (
+              <div className="text-[11px] font-mono text-[#16EC06]">
+                {metadata.batteryLevel ?? '--'}% • {metadata.isCharging ? (isRtl ? 'قيد الشحن' : 'Charging') : (isRtl ? 'بطارية' : 'Battery')}
+              </div>
+            ) : (
+              <div className="text-[11px] font-mono text-zinc-500">
+                {isRtl ? 'جاهز للاقتران' : 'Ready to pair'}
+              </div>
+            )}
+            <button
+              onClick={() => setIsStrapSheetOpen(true)}
+              className="w-full mt-2 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-white text-xs font-condensed font-black uppercase tracking-wider transition-all"
+            >
+              {metadata.connected ? (isRtl ? 'إدارة السوار' : 'Manage Device') : (isRtl ? 'ربط السوار' : 'Connect Strap')}
+            </button>
+          </div>
+        </div>
+
+        <div className="space-y-2 text-[10px] text-zinc-500 font-sans leading-relaxed border-t border-white/5 pt-4">
+          <div className="flex items-center gap-1.5 text-zinc-400 font-condensed font-bold uppercase tracking-wider">
+            <ShieldCheck className="w-3.5 h-3.5 text-[#16EC06]" />
+            <span>{isRtl ? 'دقة فسيولوجية 100%' : '100% CLINICAL FIDELITY'}</span>
+          </div>
+          <p>
+            {isRtl
+              ? 'تتم معالجة جميع إشارات التخطيط الضوئي (PPG) وحسابات تقلب النبض والجهد ومراحل النوم محلياً بالكامل وبدون أي بيانات وهمية.'
+              : 'All optical PPG telemetry, HRV, strain models, and sleep staging are calculated locally with zero synthetic data.'}
+          </p>
+        </div>
+      </div>
+
+      {/* Main Mobile Chassis Container */}
+      <div className="w-full max-w-[430px] min-h-dvh md:min-h-[860px] md:max-h-[880px] bg-gradient-to-b from-[#161B22] via-[#0B0D10] to-[#000000] flex flex-col relative md:border md:border-white/15 md:rounded-[44px] md:shadow-[0_25px_80px_rgba(0,0,0,0.9),0_0_50px_rgba(0,163,255,0.08)] overflow-hidden z-10">
         {/* Dynamic Island Floating Athletic Banner */}
         <DynamicIslandBanner onAction={handleBannerAction} />
 
@@ -714,7 +772,6 @@ export const App: React.FC = () => {
                   metrics={effectiveMetrics}
                   settings={settings}
                   daysHistory={daysHistory}
-                  onOpenRecoveryTest={() => setIsRecoveryTestOpen(true)}
                   onOpenShareCard={(type) => {
                     setShareCardType(type);
                     setIsShareCardOpen(true);
@@ -786,7 +843,7 @@ export const App: React.FC = () => {
             hapticMedium();
             setIsQuickActionOpen(true);
           }}
-          className={`w-14 h-14 rounded-full bg-white text-black shadow-2xl fixed bottom-24 ${isRtl ? 'left-5' : 'right-5'} z-40 flex items-center justify-center hover:scale-105 active:scale-95 transition-transform`}
+          className={`w-14 h-14 rounded-full bg-white text-black shadow-2xl absolute bottom-20 ${isRtl ? 'left-5' : 'right-5'} z-30 flex items-center justify-center hover:scale-105 active:scale-95 transition-transform`}
           title={isRtl ? 'بدء تمرين مباشر أو نوم' : 'Start Live Workout or Sleep'}
         >
           <Plus className="w-7 h-7 stroke-[2.5]" />
@@ -810,7 +867,6 @@ export const App: React.FC = () => {
             if (action === 'sleep_planner') setIsSleepPlannerOpen(true);
             if (action === 'alarm') setIsHapticAlarmOpen(true);
             if (action === 'sleep') setIsOledNightLockOpen(true);
-            if (action === 'recovery_test') setIsRecoveryTestOpen(true);
             if (action === 'breathe') setIsHrvBreatheOpen(true);
           }}
         />
@@ -876,18 +932,6 @@ export const App: React.FC = () => {
           zones={zones}
           settings={settings}
           onEndAndSave={handleStopWorkout}
-        />
-
-        {/* 3-Minute Recovery Assessment Modal */}
-        <RecoveryTestModal
-          isOpen={isRecoveryTestOpen}
-          onClose={() => setIsRecoveryTestOpen(false)}
-          metrics={effectiveMetrics}
-          settings={settings}
-          onApplied={() => {
-            setDaysHistory(storageService.getDaysHistory());
-            refreshSessions();
-          }}
         />
 
         {/* OLED Night Lock Overlay */}
@@ -987,6 +1031,55 @@ export const App: React.FC = () => {
             setDaysHistory(storageService.getDaysHistory(30));
           }}
         />
+      </div>
+
+      {/* Desktop Companion Wing - Right (visible on xl screens) */}
+      <div className="hidden xl:flex flex-col justify-between w-64 h-[860px] p-6 text-zinc-400 select-none border-y border-r border-white/5 bg-[#0C0F14]/80 rounded-r-[32px] backdrop-blur-xl shadow-2xl">
+        <div className="space-y-4">
+          <div className="text-[10px] font-black uppercase tracking-wider text-zinc-400 font-condensed">
+            {isRtl ? 'اختصارات سريعة' : 'QUICK ACTIONS'}
+          </div>
+          <div className="space-y-2">
+            <button
+              onClick={() => setIsStrengthTrainerOpen(true)}
+              className="w-full p-2.5 rounded-xl bg-[#12161E] hover:bg-[#1A202A] border border-white/5 flex items-center gap-2.5 text-xs font-bold text-white font-condensed uppercase tracking-wide transition-all"
+            >
+              <Dumbbell className="w-4 h-4 text-[#00A3FF]" />
+              <span>{isRtl ? 'تدريب القوة' : 'Strength Trainer'}</span>
+            </button>
+            <button
+              onClick={() => setIsSleepPlannerOpen(true)}
+              className="w-full p-2.5 rounded-xl bg-[#12161E] hover:bg-[#1A202A] border border-white/5 flex items-center gap-2.5 text-xs font-bold text-white font-condensed uppercase tracking-wide transition-all"
+            >
+              <Moon className="w-4 h-4 text-[#7293B2]" />
+              <span>{isRtl ? 'مخطط النوم' : 'Sleep Planner'}</span>
+            </button>
+            <button
+              onClick={() => setIsHapticAlarmOpen(true)}
+              className="w-full p-2.5 rounded-xl bg-[#12161E] hover:bg-[#1A202A] border border-white/5 flex items-center gap-2.5 text-xs font-bold text-white font-condensed uppercase tracking-wide transition-all"
+            >
+              <Clock className="w-4 h-4 text-[#FFDE00]" />
+              <span>{isRtl ? 'المنبه الحسي' : 'Haptic Alarm'}</span>
+            </button>
+            <button
+              onClick={() => setIsHrvBreatheOpen(true)}
+              className="w-full p-2.5 rounded-xl bg-[#12161E] hover:bg-[#1A202A] border border-white/5 flex items-center gap-2.5 text-xs font-bold text-white font-condensed uppercase tracking-wide transition-all"
+            >
+              <Wind className="w-4 h-4 text-[#16EC06]" />
+              <span>{isRtl ? 'منظم التنفس' : 'Breathe Pacer'}</span>
+            </button>
+          </div>
+        </div>
+
+        <div className="p-3.5 rounded-2xl bg-[#12161E] border border-white/5 text-[11px] font-mono text-zinc-400 space-y-1.5">
+          <div className="text-[10px] font-black uppercase text-zinc-500 font-condensed">
+            {isRtl ? 'الدورة الفسيولوجية' : 'PHYSIOLOGICAL CYCLE'}
+          </div>
+          <div className="text-white font-bold">{selectedDateStr}</div>
+          <div className="text-[#16EC06] text-[10px]">
+            {isViewingToday ? (isRtl ? '● دورة اليوم الحية' : '● Live Active Cycle') : (isRtl ? '○ أرشيف تاريخي' : '○ Historical Archive')}
+          </div>
+        </div>
       </div>
     </div>
   );

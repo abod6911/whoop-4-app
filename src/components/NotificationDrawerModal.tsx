@@ -33,9 +33,9 @@ export const NotificationDrawerModal: React.FC<NotificationDrawerModalProps> = (
     if (granted) {
       notificationEngine.dispatch({
         type: 'system',
-        title: isRtl ? 'ØªÙ… ØªÙØ¹ÙŠÙ„ Ø§Ù„Ø¥Ø´Ø¹Ø§Ø±Ø§Øª Ø§Ù„ÙÙˆØ±ÙŠØ©' : 'Push Notifications Enabled',
+        title: isRtl ? 'تم تفعيل الإشعارات الفورية' : 'Push Notifications Enabled',
         message: isRtl
-          ? 'Ø³ØªØªÙ„Ù‚Ù‰ Ø§Ù„Ø¢Ù† ØªÙ†Ø¨ÙŠÙ‡Ø§Øª ÙÙˆØ±ÙŠØ© ÙÙŠ Ø§Ù„Ù…ØªØµÙØ­ Ø¹Ù†Ø¯ Ø§Ù†Ø®ÙØ§Ø¶ Ø§Ù„Ø¨Ø·Ø§Ø±ÙŠØ© Ø£Ùˆ ØªØ­Ù‚ÙŠÙ‚ Ø§Ù„Ø¬Ù‡Ø¯ Ø§Ù„Ù…Ø³ØªÙ‡Ø¯Ù.'
+          ? 'ستتلقى الآن تنبيهات فورية في المتصفح عند انخفاض البطارية أو تحقيق الجهد المستهدف.'
           : 'You will now receive urgent low-battery and optimal strain alerts in browser.',
       });
     }
@@ -109,14 +109,14 @@ export const NotificationDrawerModal: React.FC<NotificationDrawerModalProps> = (
             }`}
           >
             <ShieldCheck className="w-3.5 h-3.5" />
-            <span>{isPushEnabled ? (isRtl ? 'Ø§Ù„Ø¥Ø´Ø¹Ø§Ø±Ø§Øª Ù…ÙØ¹Ù„Ø©' : 'Push Active') : (isRtl ? 'ØªÙØ¹ÙŠÙ„ Ø§Ù„Ø¥Ø´Ø¹Ø§Ø±Ø§Øª' : 'Enable Push')}</span>
+            <span>{isPushEnabled ? (isRtl ? 'الإشعارات مفعلة' : 'Push Active') : (isRtl ? 'تفعيل الإشعارات' : 'Enable Push')}</span>
           </button>
 
           <button
             onClick={() => notificationEngine.triggerTestNotification()}
             className="px-3 py-1.5 rounded-full bg-[#16191E] border border-white/10 text-xs font-condensed font-bold text-zinc-300 hover:text-white hover:border-zinc-500 active:scale-95 transition-all"
           >
-            {isRtl ? 'ØªÙ†Ø¨ÙŠÙ‡ Ø§Ø®ØªØ¨Ø§Ø±ÙŠ' : 'Test Alert'}
+            {isRtl ? 'تنبيه اختباري' : 'Test Alert'}
           </button>
         </div>
 
@@ -126,10 +126,10 @@ export const NotificationDrawerModal: React.FC<NotificationDrawerModalProps> = (
             <div className="py-12 text-center text-zinc-500">
               <CheckCircle2 className="w-8 h-8 mx-auto mb-2 opacity-30 text-[#16EC06]" />
               <p className="text-xs font-condensed uppercase tracking-wider text-zinc-400">
-                {isRtl ? 'Ù„Ø§ ØªÙˆØ¬Ø¯ ØªÙ†Ø¨ÙŠÙ‡Ø§Øª Ø¬Ø¯ÙŠØ¯Ø©' : 'All caught up'}
+                {isRtl ? 'لا توجد تنبيهات جديدة' : 'All caught up'}
               </p>
               <p className="text-[11px] text-zinc-600 mt-1">
-                {isRtl ? 'ØªÙ†Ø¨ÙŠÙ‡Ø§Øª Ø§Ù„Ø­Ø³Ø§Ø³Ø§Øª ÙˆØ§Ù„Ø¨Ø·Ø§Ø±ÙŠØ© Ø³ØªØ¸Ù‡Ø± Ù‡Ù†Ø§ ÙÙˆØ±ÙŠØ§Ù‹.' : 'Real biometric & hardware alerts will appear here in real-time.'}
+                {isRtl ? 'تنبيهات الحساسات والبطارية ستظهر هنا فورياً.' : 'Real biometric & hardware alerts will appear here in real-time.'}
               </p>
             </div>
           ) : (
@@ -192,7 +192,7 @@ export const NotificationDrawerModal: React.FC<NotificationDrawerModalProps> = (
             onClick={() => notificationEngine.markAllAsRead()}
             className="text-xs font-condensed font-bold text-zinc-400 hover:text-white uppercase tracking-wider"
           >
-            {isRtl ? 'ØªØ­Ø¯ÙŠØ¯ Ø§Ù„ÙƒÙ„ ÙƒÙ…Ù‚Ø±ÙˆØ¡' : 'Mark All As Read'}
+            {isRtl ? 'تحديد الكل كمقروء' : 'Mark All As Read'}
           </button>
         </div>
       </SheetPanel>

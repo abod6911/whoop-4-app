@@ -92,9 +92,8 @@ export const SleepView: React.FC<SleepViewProps> = ({
       deep = hoursAsleep ? Number((hoursAsleep * (sleepData.stages.deepPercent / 100)).toFixed(1)) : null;
       rem = hoursAsleep ? Number((hoursAsleep * (sleepData.stages.remPercent / 100)).toFixed(1)) : null;
     } else {
-      const h = d.hoursAsleep ?? d.sleepHours;
-      deep = d.deepHours !== null && d.deepHours !== undefined ? d.deepHours : (h ? Number((h * 0.22).toFixed(1)) : null);
-      rem = d.remHours !== null && d.remHours !== undefined ? d.remHours : (h ? Number((h * 0.23).toFixed(1)) : null);
+      deep = d.deepHours !== null && d.deepHours !== undefined ? d.deepHours : null;
+      rem = d.remHours !== null && d.remHours !== undefined ? d.remHours : null;
     }
     return {
       day: d.offset === 0 ? t('today') : day,
@@ -129,7 +128,7 @@ export const SleepView: React.FC<SleepViewProps> = ({
       wakeTime = hasTimeline
         ? new Date(timeline[timeline.length - 1].timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
         : (sleepData.wakeTime || '--');
-      height = sleepData.hoursInBed ?? (hoursAsleep ? hoursAsleep * 1.1 : 0);
+      height = sleepData.hoursInBed ?? hoursAsleep ?? 0;
     } else {
       bedTime = d.bedtime || '--';
       wakeTime = d.wakeTime || '--';

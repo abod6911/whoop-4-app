@@ -34,7 +34,6 @@ interface RecoveryViewProps {
   metrics: LiveMetrics;
   settings: UserSettings;
   daysHistory?: DayHistoryRecord[];
-  onOpenRecoveryTest: () => void;
   onOpenShareCard?: (type: 'recovery' | 'strain' | 'activity') => void;
 }
 
@@ -49,7 +48,6 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
   metrics,
   settings,
   daysHistory,
-  onOpenRecoveryTest,
   onOpenShareCard,
 }) => {
   const { t, isRtl, dayNames } = useLanguage();
@@ -215,26 +213,17 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
               )
             ) : (
               isRtl
-                ? 'Ø§Ø±Ø¨Ø· Ø³ÙˆØ§Ø±Ùƒ Ø§Ù„ÙØ¹Ù„ÙŠ WHOOP 4.0 Ù„Ø¨Ø¯Ø¡ Ù‚ÙŠØ§Ø³ Ù†Ø¨Ø¶ Ø§Ù„Ù‚Ù„Ø¨ ÙˆØ­Ø³Ø§Ø¨ Ù…Ø¤Ø´Ø± Ø§Ù„ØªØ¹Ø§ÙÙŠ ÙˆØªÙ‚Ù„Ø¨ Ø§Ù„Ù†Ø¨Ø¶ Ø§Ù„ÙØ¹Ù„ÙŠ.'
+                ? 'اربط سوارك الفعلي WHOOP 4.0 لبدء قياس نبض القلب وحساب مؤشر التعافي وتقلب النبض الفعلي.'
                 : 'Connect your physical WHOOP 4.0 strap to record live heart rate and calculate your daily Recovery Score and HRV metrics.'
             )}
           </p>
         </div>
-
-        {/* 3-Min HRV Test Launcher */}
-        <button
-          onClick={onOpenRecoveryTest}
-          className="mt-3 w-full py-3 px-4 rounded-xl bg-[#0B0D10] hover:bg-[#16191E] border border-white/10 text-white font-black text-xs uppercase tracking-wider font-condensed flex items-center justify-center gap-2 transition-all active:scale-98"
-        >
-          <Timer className="w-4 h-4 text-[#16EC06]" />
-          <span>{isRtl ? 'Ù‚ÙŠØ§Ø³ Ø§Ù„ØªØ¹Ø§ÙÙŠ Ø§Ù„ØµØ¨Ø§Ø­ÙŠ (Ø§Ø®ØªØ¨Ø§Ø± HRV Ù„Ù…Ø¯Ø© 3 Ø¯Ù‚Ø§Ø¦Ù‚)' : 'Measure Morning Recovery (3-Min HRV Test)'}</span>
-        </button>
       </div>
 
       {/* 2. RECOVERY STATISTICS Rows */}
       <div className="p-4 rounded-[24px] bg-[#12151A] border border-white/5 space-y-3">
         <h3 className="text-xs font-black uppercase tracking-wider text-zinc-400 font-condensed px-1">
-          {isRtl ? 'Ø¥Ø­ØµØ§Ø¦ÙŠØ§Øª Ø§Ù„ØªØ¹Ø§ÙÙŠ Ø§Ù„ÙØ³ÙŠÙˆÙ„ÙˆØ¬ÙŠ' : 'Recovery Statistics'}
+          {isRtl ? 'إحصائيات التعافي الفسيولوجي' : 'Recovery Statistics'}
         </h3>
 
         <div className="divide-y divide-white/5">
@@ -285,7 +274,7 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
         </div>
       </div>
 
-      {/* 3. 4 Dedicated 7-Day Charts (01:42 â€“ 01:54 in Video) */}
+      {/* 3. 4 Dedicated 7-Day Charts (01:42 – 01:54 in Video) */}
       <div className="space-y-4">
         {/* Chart 1: RECOVERY Vertical Bars */}
         <div className="p-4 rounded-[24px] bg-[#12151A] border border-white/5 space-y-2">

@@ -119,7 +119,7 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
     }).toUpperCase();
     ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
     ctx.font = '600 22px monospace';
-    ctx.fillText(`${dateStr}  â€¢  ${(settings.name || 'ATHLETE').toUpperCase()}`, W / 2, 230);
+    ctx.fillText(`${dateStr}  •  ${(settings.name || 'ATHLETE').toUpperCase()}`, W / 2, 230);
 
     // Divider Line
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
@@ -327,7 +327,7 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
         } else if (navigator.share) {
           await navigator.share({
             title: `WHOOP 4.0 ${cardType.toUpperCase()} Card`,
-            text: `My WHOOP 4.0 Biometrics: Recovery ${metrics.recoveryScore ?? '--'}% â€¢ Strain ${metrics.dailyStrain.toFixed(1)} / 21.0`,
+            text: `My WHOOP 4.0 Biometrics: Recovery ${metrics.recoveryScore ?? '--'}% • Strain ${metrics.dailyStrain.toFixed(1)} / 21.0`,
             url: 'https://whoop-4-app.vercel.app',
           });
           hapticSuccess();
@@ -361,8 +361,8 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
     const rhrStr = metrics.restingHr ? `${metrics.restingHr} bpm` : '--';
 
     const text = isRtl
-      ? `âš¡ Ø¨Ø·Ø§Ù‚Ø© WHOOP 4.0 Ø§Ù„ÙŠÙˆÙ…ÙŠØ©:\nâ€¢ Ø§Ù„ØªØ¹Ø§ÙÙŠ: ${recStr}\nâ€¢ Ø§Ù„Ø¬Ù‡Ø¯ (Strain): ${strainStr} / 21.0\nâ€¢ ØªÙ‚Ù„Ø¨ Ø§Ù„Ù†Ø¨Ø¶ (HRV): ${hrvStr}\nâ€¢ Ù†Ø¨Ø¶ Ø§Ù„Ø±Ø§Ø­Ø©: ${rhrStr}\n\nhttps://whoop-4-app.vercel.app`
-      : `âš¡ WHOOP 4.0 Scorecard:\nâ€¢ Recovery: ${recStr}\nâ€¢ Strain: ${strainStr} / 21.0\nâ€¢ HRV: ${hrvStr}\nâ€¢ RHR: ${rhrStr}\n\nhttps://whoop-4-app.vercel.app`;
+      ? `⚡ بطاقة WHOOP 4.0 اليومية:\n• التعافي: ${recStr}\n• الجهد (Strain): ${strainStr} / 21.0\n• تقلب النبض (HRV): ${hrvStr}\n• نبض الراحة: ${rhrStr}\n\nhttps://whoop-4-app.vercel.app`
+      : `⚡ WHOOP 4.0 Scorecard:\n• Recovery: ${recStr}\n• Strain: ${strainStr} / 21.0\n• HRV: ${hrvStr}\n• RHR: ${rhrStr}\n\nhttps://whoop-4-app.vercel.app`;
 
     try {
       await navigator.clipboard.writeText(text);
@@ -381,7 +381,7 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
           <div className="flex items-center gap-2">
             <Share2 className="w-4 h-4 text-[#00F0FF]" />
             <h3 className="text-xs font-black uppercase tracking-wider font-condensed">
-              {isRtl ? 'Ù…Ø´Ø§Ø±ÙƒØ© Ø¨Ø·Ø§Ù‚Ø© Ø§Ù„Ø£Ø¯Ø§Ø¡ Ø§Ù„Ø§Ø¬ØªÙ…Ø§Ø¹ÙŠØ©' : 'Social Scorecard Share'}
+              {isRtl ? 'مشاركة بطاقة الأداء الاجتماعية' : 'Social Scorecard Share'}
             </h3>
           </div>
           <button
@@ -408,7 +408,7 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
                 : 'text-zinc-400 hover:text-white'
             }`}
           >
-            {isRtl ? 'Ø§Ù„ØªØ¹Ø§ÙÙŠ' : 'Recovery'}
+            {isRtl ? 'التعافي' : 'Recovery'}
           </button>
           <button
             onClick={() => {
@@ -421,7 +421,7 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
                 : 'text-zinc-400 hover:text-white'
             }`}
           >
-            {isRtl ? 'Ø§Ù„Ø¬Ù‡Ø¯' : 'Strain'}
+            {isRtl ? 'الجهد' : 'Strain'}
           </button>
           <button
             onClick={() => {
@@ -434,7 +434,7 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
                 : 'text-zinc-400 hover:text-white'
             }`}
           >
-            {isRtl ? 'Ø§Ù„Ù†Ø´Ø§Ø·' : 'Activity'}
+            {isRtl ? 'النشاط' : 'Activity'}
           </button>
         </div>
 
@@ -454,7 +454,7 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
             className="w-full py-3 rounded-xl bg-white text-black font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 hover:bg-zinc-200 active:scale-98 transition-all shadow-lg shadow-white/10"
           >
             <Share2 className="w-4 h-4" />
-            <span>{isRtl ? 'Ù…Ø´Ø§Ø±ÙƒØ© Ø¹Ø¨Ø± Ø¥Ù†Ø³ØªØºØ±Ø§Ù… ÙˆØªØ·Ø¨ÙŠÙ‚Ø§Øª Ø§Ù„ØªÙˆØ§ØµÙ„' : 'Share to Instagram / Stories'}</span>
+            <span>{isRtl ? 'مشاركة عبر إنستغرام وتطبيقات التواصل' : 'Share to Instagram / Stories'}</span>
           </button>
 
           <div className="grid grid-cols-2 gap-2">
@@ -463,7 +463,7 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
               className="py-2.5 rounded-xl bg-[#1E232B] border border-white/10 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 hover:bg-[#282F3A] active:scale-98 transition-all"
             >
               <Download className="w-3.5 h-3.5" />
-              <span>{isRtl ? 'Ø­ÙØ¸ Ø§Ù„ØµÙˆØ±Ø© (PNG)' : 'Download PNG'}</span>
+              <span>{isRtl ? 'حفظ الصورة (PNG)' : 'Download PNG'}</span>
             </button>
 
             <button
@@ -471,7 +471,7 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
               className="py-2.5 rounded-xl bg-[#1E232B] border border-white/10 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 hover:bg-[#282F3A] active:scale-98 transition-all"
             >
               {copied ? <Check className="w-3.5 h-3.5 text-[#16EC06]" /> : <Copy className="w-3.5 h-3.5" />}
-              <span>{copied ? (isRtl ? 'ØªÙ… Ø§Ù„Ù†Ø³Ø®!' : 'Copied!') : (isRtl ? 'Ù†Ø³Ø® Ø§Ù„Ù†Øµ' : 'Copy Text')}</span>
+              <span>{copied ? (isRtl ? 'تم النسخ!' : 'Copied!') : (isRtl ? 'نسخ النص' : 'Copy Text')}</span>
             </button>
           </div>
         </div>

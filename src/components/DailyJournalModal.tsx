@@ -114,7 +114,7 @@ export const DailyJournalModal: React.FC<DailyJournalModalProps> = ({
               activeTab === 'log' ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'
             }`}
           >
-            <span>{isRtl ? 'ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ø¹Ø§Ø¯Ø§Øª' : 'Log Behaviors'}</span>
+            <span>{isRtl ? 'تسجيل العادات' : 'Log Behaviors'}</span>
             {activeTab === 'log' && (
               <div className="absolute bottom-0 left-6 right-6 h-[2px] bg-[#16EC06] rounded-full" />
             )}
@@ -125,7 +125,7 @@ export const DailyJournalModal: React.FC<DailyJournalModalProps> = ({
               activeTab === 'impact' ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'
             }`}
           >
-            <span>{isRtl ? 'ØªØ­Ù„ÙŠÙ„ ØªØ£Ø«ÙŠØ± Ø§Ù„ØªØ¹Ø§ÙÙŠ' : 'Recovery Impact'}</span>
+            <span>{isRtl ? 'تحليل تأثير التعافي' : 'Recovery Impact'}</span>
             {activeTab === 'impact' && (
               <div className="absolute bottom-0 left-6 right-6 h-[2px] bg-[#16EC06] rounded-full" />
             )}
@@ -138,14 +138,14 @@ export const DailyJournalModal: React.FC<DailyJournalModalProps> = ({
             <>
               <p className="text-xs text-zinc-400 font-sans leading-relaxed">
                 {isRtl
-                  ? 'Ø³Ø¬Ù‘Ù„ Ø¹Ø§Ø¯Ø§ØªÙƒ Ø§Ù„ÙŠÙˆÙ…ÙŠØ© Ù„Ù…Ø¹Ø§ÙŠØ±Ø© Ù†Ù…ÙˆØ°Ø¬ Ø§Ù„Ø§Ø±ØªØ¨Ø§Ø· Ø§Ù„Ø°Ø§ØªÙŠ Ø¨ÙŠÙ† Ø³Ù„ÙˆÙƒÙŠØ§ØªÙƒ ÙˆØ¯Ø±Ø¬Ø© ØªØ¹Ø§ÙÙŠÙƒ ØµØ¨Ø§Ø­ Ø§Ù„ØºØ¯.'
+                  ? 'سجّل عاداتك اليومية لمعايرة نموذج الارتباط الذاتي بين سلوكياتك ودرجة تعافيك صباح الغد.'
                   : 'Track your habits to calibrate your personalized biometric model of how behaviors impact your next-morning recovery.'}
               </p>
 
               <div className="space-y-2">
                 {WHOOP_STANDARD_HABITS.map((habit) => {
                   const isChecked = Boolean(habitsMap[habit.id]);
-                  const icon = HABIT_ICONS[habit.id] || 'âš¡';
+                  const icon = HABIT_ICONS[habit.id] || '⚡';
                   const title = isRtl ? habit.titleAr : habit.titleEn;
 
                   return (
@@ -191,12 +191,12 @@ export const DailyJournalModal: React.FC<DailyJournalModalProps> = ({
                 <div className="flex items-center gap-2">
                   <Sparkles className="w-4 h-4 text-[#16EC06]" />
                   <h4 className="text-xs font-bold text-white uppercase font-sans tracking-wide">
-                    {isRtl ? 'Ù†Ù…ÙˆØ°Ø¬ Ø§Ù„Ø§Ø±ØªØ¨Ø§Ø· Ø§Ù„Ø°Ø§ØªÙŠ Ø§Ù„Ù…ØªÙ‚Ø¯Ù…' : 'Autonomic Correlation Model'}
+                    {isRtl ? 'نموذج الارتباط الذاتي المتقدم' : 'Autonomic Correlation Model'}
                   </h4>
                 </div>
                 <p className="text-[11px] text-zinc-400 font-sans leading-relaxed">
                   {isRtl
-                    ? 'Ø¨Ù†Ø§Ø¡Ù‹ Ø¹Ù„Ù‰ Ø³Ø¬Ù„Ø§ØªÙƒ Ø§Ù„ÙØ³ÙŠÙˆÙ„ÙˆØ¬ÙŠØ©ØŒ ÙŠÙˆØ¶Ø­ Ù‡Ø°Ø§ Ø§Ù„Ø¬Ø¯ÙˆÙ„ Ù…ØªÙˆØ³Ø· Ø§Ù„Ø²ÙŠØ§Ø¯Ø© Ø£Ùˆ Ø§Ù„Ù†Ù‚ØµØ§Ù† ÙÙŠ Ø¯Ø±Ø¬Ø© Ø§Ù„ØªØ¹Ø§ÙÙŠ Ø¹Ù†Ø¯ Ù…Ù…Ø§Ø±Ø³Ø© ÙƒÙ„ Ø³Ù„ÙˆÙƒ:'
+                    ? 'بناءً على سجلاتك الفسيولوجية، يوضح هذا الجدول متوسط الزيادة أو النقصان في درجة التعافي عند ممارسة كل سلوك:'
                     : 'Derived from your longitudinal WHOOP recovery records, here is how each logged habit shifts your next-morning recovery score:'}
                 </p>
 
@@ -206,7 +206,7 @@ export const DailyJournalModal: React.FC<DailyJournalModalProps> = ({
                     .map((item) => {
                       const isPositive = item.impactPercent > 0;
                       const habitDef = WHOOP_STANDARD_HABITS.find((h) => h.id === item.habitId);
-                      const icon = HABIT_ICONS[item.habitId] || 'âš¡';
+                      const icon = HABIT_ICONS[item.habitId] || '⚡';
                       const title = isRtl && habitDef ? habitDef.titleAr : item.title;
 
                       return (
@@ -222,7 +222,7 @@ export const DailyJournalModal: React.FC<DailyJournalModalProps> = ({
                               </span>
                               <span className="text-[10px] text-zinc-500 font-mono">
                                 {isRtl
-                                  ? `${item.withCount} Ø£ÙŠØ§Ù… Ù…Ø³Ø¬Ù„Ø©`
+                                  ? `${item.withCount} أيام مسجلة`
                                   : `${item.withCount} days logged`}
                               </span>
                             </div>
@@ -255,13 +255,13 @@ export const DailyJournalModal: React.FC<DailyJournalModalProps> = ({
         {/* Footer */}
         <div className="p-3.5 border-t border-white/5 bg-[#0B0D10] flex items-center justify-between text-xs font-condensed">
           <span className="text-zinc-500 font-mono">
-            {isRtl ? 'Ù…Ø­ÙÙˆØ¸ Ù…Ø­Ù„ÙŠØ§Ù‹ ÙÙŠ Dexie DB' : 'Persisted locally in Dexie DB'}
+            {isRtl ? 'محفوظ محلياً في Dexie DB' : 'Persisted locally in Dexie DB'}
           </span>
           <button
             onClick={onClose}
             className="px-5 py-2 rounded-full bg-white hover:bg-zinc-200 text-black font-black uppercase tracking-wider active:scale-95 transition-transform"
           >
-            {isRtl ? 'Ø­ÙØ¸ ÙˆØ¥ØºÙ„Ø§Ù‚' : 'Save & Close'}
+            {isRtl ? 'حفظ وإغلاق' : 'Save & Close'}
           </button>
         </div>
       </SheetPanel>

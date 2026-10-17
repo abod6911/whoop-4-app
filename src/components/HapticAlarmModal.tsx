@@ -105,7 +105,7 @@ export const HapticAlarmModal: React.FC<HapticAlarmModalProps> = ({ isOpen, onCl
                 {isRtl ? 'منبه الاهتزاز الصامت WHOOP' : 'WHOOP Silent Haptic Alarm'}
               </h3>
               <p className="text-[10px] text-zinc-400 font-mono">
-                {isRtl ? 'Ù…Ø­Ø±Ùƒ Ø§Ù„Ø§Ù‡ØªØ²Ø§Ø² Ø§Ù„Ù…Ø¯Ù…Ø¬ ÙÙŠ Ø§Ù„Ø³ÙˆØ§Ø±' : 'On-Strap Haptic Motor Control'}
+                {isRtl ? 'محرك الاهتزاز المدمج في السوار' : 'On-Strap Haptic Motor Control'}
               </p>
             </div>
           </div>
@@ -130,13 +130,13 @@ export const HapticAlarmModal: React.FC<HapticAlarmModalProps> = ({ isOpen, onCl
               </span>
             </div>
             <p className="text-xs text-white/90">
-              {settings.lastTriggerReason || (isRtl ? 'Ø§Ø³ØªÙŠÙ‚Ø¸ Ø¨Ù„Ø·Ù Ù…Ø¹ Ø§Ù„Ø§Ù‡ØªØ²Ø§Ø² Ø§Ù„ØµØ§Ù…Øª' : 'Wake up gently with silent haptics')}
+              {settings.lastTriggerReason || (isRtl ? 'استيقظ بلطف مع الاهتزاز الصامت' : 'Wake up gently with silent haptics')}
             </p>
             <button
               onClick={handleStopAlarm}
               className="w-full py-2.5 rounded-xl bg-[#FF3344] text-white font-black uppercase tracking-wider font-condensed active:scale-98 transition-transform"
             >
-              {isRtl ? 'Ø¥ÙŠÙ‚Ø§Ù Ø§Ù„Ù…Ù†Ø¨Ù‡' : 'STOP ALARM'}
+              {isRtl ? 'إيقاف المنبه' : 'STOP ALARM'}
             </button>
           </div>
         )}
@@ -145,12 +145,12 @@ export const HapticAlarmModal: React.FC<HapticAlarmModalProps> = ({ isOpen, onCl
         <div className="p-4 rounded-2xl bg-[#0B0D10] border border-white/5 flex items-center justify-between">
           <div className="space-y-0.5">
             <div className="text-xs font-black uppercase tracking-wider text-white font-condensed">
-              {isRtl ? 'ØªÙØ¹ÙŠÙ„ Ù…Ù†Ø¨Ù‡ Ø§Ù„Ø³ÙˆØ§Ø±' : 'Enable Strap Alarm'}
+              {isRtl ? 'تفعيل منبه السوار' : 'Enable Strap Alarm'}
             </div>
             <div className="text-[11px] text-zinc-400 font-sans">
               {settings.enabled
-                ? (isRtl ? 'Ø§Ù„Ù…Ù†Ø¨Ù‡ Ù…ÙØ¹Ù„ ÙˆØ¬Ø§Ù‡Ø² Ù„Ù„Ø§Ø³ØªÙŠÙ‚Ø§Ø¸' : 'Alarm is armed and active')
-                : (isRtl ? 'Ø§Ù„Ù…Ù†Ø¨Ù‡ Ù…Ø¹Ø·Ù„ Ø­Ø§Ù„ÙŠØ§Ù‹' : 'Alarm is turned off')}
+                ? (isRtl ? 'المنبه مفعّل وجاهز للاستيقاظ' : 'Alarm is armed and active')
+                : (isRtl ? 'المنبه معطل حالياً' : 'Alarm is turned off')}
             </div>
           </div>
           <button
@@ -170,7 +170,7 @@ export const HapticAlarmModal: React.FC<HapticAlarmModalProps> = ({ isOpen, onCl
         {/* Alarm Modes Segmented Picker */}
         <div className="space-y-1.5">
           <label className="text-[10px] font-black uppercase tracking-wider text-zinc-400 font-condensed">
-            {isRtl ? 'ÙˆØ¶Ø¹ Ø§Ù„Ø§Ø³ØªÙŠÙ‚Ø§Ø¸ Ø§Ù„Ø°ÙƒÙŠ' : 'Smart Wake Mode'}
+            {isRtl ? 'وضع الاستيقاظ الذكي' : 'Smart Wake Mode'}
           </label>
           <div className="grid grid-cols-3 gap-2">
             {/* Mode 1: Exact Time */}
@@ -184,7 +184,7 @@ export const HapticAlarmModal: React.FC<HapticAlarmModalProps> = ({ isOpen, onCl
             >
               <Clock className={`w-4 h-4 ${settings.mode === 'exact_time' ? 'text-[#00A3FF]' : ''}`} />
               <span className="text-[11px] font-black uppercase font-condensed">
-                {isRtl ? 'ÙˆÙ‚Øª Ù…Ø­Ø¯Ø¯' : 'Exact Time'}
+                {isRtl ? 'وقت محدد' : 'Exact Time'}
               </span>
             </button>
 
@@ -199,7 +199,7 @@ export const HapticAlarmModal: React.FC<HapticAlarmModalProps> = ({ isOpen, onCl
             >
               <Moon className={`w-4 h-4 ${settings.mode === 'sleep_goal' ? 'text-[#7293B2]' : ''}`} />
               <span className="text-[11px] font-black uppercase font-condensed">
-                {isRtl ? 'Ù‡Ø¯Ù Ø§Ù„Ù†ÙˆÙ…' : 'Sleep Goal'}
+                {isRtl ? 'هدف النوم' : 'Sleep Goal'}
               </span>
             </button>
 
@@ -214,7 +214,7 @@ export const HapticAlarmModal: React.FC<HapticAlarmModalProps> = ({ isOpen, onCl
             >
               <HeartPulse className={`w-4 h-4 ${settings.mode === 'recovery' ? 'text-[#16EC06]' : ''}`} />
               <span className="text-[11px] font-black uppercase font-condensed">
-                {isRtl ? 'Ø§Ù„ØªØ¹Ø§ÙÙŠ Ø§Ù„Ø£Ø®Ø¶Ø±' : 'In the Green'}
+                {isRtl ? 'التعافي الأخضر' : 'In the Green'}
               </span>
             </button>
           </div>
@@ -225,7 +225,7 @@ export const HapticAlarmModal: React.FC<HapticAlarmModalProps> = ({ isOpen, onCl
           <div className="p-4 rounded-2xl bg-[#0B0D10] border border-white/5 space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-xs font-black uppercase text-zinc-300 font-condensed">
-                {isRtl ? 'ÙˆÙ‚Øª Ø§Ù„ØªÙ†Ø¨ÙŠÙ‡ (24 Ø³Ø§Ø¹Ø©)' : 'Wake Up Time (24h)'}
+                {isRtl ? 'وقت التنبيه (24 ساعة)' : 'Wake Up Time (24h)'}
               </span>
               <input
                 type="time"
@@ -236,7 +236,7 @@ export const HapticAlarmModal: React.FC<HapticAlarmModalProps> = ({ isOpen, onCl
             </div>
             <p className="text-[11px] text-zinc-400 font-sans">
               {isRtl
-                ? `Ø³ÙŠÙ‡ØªØ² Ø³ÙˆØ§Ø± WHOOP 4.0 Ø¨Ø¯Ù‚Ø© Ø¹Ù†Ø¯ Ø§Ù„Ø³Ø§Ø¹Ø© ${settings.exactTime}.`
+                ? `سيهتز سوار WHOOP 4.0 بدقة عند الساعة ${settings.exactTime}.`
                 : `Your WHOOP 4.0 strap will vibrate precisely at ${settings.exactTime}.`}
             </p>
           </div>
@@ -245,7 +245,7 @@ export const HapticAlarmModal: React.FC<HapticAlarmModalProps> = ({ isOpen, onCl
         {settings.mode === 'sleep_goal' && (
           <div className="p-4 rounded-2xl bg-[#0B0D10] border border-white/5 space-y-3">
             <span className="text-xs font-black uppercase text-zinc-300 font-condensed">
-              {isRtl ? 'Ù†Ø³Ø¨Ø© Ø¥ÙƒÙ…Ø§Ù„ Ø­Ø§Ø¬Ø© Ø§Ù„Ù†ÙˆÙ…' : 'Target Sleep Need Satisfaction'}
+              {isRtl ? 'نسبة إكمال حاجة النوم' : 'Target Sleep Need Satisfaction'}
             </span>
             <div className="grid grid-cols-2 gap-2">
               <button
@@ -256,8 +256,8 @@ export const HapticAlarmModal: React.FC<HapticAlarmModalProps> = ({ isOpen, onCl
                     : 'bg-[#16191E] border-white/5 text-zinc-400'
                 }`}
               >
-                <div className="text-sm font-condensed">100% {isRtl ? 'Ø§Ù„Ø£Ø¯Ø§Ø¡ Ø§Ù„Ø£Ù…Ø«Ù„' : 'Peak Performance'}</div>
-                <div className="text-[10px] text-zinc-400 font-sans">{isRtl ? 'ØªÙ„Ø¨ÙŠØ© ÙƒØ§Ù…Ù„ Ø§Ù„Ø­Ø§Ø¬Ø©' : '100% of Sleep Need'}</div>
+                <div className="text-sm font-condensed">100% {isRtl ? 'الأداء الأمثل' : 'Peak Performance'}</div>
+                <div className="text-[10px] text-zinc-400 font-sans">{isRtl ? 'تلبية كامل الحاجة' : '100% of Sleep Need'}</div>
               </button>
               <button
                 onClick={() => handleSleepGoalChange(85)}
@@ -267,13 +267,13 @@ export const HapticAlarmModal: React.FC<HapticAlarmModalProps> = ({ isOpen, onCl
                     : 'bg-[#16191E] border-white/5 text-zinc-400'
                 }`}
               >
-                <div className="text-sm font-condensed">85% {isRtl ? 'Ø§Ù„ÙƒÙØ§ÙŠØ© Ø§Ù„Ù…Ù‚Ø¨ÙˆÙ„Ø©' : 'Perform'}</div>
-                <div className="text-[10px] text-zinc-400 font-sans">{isRtl ? 'ÙƒØ§ÙÙ Ù„ÙŠÙˆÙ… Ø¬ÙŠØ¯' : '85% of Sleep Need'}</div>
+                <div className="text-sm font-condensed">85% {isRtl ? 'الكفاية المقبولة' : 'Perform'}</div>
+                <div className="text-[10px] text-zinc-400 font-sans">{isRtl ? 'كافٍ ليوم جيد' : '85% of Sleep Need'}</div>
               </button>
             </div>
             <p className="text-[11px] text-zinc-400 font-sans">
               {isRtl
-                ? 'ÙŠÙ‡ØªØ² Ø§Ù„Ø³ÙˆØ§Ø± ØªÙ„Ù‚Ø§Ø¦ÙŠØ§Ù‹ Ø¨Ù…Ø¬Ø±Ø¯ Ø¥ÙƒÙ…Ø§Ù„ Ø¹Ø¯Ø¯ Ø³Ø§Ø¹Ø§Øª Ø§Ù„Ù†ÙˆÙ… Ø§Ù„Ù…Ø­Ø³ÙˆØ¨Ø© Ø¨ÙŠÙˆÙ„ÙˆØ¬ÙŠØ§Ù‹ Ø§Ù„Ù„ÙŠÙ„Ø©.'
+                ? 'يهتز السوار تلقائياً بمجرد إكمال عدد ساعات النوم المحسوبة بيولوجياً الليلة.'
                 : 'Strap automatically buzzes once your bio-calculated sleep need is fulfilled.'}
             </p>
           </div>
@@ -284,12 +284,12 @@ export const HapticAlarmModal: React.FC<HapticAlarmModalProps> = ({ isOpen, onCl
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-[#16EC06] shadow-sm shadow-[#16EC06]" />
               <span className="text-xs font-black uppercase text-zinc-300 font-condensed">
-                {isRtl ? 'Ø§Ù„Ø§Ø³ØªÙŠÙ‚Ø§Ø¸ Ø¹Ù†Ø¯ Ø§Ù„ØªØ¹Ø§ÙÙŠ Ø§Ù„Ø£Ø®Ø¶Ø± (â‰¥67%)' : 'Wake in Green Zone (â‰¥67%)'}
+                {isRtl ? 'الاستيقاظ عند التعافي الأخضر (≥67%)' : 'Wake in Green Zone (≥67%)'}
               </span>
             </div>
             <p className="text-[11px] text-zinc-400 font-sans leading-relaxed">
               {isRtl
-                ? 'Ø³ÙŠÙ‚ÙˆÙ… Ø§Ù„Ø³ÙˆØ§Ø± Ø¨Ù…Ø±Ø§Ù‚Ø¨Ø© ØªØ¹Ø§ÙÙŠÙƒ Ø§Ù„Ø¹ØµØ¨ÙŠ (HRV Ùˆ RHR) ÙˆØ¥ÙŠÙ‚Ø§Ø¸Ùƒ Ø¹Ù†Ø¯Ù…Ø§ ÙŠØµÙ„ Ø¬Ù‡Ø§Ø²Ùƒ Ø§Ù„Ø¹ØµØ¨ÙŠ Ø§Ù„Ù…Ø³ØªÙ‚Ù„ Ø¥Ù„Ù‰ Ø§Ù„Ø¬Ø§Ù‡Ø²ÙŠØ© Ø§Ù„ÙƒØ§Ù…Ù„Ø©.'
+                ? 'سيقوم السوار بمراقبة تعافيك العصبي (HRV و RHR) وإيقاظك عندما يصل جهازك العصبي المستقل إلى الجاهزية الكاملة.'
                 : 'WHOOP monitors your autonomic recovery and wakes you as soon as your recovery transitions into the Green Zone.'}
             </p>
           </div>
@@ -298,7 +298,7 @@ export const HapticAlarmModal: React.FC<HapticAlarmModalProps> = ({ isOpen, onCl
         {/* Haptic Vibration Pattern Picker */}
         <div className="space-y-1.5">
           <label className="text-[10px] font-black uppercase tracking-wider text-zinc-400 font-condensed">
-            {isRtl ? 'Ù†Ù…Ø· Ø§Ù„Ø§Ù‡ØªØ²Ø§Ø² Ø§Ù„Ù…ÙŠÙƒØ§Ù†ÙŠÙƒÙŠ' : 'Haptic Vibration Pattern'}
+            {isRtl ? 'نمط الاهتزاز الميكانيكي' : 'Haptic Vibration Pattern'}
           </label>
           <div className="grid grid-cols-3 gap-2">
             {(['gentle', 'pulse', 'alarm'] as const).map((pat) => (
@@ -313,10 +313,10 @@ export const HapticAlarmModal: React.FC<HapticAlarmModalProps> = ({ isOpen, onCl
               >
                 <div className="text-xs font-condensed uppercase">
                   {pat === 'gentle'
-                    ? (isRtl ? 'Ù„Ø·ÙŠÙ' : 'Gentle')
+                    ? (isRtl ? 'لطيف' : 'Gentle')
                     : pat === 'pulse'
-                    ? (isRtl ? 'Ù†Ø¨Ø¶Ø§Øª' : 'Pulse')
-                    : (isRtl ? 'ØªÙ†Ø¨ÙŠÙ‡ Ù‚ÙˆÙŠ' : 'Alarm')}
+                    ? (isRtl ? 'نبضات' : 'Pulse')
+                    : (isRtl ? 'تنبيه قوي' : 'Alarm')}
                 </div>
               </button>
             ))}
@@ -339,16 +339,16 @@ export const HapticAlarmModal: React.FC<HapticAlarmModalProps> = ({ isOpen, onCl
             <Vibrate className={`w-4 h-4 ${testingBuzz ? 'animate-bounce text-[#00A3FF]' : ''}`} />
             <span>
               {testingBuzz
-                ? (isRtl ? 'Ø¬Ø§Ø±Ù Ø¥Ø±Ø³Ø§Ù„ Ø£Ù…Ø± Ø§Ù„Ø§Ù‡ØªØ²Ø§Ø²...' : 'Sending Buzz Command...')
+                ? (isRtl ? 'جارٍ إرسال أمر الاهتزاز...' : 'Sending Buzz Command...')
                 : testSuccess
-                ? (isRtl ? 'âœ“ ØªÙ… Ø¥Ø±Ø³Ø§Ù„ Ø§Ù„Ø§Ù‡ØªØ²Ø§Ø² Ù„Ù„Ø³ÙˆØ§Ø± Ø¨Ù†Ø¬Ø§Ø­!' : 'âœ“ Strap Buzz Dispatched!')
-                : (isRtl ? 'ØªØ¬Ø±Ø¨Ø© Ø§Ù‡ØªØ²Ø§Ø² Ø§Ù„Ø³ÙˆØ§Ø± Ø§Ù„Ø¢Ù†' : 'Test Strap Vibration Now')}
+                ? (isRtl ? '✓ تم إرسال الاهتزاز للسوار بنجاح!' : '✓ Strap Buzz Dispatched!')
+                : (isRtl ? 'تجربة اهتزاز السوار الآن' : 'Test Strap Vibration Now')}
             </span>
           </button>
           {!isConnected && (
             <p className="text-[10px] text-zinc-500 font-sans text-center mt-1.5">
               {isRtl
-                ? 'Ù…Ù„Ø§Ø­Ø¸Ø©: Ø§Ù„Ø³ÙˆØ§Ø± ØºÙŠØ± Ù…ØªØµÙ„ Ø­Ø§Ù„ÙŠØ§Ù‹ Ø¹Ø¨Ø± Ø§Ù„Ø¨Ù„ÙˆØªÙˆØ«. Ø³ÙŠØªÙ… Ø§Ø®ØªØ¨Ø§Ø± Ø§Ù‡ØªØ²Ø§Ø² Ø§Ù„Ù‡Ø§ØªÙ ÙÙ‚Ø·.'
+                ? 'ملاحظة: السوار غير متصل حالياً عبر البلوتوث. سيتم اختبار اهتزاز الهاتف فقط.'
                 : 'Note: WHOOP strap is not connected via BLE. Vibration will test on phone only.'}
             </p>
           )}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Dumbbell, Moon, Timer, X, BookOpen, Clock, Activity, Zap, Wind, Vibrate } from 'lucide-react';
+import { Dumbbell, Moon, X, BookOpen, Clock, Activity, Zap, Wind, Vibrate } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
 import { SheetBackdrop, SheetPanel } from './motion/Sheet';
 import { hapticMedium, hapticLight } from '../utils/haptics';
@@ -11,7 +11,6 @@ export type QuickActionType =
   | 'sleep_planner'
   | 'alarm'
   | 'sleep'
-  | 'recovery_test'
   | 'breathe';
 
 interface QuickActionModalProps {
@@ -182,30 +181,7 @@ export const QuickActionModal: React.FC<QuickActionModalProps> = ({
             </div>
           </button>
 
-          {/* 6. Measure Morning Recovery */}
-          <button
-            onClick={() => {
-              onClose();
-              onSelectAction('recovery_test');
-            }}
-            className="w-full p-3 rounded-2xl bg-[#0B0D10] hover:bg-[#12151A] border border-white/5 flex items-center justify-between transition-all group"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-[#FFDE00]/20 text-[#FFDE00] flex items-center justify-center border border-[#FFDE00]/30 group-hover:scale-105 transition-transform flex-shrink-0">
-                <Timer className="w-5 h-5" />
-              </div>
-              <div className={isRtl ? 'text-right' : 'text-left'}>
-                <div className="text-sm font-black uppercase text-white">
-                  {isRtl ? 'قياس تعافي الصباح' : 'Measure Morning Recovery'}
-                </div>
-                <div className="text-[11px] text-zinc-400">
-                  {isRtl ? 'معايرة تقلب نبضات القلب (HRV) لـ 3 دقائق' : '3-Minute Resonant Paced HRV Calibration'}
-                </div>
-              </div>
-            </div>
-          </button>
-
-          {/* 7. HRV Resonance Breathe Pacer */}
+          {/* 6. HRV Resonance Breathe Pacer */}
           <button
             onClick={() => {
               onClose();

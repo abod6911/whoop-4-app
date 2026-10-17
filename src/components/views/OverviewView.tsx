@@ -860,34 +860,6 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
             </div>
           </div>
         )}
-
-        {/* Metric Row 8: LEAN BODY MASS */}
-        {dashboardPrefs.leanMass && (
-          <div className="p-4 rounded-[22px] bg-[#12151A] border border-white/5 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-white/[0.04] flex items-center justify-center text-[#8A94A6]">
-                <Scale className="w-5 h-5 stroke-[1.8]" />
-              </div>
-              <div>
-                <div className="text-xs font-black uppercase tracking-wider text-zinc-400 font-condensed">
-                  {t('leanBodyMass')}
-                </div>
-                <div className="text-[10px] text-zinc-500 font-mono mt-0.5">
-                  {isRtl ? '82% من إجمالي وزن الجسم' : '82% of Total Weight'}
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="text-end">
-                <span className="text-2xl font-black font-condensed text-white tabular-nums">
-                  {(settings.weightKg * 0.82).toFixed(1)}
-                </span>
-                <span className="text-xs text-zinc-400 font-normal ml-1">kg</span>
-              </div>
-              <ChevronRight className={`w-4 h-4 text-zinc-600 ${isRtl ? 'rotate-180' : ''}`} />
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Daily Outlook Modal */}

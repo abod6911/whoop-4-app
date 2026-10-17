@@ -40,15 +40,15 @@ export const WorkoutHudModal: React.FC<WorkoutHudModalProps> = ({
   if (!isOpen) return null;
 
   const sportsMap: Record<string, string> = {
-    Running: isRtl ? 'Ø§Ù„Ø¬Ø±ÙŠ' : 'Running',
-    Weightlifting: isRtl ? 'Ø±ÙØ¹ Ø§Ù„Ø£Ø«Ù‚Ø§Ù„' : 'Weightlifting',
-    Cycling: isRtl ? 'Ø§Ù„Ø¯Ø±Ø§Ø¬Ø©' : 'Cycling',
-    'Functional Fitness': isRtl ? 'Ø§Ù„Ù„ÙŠØ§Ù‚Ø© Ø§Ù„ÙˆØ¸ÙŠÙÙŠØ©' : 'Functional Fitness',
+    Running: isRtl ? 'الجري' : 'Running',
+    Weightlifting: isRtl ? 'رفع الأثقال' : 'Weightlifting',
+    Cycling: isRtl ? 'الدراجة' : 'Cycling',
+    'Functional Fitness': isRtl ? 'اللياقة الوظيفية' : 'Functional Fitness',
     HIIT: 'HIIT',
-    Walking: isRtl ? 'Ø§Ù„Ù…Ø´ÙŠ' : 'Walking',
-    Swimming: isRtl ? 'Ø§Ù„Ø³Ø¨Ø§Ø­Ø©' : 'Swimming',
-    Rowing: isRtl ? 'Ø§Ù„ØªØ¬Ø¯ÙŠÙ' : 'Rowing',
-    Yoga: isRtl ? 'Ø§Ù„ÙŠÙˆØºØ§' : 'Yoga',
+    Walking: isRtl ? 'المشي' : 'Walking',
+    Swimming: isRtl ? 'السباحة' : 'Swimming',
+    Rowing: isRtl ? 'التجديف' : 'Rowing',
+    Yoga: isRtl ? 'اليوغا' : 'Yoga',
   };
 
   const formatSec = (totalSec: number) => {
@@ -78,7 +78,7 @@ export const WorkoutHudModal: React.FC<WorkoutHudModalProps> = ({
           <div className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-[#0093E9] animate-ping" />
             <span className="text-xs font-black uppercase tracking-widest text-[#00B4D8] font-condensed">
-              {isRtl ? 'Ù†Ø´Ø§Ø· Ù…Ø¨Ø§Ø´Ø±' : 'LIVE ACTIVITY'}
+              {isRtl ? 'نشاط مباشر' : 'LIVE ACTIVITY'}
             </span>
           </div>
 
@@ -89,7 +89,7 @@ export const WorkoutHudModal: React.FC<WorkoutHudModalProps> = ({
           <button
             onClick={onClose}
             className="p-1.5 rounded-full bg-[#16191E] text-zinc-400 hover:text-white"
-            title={isRtl ? 'ØªØµØºÙŠØ±' : 'Minimize HUD'}
+            title={isRtl ? 'تصغير' : 'Minimize HUD'}
           >
             <ChevronDown className="w-4 h-4" />
           </button>
@@ -106,7 +106,7 @@ export const WorkoutHudModal: React.FC<WorkoutHudModalProps> = ({
               {liveSessionStrain}
             </div>
             <div className="text-[11px] text-zinc-500 font-mono" dir="ltr">
-              {isRtl ? 'Ø¥Ø¬Ù…Ø§Ù„ÙŠ Ø§Ù„ÙŠÙˆÙ…: ' : 'DAY TOTAL: '}{(metrics.dailyStrain + liveSessionStrain * 0.4).toFixed(1)} / 21.0
+              {isRtl ? 'إجمالي اليوم: ' : 'DAY TOTAL: '}{(metrics.dailyStrain + liveSessionStrain * 0.4).toFixed(1)} / 21.0
             </div>
           </div>
 
@@ -139,7 +139,7 @@ export const WorkoutHudModal: React.FC<WorkoutHudModalProps> = ({
               <div className="text-2xl font-black font-mono text-white tabular-nums pt-1" dir="ltr">
                 {formatSec(elapsedSec)}
               </div>
-              <div className="text-[10px] font-mono text-zinc-500">{isRtl ? 'Ø§Ù„ÙˆÙ‚Øª' : 'TIME'}</div>
+              <div className="text-[10px] font-mono text-zinc-500">{isRtl ? 'الوقت' : 'TIME'}</div>
             </div>
 
             {/* Active Calories */}
@@ -151,7 +151,7 @@ export const WorkoutHudModal: React.FC<WorkoutHudModalProps> = ({
               <div className="text-3xl font-black font-condensed text-white tabular-nums" dir="ltr">
                 {Math.round(activeCalories + (elapsedSec * 0.12))}
               </div>
-              <div className="text-[10px] font-mono text-zinc-500">{isRtl ? 'Ø³Ø¹Ø±Ø©' : 'KCAL'}</div>
+              <div className="text-[10px] font-mono text-zinc-500">{isRtl ? 'سعرة' : 'KCAL'}</div>
             </div>
           </div>
 
@@ -159,10 +159,10 @@ export const WorkoutHudModal: React.FC<WorkoutHudModalProps> = ({
           <div className="p-4 rounded-2xl bg-[#16191E] border border-white/5 space-y-2.5">
             <div className="flex items-center justify-between text-xs font-condensed">
               <span className="font-bold text-zinc-400 uppercase tracking-wider">
-                {isRtl ? 'Ù†Ø·Ø§Ù‚ Ø§Ù„Ø´Ø¯Ø© Ø§Ù„Ø­Ø§Ù„ÙŠ' : 'Current Intensity Zone'}
+                {isRtl ? 'نطاق الشدة الحالي' : 'Current Intensity Zone'}
               </span>
               <span className="font-black text-[#0093E9] uppercase" dir="ltr">
-                Zone {metrics.currentZone}: {zones.find((z) => z.zone === metrics.currentZone)?.name || (isRtl ? 'Ø±Ø§Ø­Ø©' : 'Rest')}
+                Zone {metrics.currentZone}: {zones.find((z) => z.zone === metrics.currentZone)?.name || (isRtl ? 'راحة' : 'Rest')}
               </span>
             </div>
 
@@ -203,7 +203,7 @@ export const WorkoutHudModal: React.FC<WorkoutHudModalProps> = ({
             className="w-full py-4 rounded-2xl bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/50 text-[#FF3344] font-black text-sm uppercase tracking-widest font-condensed flex items-center justify-center gap-2 transition-all active:scale-98 shadow-lg shadow-rose-950/40"
           >
             <Square className="w-4 h-4 fill-current" />
-            <span>{isRtl ? 'Ø¥Ù†Ù‡Ø§Ø¡ ÙˆØ­ÙØ¸ Ø§Ù„ØªÙ…Ø±ÙŠÙ†' : 'End & Save Workout'}</span>
+            <span>{isRtl ? 'إنهاء وحفظ التمرين' : 'End & Save Workout'}</span>
           </button>
         </div>
       </div>

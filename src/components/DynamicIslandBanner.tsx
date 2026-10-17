@@ -45,7 +45,7 @@ export const DynamicIslandBanner: React.FC<DynamicIslandBannerProps> = ({ onActi
   };
 
   return (
-    <div className="fixed top-2 left-1/2 -translate-x-1/2 z-50 w-[94%] max-w-[400px] pointer-events-auto transition-all duration-300 ease-out animate-in slide-in-from-top-4">
+    <div className="absolute top-2 left-1/2 -translate-x-1/2 z-50 w-[94%] max-w-[400px] pointer-events-auto transition-all duration-300 ease-out animate-in slide-in-from-top-4">
       {/* Dynamic Island Floating Capsule */}
       <div className="relative bg-[#000000] border border-white/15 shadow-2xl shadow-black/80 rounded-[24px] p-3 text-white">
         <div className="flex items-start justify-between gap-2.5">
@@ -58,7 +58,7 @@ export const DynamicIslandBanner: React.FC<DynamicIslandBannerProps> = ({ onActi
           <div className="flex-1 min-w-0 pr-1 text-start">
             <div className="flex items-center gap-1.5">
               <span className="text-[10px] font-black uppercase tracking-wider font-condensed text-zinc-400">
-                {isRtl ? 'ØªÙ†Ø¨ÙŠÙ‡ Ù†Ø¸Ø§Ù… WHOOP' : 'WHOOP SYSTEM ALERT'}
+                {isRtl ? 'تنبيه نظام WHOOP' : 'WHOOP SYSTEM ALERT'}
               </span>
               <span className="w-1.5 h-1.5 rounded-full bg-[#16EC06] animate-ping" />
             </div>
@@ -83,7 +83,7 @@ export const DynamicIslandBanner: React.FC<DynamicIslandBannerProps> = ({ onActi
                   onClick={() => notificationEngine.dismissToast()}
                   className="text-[10px] text-zinc-400 font-condensed font-bold uppercase tracking-wider hover:text-white px-1.5 py-1"
                 >
-                  {isRtl ? 'ØªØ¬Ø§Ù‡Ù„' : 'Dismiss'}
+                  {isRtl ? 'تجاهل' : 'Dismiss'}
                 </button>
               </div>
             )}

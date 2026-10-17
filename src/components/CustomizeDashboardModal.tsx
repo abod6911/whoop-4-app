@@ -11,7 +11,6 @@ export interface DashboardPreferences {
   steps: boolean;
   calories: boolean;
   respiratory: boolean;
-  leanMass: boolean;
 }
 
 export const DEFAULT_DASHBOARD_PREFS: DashboardPreferences = {
@@ -22,7 +21,6 @@ export const DEFAULT_DASHBOARD_PREFS: DashboardPreferences = {
   steps: true,
   calories: true,
   respiratory: true,
-  leanMass: true,
 };
 
 interface CustomizeDashboardModalProps {
@@ -116,13 +114,6 @@ export const CustomizeDashboardModal: React.FC<CustomizeDashboardModalProps> = (
       titleAr: 'معدل التنفس الليلي',
       descEn: 'Nocturnal breaths per minute (RPM) clinical metric',
       descAr: 'عدد الأنفاس بالدقيقة أثناء النوم ومؤشر الاستجابة المناعية',
-    },
-    {
-      key: 'leanMass',
-      titleEn: 'Lean Body Mass',
-      titleAr: 'كتلة الجسم الصافية',
-      descEn: 'Calculated fat-free body composition estimate',
-      descAr: 'تقدير الكتلة العضلية والأنسجة الخالية من الدهون',
     },
   ];
 

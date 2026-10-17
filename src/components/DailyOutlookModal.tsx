@@ -31,31 +31,31 @@ export const DailyOutlookModal: React.FC<DailyOutlookModalProps> = ({
 
   if (recovery === null) {
     outlookText = isRtl
-      ? 'Ø³ÙˆØ§Ø± WHOOP 4.0 ÙŠØ±Ø³Ù„ Ø¨ÙŠØ§Ù†Ø§Øª Ø§Ù„Ø­Ø³Ø§Ø³Ø§Øª Ø§Ù„Ø­ÙŠØ© Ø¨Ø´ÙƒÙ„ Ù†Ø´Ø·. Ù…Ø¹ ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ù…Ø²ÙŠØ¯ Ù…Ù† Ù†Ø¨Ø¶Ø§Øª Ø§Ù„Ø±Ø§Ø­Ø© ÙˆØªÙ‚Ù„Ø¨ Ø¶Ø±Ø¨Ø§Øª Ø§Ù„Ù‚Ù„Ø¨ØŒ Ø³ÙŠØªÙ… Ø§Ø­ØªØ³Ø§Ø¨ Ù†Ø³Ø¨Ø© Ø§Ù„Ø§Ø³ØªØ´ÙØ§Ø¡ ÙˆØ§Ù„Ø¬Ù‡Ø¯ Ø§Ù„Ù…Ø³ØªÙ‡Ø¯Ù Ø¨Ø¯Ù‚Ø©.'
+      ? 'سوار WHOOP 4.0 يرسل بيانات الحساسات الحية بشكل نشط. مع تسجيل المزيد من نبضات الراحة وتقلب ضربات القلب، سيتم احتساب نسبة الاستشفاء والجهد المستهدف بدقة.'
       : 'Your WHOOP 4.0 strap is actively streaming sensor data. As more resting intervals and heart rate variability beats are recorded today, your autonomic baseline will establish a precise Recovery and Day Strain target.';
     recommendation = isRtl
-      ? 'Ø­Ø§ÙØ¸ Ø¹Ù„Ù‰ ØªØ«Ø¨ÙŠØª Ø§Ù„Ø³ÙˆØ§Ø± Ø¨Ø¥Ø­ÙƒØ§Ù… Ø¹Ù„Ù‰ Ù…Ø¹ØµÙ…Ùƒ (Ø¹Ø±Ø¶ Ø¥ØµØ¨Ø¹ ÙˆØ§Ø­Ø¯ ÙÙˆÙ‚ Ø¹Ø¸Ù…Ø© Ø§Ù„Ù…Ø¹ØµÙ…) Ù„Ø¶Ù…Ø§Ù† Ø¯Ù‚Ø© Ø§Ù„Ù‚Ø±Ø§Ø¡Ø§Øª Ø§Ù„Ø¶ÙˆØ¦ÙŠØ©.'
+      ? 'حافظ على تثبيت السوار بإحكام على معصمك (عرض إصبع واحد فوق عظمة المعصم) لضمان دقة القراءات الضوئية.'
       : 'Keep the strap snug on your wrist (one finger width above your wrist bone) to ensure clean optical PPG telemetry.';
   } else if (isGreen) {
     outlookText = isRtl
-      ? `Ù…Ø¹ Ù†Ø³Ø¨Ø© Ø§Ø³ØªØ´ÙØ§Ø¡ ${recovery}%ØŒ ÙŠÙ‡ÙŠÙ…Ù† Ø§Ù„Ø¬Ù‡Ø§Ø² Ø§Ù„Ø¹ØµØ¨ÙŠ Ø§Ù„Ù„Ø§ÙˆØ¯ÙŠ (Parasympathetic) Ø¹Ù„Ù‰ Ù†Ø´Ø§Ø·Ùƒ. Ù…Ø¹Ø¯Ù„ ØªÙ‚Ù„Ø¨ Ù†Ø¨Ø¶Ø§Øª Ø§Ù„Ù‚Ù„Ø¨ Ù…Ø±ØªÙØ¹ Ø¹Ù†Ø¯ ${metrics.currentHrv} Ù…Ù„Ù„ÙŠ Ø«Ø§Ù†ÙŠØ©ØŒ Ù…Ù…Ø§ ÙŠØ¯Ù„ Ø¹Ù„Ù‰ Ø¬Ø§Ù‡Ø²ÙŠØ© Ù‚Ù„Ø¨ÙŠØ© Ù…Ø«Ø§Ù„ÙŠØ© Ù„ØªØ­Ù…Ù„ Ø£Ø¹Ù„Ù‰ Ù…Ø³ØªÙˆÙŠØ§Øª Ø§Ù„Ø¥Ø¬Ù‡Ø§Ø¯.`
+      ? `مع نسبة استشفاء ${recovery}%، يهيمن الجهاز العصبي اللاودي (Parasympathetic) على نشاطك. معدل تقلب نبضات القلب مرتفع عند ${metrics.currentHrv} مللي ثانية، مما يدل على جاهزية قلبية مثالية لتحمل أعلى مستويات الإجهاد.`
       : `With a ${recovery}% Recovery, your autonomic nervous system is dominated by parasympathetic tone. Your HRV is elevated at ${metrics.currentHrv} ms, indicating optimal cardiovascular capacity to absorb high exertion.`;
     recommendation = isRtl
-      ? `Ø§Ø³ØªÙ‡Ø¯Ù Ø¬Ù‡Ø¯Ø§Ù‹ ÙŠÙˆÙ…ÙŠØ§Ù‹ Ø­ØªÙ‰ ${metrics.optimalStrainTarget.max}. ÙŠÙˆÙ… Ù…Ø«Ø§Ù„ÙŠ Ù„Ù„ØªÙ…Ø§Ø±ÙŠÙ† Ø§Ù„Ù…ÙƒØ«ÙØ© (HIIT)ØŒ Ø±ÙØ¹ Ø§Ù„Ø£Ø«Ù‚Ø§Ù„ Ø§Ù„Ø«Ù‚ÙŠÙ„Ø©ØŒ Ø£Ùˆ Ø§Ù„Ù…Ù†Ø§ÙØ³Ø§Øª Ø§Ù„Ø±ÙŠØ§Ø¶ÙŠØ©.`
+      ? `استهدف جهداً يومياً حتى ${metrics.optimalStrainTarget.max}. يوم مثالي للتمارين المكثفة (HIIT)، رفع الأثقال الثقيلة، أو المنافسات الرياضية.`
       : `Target up to ${metrics.optimalStrainTarget.max} Day Strain today. Great day for interval sprints, heavy strength training, or competitive sports.`;
   } else if (isYellow) {
     outlookText = isRtl
-      ? `ØªØ¹ÙƒØ³ Ù†Ø³Ø¨Ø© Ø§Ù„Ø§Ø³ØªØ´ÙØ§Ø¡ ${recovery}% Ø§Ø³ØªÙ‚Ø±Ø§Ø±Ø§Ù‹ Ù‚Ù„Ø¨ÙŠØ§Ù‹ Ù…ØªÙˆØ§Ø²Ù†Ø§Ù‹. Ø¬Ø³Ù…Ùƒ ÙŠØ­Ø§ÙØ¸ Ø¹Ù„Ù‰ Ø§Ù„ØªÙˆØ§Ø²Ù† Ø§Ù„Ø¯Ø§Ø®Ù„ÙŠ Ø¯ÙˆÙ† Ø¥Ø¬Ù‡Ø§Ø¯ Ø¹ØµØ¨ÙŠ Ù…Ù„Ø­ÙˆØ¸.`
+      ? `تعكس نسبة الاستشفاء ${recovery}% استقراراً قلبياً متوازناً. جسمك يحافظ على التوازن الداخلي دون إجهاد عصبي ملحوظ.`
       : `Your ${recovery}% Recovery reflects steady cardiovascular equilibrium. Your body is maintaining homeostasis without significant sympathetic distress.`;
     recommendation = isRtl
-      ? `Ø§Ø³ØªÙ‡Ø¯Ù Ø¬Ù‡Ø¯Ø§Ù‹ Ù…Ø¹ØªØ¯Ù„Ø§Ù‹ (${metrics.optimalStrainTarget.min} - ${metrics.optimalStrainTarget.max}). Ø±ÙƒØ² Ø¹Ù„Ù‰ Ø¨Ù†Ø§Ø¡ Ø§Ù„Ù‚Ø§Ø¹Ø¯Ø© Ø§Ù„Ù‡ÙˆØ§Ø¦ÙŠØ© ÙˆØ§Ù„ØªØ±Ø·ÙŠØ¨ Ø§Ù„Ø¬ÙŠØ¯.`
+      ? `استهدف جهداً معتدلاً (${metrics.optimalStrainTarget.min} - ${metrics.optimalStrainTarget.max}). ركز على بناء القاعدة الهوائية والترطيب الجيد.`
       : `Aim for moderate Day Strain (${metrics.optimalStrainTarget.min} - ${metrics.optimalStrainTarget.max}). Focus on aerobic base building and consistent hydration.`;
   } else {
     outlookText = isRtl
-      ? `Ø¹Ù†Ø¯ Ù†Ø³Ø¨Ø© Ø§Ø³ØªØ´ÙØ§Ø¡ ${recovery}%ØŒ ÙŠØ¹Ø§Ù†ÙŠ Ø¬Ù‡Ø§Ø²Ùƒ Ø§Ù„Ø¹ØµØ¨ÙŠ Ù…Ù† Ø§Ù„Ø¥Ø±Ù‡Ø§Ù‚ Ù…Ø¹ ØºÙ„Ø¨Ø© Ø§Ù„Ù†Ø´Ø§Ø· Ø§Ù„ÙˆØ¯ÙŠØŒ Ù…Ù…Ø§ ÙŠØ­Ø¯ Ù…Ù† Ø§Ù„Ù‚Ø¯Ø±Ø© Ø¹Ù„Ù‰ Ø§Ù„ØªØ¹Ø§ÙÙŠ Ø§Ù„Ø³Ø±ÙŠØ¹.`
+      ? `عند نسبة استشفاء ${recovery}%، يعاني جهازك العصبي من الإرهاق مع غلبة النشاط الودي، مما يحد من القدرة على التعافي السريع.`
       : `At ${recovery}% Recovery, your autonomic system is fatigued. Sympathetic tone is dominant and cardiovascular recovery is suppressed.`;
     recommendation = isRtl
-      ? `ØªØ¬Ù†Ø¨ Ø§Ù„Ø¥Ø¬Ù‡Ø§Ø¯ Ø§Ù„Ù‚Ù„Ø¨ÙŠ Ø§Ù„Ø¹Ø§Ù„ÙŠ. Ø§Ù…Ù†Ø­ Ø§Ù„Ø£ÙˆÙ„ÙˆÙŠØ© Ù„Ù„Ø§Ø³ØªØ´ÙØ§Ø¡ Ø§Ù„Ø¥ÙŠØ¬Ø§Ø¨ÙŠØŒ ØªÙ…Ø§Ø±ÙŠÙ† Ø§Ù„Ø¥Ø·Ø§Ù„Ø©ØŒ ÙˆØ§Ù„Ù†ÙˆÙ… Ø§Ù„Ù…Ø¨ÙƒØ± Ø§Ù„Ù„ÙŠÙ„Ø©.`
+      ? `تجنب الإجهاد القلبي العالي. امنح الأولوية للاستشفاء الإيجابي، تمارين الإطالة، والنوم المبكر الليلة.`
       : `Limit high-intensity cardiovascular load. Prioritize restorative active recovery, mobility, and early sleep tonight.`;
   }
 
@@ -71,7 +71,7 @@ export const DailyOutlookModal: React.FC<DailyOutlookModalProps> = ({
                 {isRtl ? 'الرؤية اليومية الحيوية' : 'Daily Biometric Outlook'}
               </h3>
               <p className="text-[10px] text-zinc-400 font-sans">
-                {isRtl ? 'ØªØ­Ù„ÙŠÙ„ ÙØ³ÙŠÙˆÙ„ÙˆØ¬ÙŠ Ù…Ø¨Ø§Ø´Ø±' : 'Real-Time Physiological Synthesis'}
+                {isRtl ? 'تحليل فسيولوجي مباشر' : 'Real-Time Physiological Synthesis'}
               </p>
             </div>
           </div>
@@ -110,7 +110,7 @@ export const DailyOutlookModal: React.FC<DailyOutlookModalProps> = ({
           <p className="text-zinc-300 font-sans text-start">{outlookText}</p>
           <div className="pt-2 border-t border-white/5 text-zinc-400 font-sans text-start">
             <b className="text-white font-condensed uppercase tracking-wider block mb-1">
-              {isRtl ? 'ØªÙˆØ¬ÙŠÙ‡ Ø§Ù„Ù…Ø¯Ø±Ø¨ Ø§Ù„Ø±ÙŠØ§Ø¶ÙŠ:' : 'Coach Recommendation:'}
+              {isRtl ? 'توجيه المدرب الرياضي:' : 'Coach Recommendation:'}
             </b>
             {recommendation}
           </div>

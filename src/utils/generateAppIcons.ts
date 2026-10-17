@@ -107,44 +107,6 @@ export function initializeAppIcons(): void {
     favIcon.href = icon180;
     favIcon.type = 'image/png';
 
-    // Provide dynamic manifest if needed
-    const manifestBlob = new Blob(
-      [
-        JSON.stringify({
-          name: 'WHOOP 4.0',
-          short_name: 'WHOOP',
-          description: 'Official WHOOP 4.0 Local Web Bluetooth App with real biometric telemetry.',
-          start_url: window.location.pathname || './',
-          display: 'standalone',
-          background_color: '#000000',
-          theme_color: '#000000',
-          icons: [
-            {
-              src: icon180,
-              sizes: '180x180',
-              type: 'image/png',
-              purpose: 'any maskable',
-            },
-            {
-              src: icon512,
-              sizes: '512x512',
-              type: 'image/png',
-              purpose: 'any maskable',
-            },
-          ],
-        }),
-      ],
-      { type: 'application/json' }
-    );
-
-    const manifestUrl = URL.createObjectURL(manifestBlob);
-    let manifestLink = document.querySelector('link[rel="manifest"]') as HTMLLinkElement | null;
-    if (!manifestLink) {
-      manifestLink = document.createElement('link');
-      manifestLink.rel = 'manifest';
-      document.head.appendChild(manifestLink);
-    }
-    manifestLink.href = manifestUrl;
   } catch (err) {
     console.warn('Failed to dynamically generate app icons:', err);
   }
