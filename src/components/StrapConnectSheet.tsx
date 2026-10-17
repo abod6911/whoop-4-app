@@ -128,7 +128,7 @@ export const StrapConnectSheet: React.FC<StrapConnectSheetProps> = ({
     <SheetBackdrop isOpen={isOpen} onClose={onClose}>
       <SheetPanel
         onClose={onClose}
-        className="h-[92vh] max-h-[92vh] bg-[#11151C] flex flex-col p-0 overflow-hidden border-t border-white/10 select-none"
+        className="h-[92vh] max-h-[92vh] bg-gradient-to-b from-[#1C2227] via-[#14191E] to-[#0E1215] flex flex-col p-0 overflow-hidden border-t border-white/10 select-none"
       >
         {/* Top Header - Strictly locked to dir="ltr" with NO bottom border and NO subheader */}
         <div
@@ -191,7 +191,7 @@ export const StrapConnectSheet: React.FC<StrapConnectSheetProps> = ({
             <div dir="ltr" className="relative flex-1 w-full h-full overflow-hidden flex items-center">
               {/* Center/Left Stage: Photorealistic 3D WHOOP Strap */}
               <div
-                className="w-[88%] max-w-[360px] -ml-6 mt-8 select-none pointer-events-auto cursor-pointer"
+                className="w-[90%] max-w-[370px] -ml-6 mt-6 select-none pointer-events-auto cursor-pointer"
                 onClick={handleTapStrap}
                 title="Tap to trigger strap vibration or connect"
               >
@@ -199,75 +199,73 @@ export const StrapConnectSheet: React.FC<StrapConnectSheetProps> = ({
                   src="/whoop-strap-3d.webp"
                   alt="WHOOP 4.0 3D Strap"
                   className="w-full h-auto object-contain drop-shadow-[0_25px_50px_rgba(0,0,0,0.85)]"
-                  style={{
-                    maskImage: 'radial-gradient(ellipse 95% 95% at 50% 50%, black 75%, transparent 100%)',
-                    WebkitMaskImage: 'radial-gradient(ellipse 95% 95% at 50% 50%, black 75%, transparent 100%)',
-                  }}
                 />
               </div>
 
-              {/* Exact Right-Side Vertical Spine */}
+              {/* Coaxial Right-Side Vertical Spine */}
               {/* 1. Top-Right: Miniature Pod Icon */}
-              <div className="absolute top-[24%] right-6 z-10 flex flex-col items-center">
+              <div className="absolute top-[26%] right-8 z-10 flex flex-col items-center w-8 -mr-1">
                 <img
                   src="/whoop-mini-pod.webp"
                   alt="WHOOP Pod Icon"
-                  className="w-[46px] h-[56px] rounded-[12px] object-contain shadow-lg"
+                  className="w-[36px] h-[46px] rounded-[10px] object-contain shadow-lg"
                 />
               </div>
 
               {/* 2. Upper-Middle Right: Single Solid Blue Circle */}
-              <div className="absolute top-[44%] right-[39px] z-10">
-                <div className="w-3 h-3 rounded-full bg-[#1D63B8] shadow-sm shadow-[#1D63B8]/60" />
+              <div className="absolute top-[46%] right-8 z-10 flex justify-center w-8 -mr-1">
+                <div className="w-2.5 h-2.5 rounded-full bg-[#1D63B8] shadow-sm shadow-[#1D63B8]/60" />
               </div>
 
               {/* 3. Lower-Middle Right: Two Vertically Overlapping Translucent Circles */}
-              <div className="absolute top-[61%] right-[33px] z-10 flex flex-col items-center">
-                <div className="w-6 h-6 rounded-full bg-[#0E4A8A]/60 shadow-sm" />
-                <div className="w-6 h-6 rounded-full bg-[#2A313C]/70 -mt-3 shadow-sm" />
+              <div className="absolute top-[63%] right-8 z-10 flex flex-col items-center w-8 -mr-1">
+                <div className="w-5 h-5 rounded-full bg-[#0E4A8A]/60 shadow-sm" />
+                <div className="w-5 h-5 rounded-full bg-[#2A313C]/70 -mt-2.5 shadow-sm" />
               </div>
 
               {/* 4. Bottom-Right Battery Readout & Tall Vertical Green Bar */}
-              <div className="absolute bottom-12 right-6 z-10 flex items-end gap-3 select-none">
+              <div className="absolute bottom-12 right-8 z-10 flex items-end select-none">
                 {/* Left of bar: Digits and WHOOP 4.0 */}
-                <div className="text-right flex flex-col items-end">
+                <div className="text-right flex flex-col items-end mr-3">
                   <div className="flex items-baseline font-normal leading-none tracking-tight text-white tabular-nums">
-                    <span className="text-[54px] font-normal leading-none tracking-tight text-white tabular-nums">
+                    <span className="text-[52px] font-normal leading-none tracking-tight text-white tabular-nums">
                       {battery !== null ? battery : isConnected ? '100' : '--'}
                     </span>
-                    <span className="text-[22px] font-bold text-white ml-0.5">%</span>
+                    <span className="text-[20px] font-bold text-white ml-0.5">%</span>
                   </div>
                   <div className="text-[12px] font-medium tracking-[0.06em] text-[#5C6470] uppercase mt-1">
                     WHOOP 4.0
                   </div>
                 </div>
 
-                {/* Right of number: Tall, slim vertical progress bar */}
-                <div className="w-[5px] h-[140px] rounded-full bg-[#262B33] overflow-hidden flex flex-col justify-end">
-                  <motion.div
-                    className="w-full rounded-full transition-all duration-700"
-                    style={{
-                      backgroundColor: '#1EEB00',
-                      height: `${
-                        battery !== null
-                          ? Math.min(100, Math.max(4, battery))
-                          : isConnected
-                          ? 100
-                          : 0
-                      }%`,
-                    }}
-                    initial={false}
-                    animate={{
-                      height: `${
-                        battery !== null
-                          ? Math.min(100, Math.max(4, battery))
-                          : isConnected
-                          ? 100
-                          : 0
-                      }%`,
-                    }}
-                    transition={{ duration: 0.7, ease: 'easeOut' }}
-                  />
+                {/* Right of number: Tall, slim vertical progress bar centered on the spine axis */}
+                <div className="w-8 -mr-1 flex justify-center">
+                  <div className="w-[4px] h-[145px] rounded-full bg-[#262B33] overflow-hidden flex flex-col justify-end">
+                    <motion.div
+                      className="w-full rounded-full transition-all duration-700"
+                      style={{
+                        backgroundColor: '#1EEB00',
+                        height: `${
+                          battery !== null
+                            ? Math.min(100, Math.max(4, battery))
+                            : isConnected
+                            ? 100
+                            : 0
+                        }%`,
+                      }}
+                      initial={false}
+                      animate={{
+                        height: `${
+                          battery !== null
+                            ? Math.min(100, Math.max(4, battery))
+                            : isConnected
+                            ? 100
+                            : 0
+                        }%`,
+                      }}
+                      transition={{ duration: 0.7, ease: 'easeOut' }}
+                    />
+                  </div>
                 </div>
               </div>
 

@@ -76,8 +76,9 @@ export const App: React.FC = () => {
   // --- Real 7-Day History Records from Storage ---
   const [daysHistory, setDaysHistory] = useState(() => storageService.getDaysHistory());
 
-  // --- Modal States ---
-  const [isStrapSheetOpen, setIsStrapSheetOpen] = useState(false);
+  const [isStrapSheetOpen, setIsStrapSheetOpen] = useState(() =>
+    typeof window !== 'undefined' && (window.location.search.includes('sheet=strap') || window.location.hash === '#strap')
+  );
   const [isWorkoutHudOpen, setIsWorkoutHudOpen] = useState(false);
   const [isOledNightLockOpen, setIsOledNightLockOpen] = useState(false);
   const [isQuickActionOpen, setIsQuickActionOpen] = useState(false);
