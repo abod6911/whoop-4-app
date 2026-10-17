@@ -3,6 +3,7 @@ import { X, Moon, Bell, Shield, Sparkles, Clock, BedDouble, Sun } from 'lucide-r
 import type { LiveMetrics, UserSettings } from '../types/whoop';
 import { notificationEngine } from '../services/notificationEngine';
 import { useLanguage } from '../i18n/LanguageContext';
+import { SheetBackdrop, SheetPanel } from './motion/Sheet';
 
 interface SleepPlannerModalProps {
   isOpen: boolean;
@@ -23,8 +24,6 @@ export const SleepPlannerModal: React.FC<SleepPlannerModalProps> = ({
   const [goal, setGoal] = useState<'peak' | 'perform' | 'get_by'>('peak');
   const [wakeTime, setWakeTime] = useState('07:00');
   const [smartAlarmEnabled, setSmartAlarmEnabled] = useState(true);
-
-  if (!isOpen) return null;
 
   // Real Sleep Need Math based on WHOOP Physiology
   const baselineHours = settings?.sleepNeedHours || 7.9; // User's personal baseline requirement
@@ -62,8 +61,8 @@ export const SleepPlannerModal: React.FC<SleepPlannerModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="w-full max-w-[430px] bg-[#0B0D10] border-t sm:border border-white/10 rounded-t-[32px] sm:rounded-[32px] max-h-[92vh] flex flex-col overflow-hidden text-white shadow-2xl">
+    <SheetBackdrop isOpen={isOpen} onClose={onClose}>
+      <SheetPanel onClose={onClose} className="max-h-[92vh]">
         {/* Header */}
         <div className="p-4 border-b border-white/5 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -247,7 +246,7 @@ export const SleepPlannerModal: React.FC<SleepPlannerModalProps> = ({
             {isRtl ? 'تفعيل المنبه ووقت النوم' : 'Set Alarm & Bedtime'}
           </button>
         </div>
-      </div>
-    </div>
+      </SheetPanel>
+    </SheetBackdrop>
   );
 };

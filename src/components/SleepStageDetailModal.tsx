@@ -17,6 +17,7 @@ import {
 } from 'recharts';
 import type { LiveMetrics, SleepMetrics } from '../types/whoop';
 import { useLanguage } from '../i18n/LanguageContext';
+import { SheetBackdrop, SheetPanel } from './motion/Sheet';
 
 interface SleepStageDetailModalProps {
   isOpen: boolean;
@@ -42,8 +43,6 @@ export const SleepStageDetailModal: React.FC<SleepStageDetailModalProps> = ({
   const { t, isRtl } = useLanguage();
   const [selectedStage, setSelectedStage] = useState<StageType>('all');
 
-  if (!isOpen) return null;
-
   const hasSleep =
     sleepData?.hoursAsleep !== null &&
     sleepData?.hoursAsleep !== undefined &&
@@ -62,10 +61,10 @@ export const SleepStageDetailModal: React.FC<SleepStageDetailModalProps> = ({
 
   // Stage Color map
   const STAGE_COLORS: Record<string, string> = {
-    awake: '#E4E4E7', // White/Gray
-    light: '#A855F7', // Light Purple
-    deep: '#D946EF',  // Pink/Magenta
-    rem: '#7C3AED',   // Deep Purple
+    awake: '#E4E4E7', // Awake (white/light gray)
+    light: '#38BDF8', // Light Blue
+    deep: '#EC4899',  // Deep / SWS Pink
+    rem: '#A855F7',   // REM Purple
   };
 
   const STAGE_NAMES: Record<string, string> = {
@@ -127,8 +126,8 @@ export const SleepStageDetailModal: React.FC<SleepStageDetailModalProps> = ({
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/90 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="w-full max-w-[430px] bg-black border-t sm:border border-white/10 rounded-t-[32px] sm:rounded-[32px] h-[92vh] flex flex-col overflow-hidden text-white shadow-2xl">
+    <SheetBackdrop isOpen={isOpen} onClose={onClose}>
+      <SheetPanel onClose={onClose} className="h-[92vh]">
         {/* Top Bar */}
         <div className="p-4 border-b border-white/5 flex items-center justify-between">
           <button
@@ -374,7 +373,7 @@ export const SleepStageDetailModal: React.FC<SleepStageDetailModalProps> = ({
             </div>
           </div>
         </div>
-      </div>
-    </div>
+      </SheetPanel>
+    </SheetBackdrop>
   );
 };

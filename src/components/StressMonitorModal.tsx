@@ -23,6 +23,7 @@ import {
 import type { LiveMetrics, UserSettings } from '../types/whoop';
 import { biometricEngine } from '../utils/biometricEngine';
 import { useLanguage } from '../i18n/LanguageContext';
+import { SheetBackdrop, SheetPanel } from './motion/Sheet';
 
 interface StressMonitorModalProps {
   isOpen: boolean;
@@ -39,8 +40,6 @@ export const StressMonitorModal: React.FC<StressMonitorModalProps> = ({
 }) => {
   const { t, isRtl } = useLanguage();
   const [zoomLevel, setZoomLevel] = useState(1);
-
-  if (!isOpen) return null;
 
   const stressScore = metrics.stressScore;
   const stressTime = metrics.timestamp
@@ -94,8 +93,8 @@ export const StressMonitorModal: React.FC<StressMonitorModalProps> = ({
   const strokeOffset = circHalf - stressRatio * circHalf;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/90 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="w-full max-w-[430px] bg-black border-t sm:border border-white/10 rounded-t-[32px] sm:rounded-[32px] h-[92vh] flex flex-col overflow-hidden text-white shadow-2xl">
+    <SheetBackdrop isOpen={isOpen} onClose={onClose}>
+      <SheetPanel onClose={onClose} className="h-[92vh]">
         {/* Top Header */}
         <div className="p-4 border-b border-white/5 flex items-center justify-between">
           <button
@@ -307,7 +306,7 @@ export const StressMonitorModal: React.FC<StressMonitorModalProps> = ({
             </div>
           </div>
         </div>
-      </div>
-    </div>
+      </SheetPanel>
+    </SheetBackdrop>
   );
 };

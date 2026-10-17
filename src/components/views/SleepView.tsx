@@ -20,6 +20,7 @@ import {
   Tooltip,
 } from 'recharts';
 import { useLanguage } from '../../i18n/LanguageContext';
+import { AnimatedRing } from '../motion/AnimatedRing';
 
 interface SleepViewProps {
   metrics: LiveMetrics;
@@ -166,15 +167,31 @@ export const SleepView: React.FC<SleepViewProps> = ({
           </button>
         </div>
 
-        {/* Giant Number */}
-        <div className="text-7xl font-black font-condensed text-white tracking-tight tabular-nums">
-          {perf !== null ? `${perf}%` : '--'}
+        {/* Giant Number / Animated Ring */}
+        <div className="flex flex-col items-center justify-center my-3">
+          <AnimatedRing
+            radius={70}
+            strokeWidth={9}
+            progress={perf !== null ? Math.min(1, Math.max(0, perf / 100)) : 0}
+            strokeColor="#38BDF8"
+            glow
+            glowColor="rgba(56, 189, 248, 0.45)"
+          >
+            <div className="flex flex-col items-center justify-center">
+              <span className="text-4xl font-black font-condensed text-white tracking-tight tabular-nums">
+                {perf !== null ? `${perf}%` : '--'}
+              </span>
+              <span className="text-[10px] font-black uppercase text-zinc-400 font-condensed tracking-wider">
+                {t('sleepPerformance')}
+              </span>
+            </div>
+          </AnimatedRing>
         </div>
 
         {/* Flanked Pills: HOURS OF SLEEP vs SLEEP NEEDED */}
         <div className="grid grid-cols-2 gap-3 pt-1">
-          <div className="p-3 rounded-2xl bg-[#1A202A] border border-[#7293B2]/30 text-center">
-            <div className="text-[10px] font-black uppercase text-[#7293B2] font-condensed">
+          <div className="p-3 rounded-2xl bg-[#1A202A] border border-[#38BDF8]/30 text-center">
+            <div className="text-[10px] font-black uppercase text-[#38BDF8] font-condensed">
               {isRtl ? 'ساعات النوم' : 'HOURS OF SLEEP'}
             </div>
             <div className="text-2xl font-black font-condensed text-white tabular-nums mt-0.5" dir="ltr">
@@ -199,9 +216,9 @@ export const SleepView: React.FC<SleepViewProps> = ({
         {/* OLED Night Lock Quick Trigger */}
         <button
           onClick={onActivateOledNightLock}
-          className="w-full py-3 px-4 rounded-xl bg-[#0B0D10] hover:bg-[#16191E] border border-white/10 text-[#7293B2] font-black text-xs uppercase tracking-wider font-condensed flex items-center justify-center gap-2 transition-all active:scale-98"
+          className="w-full py-3 px-4 rounded-xl bg-[#0B0D10] hover:bg-[#16191E] border border-white/10 text-[#38BDF8] font-black text-xs uppercase tracking-wider font-condensed flex items-center justify-center gap-2 transition-all active:scale-98"
         >
-          <Lock className="w-4 h-4 text-[#7293B2]" />
+          <Lock className="w-4 h-4 text-[#38BDF8]" />
           <span>{isRtl ? 'تفعيل قفل الشاشة الليلي OLED (إبقاء البلوتوث متصلاً)' : 'Launch OLED Sleep Lock (Keep BLE Connected)'}</span>
         </button>
       </div>
@@ -234,7 +251,7 @@ export const SleepView: React.FC<SleepViewProps> = ({
 
           <div className="flex items-center justify-between p-2.5 rounded-xl bg-[#16191E] border border-white/5">
             <span className="text-zinc-300 font-bold uppercase">{isRtl ? 'طلب التعافي من الإجهاد' : 'Strain Sleep Demand'}</span>
-            <span className="text-[#0093E9] font-mono font-bold" dir="ltr">
+            <span className="text-[#00A3FF] font-mono font-bold" dir="ltr">
               {sleepData.needBreakdown ? `+${Math.round(sleepData.needBreakdown.strainNeedHours * 60)}m` : (metrics.dailyStrain > 0 ? `+${Math.round((metrics.dailyStrain / 21) * 84)}m` : '--')}
             </span>
           </div>
@@ -247,7 +264,7 @@ export const SleepView: React.FC<SleepViewProps> = ({
           <h3 className="text-xs font-black uppercase tracking-wider text-zinc-400 font-condensed">
             {isRtl ? 'هيكل مراحل النوم (HYPNOGRAM)' : 'Sleep Architecture Stages'}
           </h3>
-          <span className="text-[10px] text-[#D946EF] font-mono font-bold" dir="ltr">
+          <span className="text-[10px] text-[#EC4899] font-mono font-bold" dir="ltr">
             {hoursAsleep !== null ? `${sleepData.stages.deepPercent + sleepData.stages.remPercent}% ${isRtl ? 'تعويضي' : 'Restorative'}` : t('calibrating')}
           </span>
         </div>
@@ -257,22 +274,22 @@ export const SleepView: React.FC<SleepViewProps> = ({
           <div className="w-full h-3.5 bg-black/40 rounded-full overflow-hidden flex border border-white/10">
             <div
               style={{ width: `${sleepData.stages.deepPercent}%` }}
-              className="bg-[#D946EF] h-full transition-all"
+              className="bg-[#EC4899] h-full transition-all"
               title="Deep Sleep"
             />
             <div
               style={{ width: `${sleepData.stages.remPercent}%` }}
-              className="bg-[#7C3AED] h-full transition-all"
+              className="bg-[#A855F7] h-full transition-all"
               title="REM Sleep"
             />
             <div
               style={{ width: `${sleepData.stages.lightPercent}%` }}
-              className="bg-[#7293B2] h-full transition-all"
+              className="bg-[#38BDF8] h-full transition-all"
               title="Light Sleep"
             />
             <div
               style={{ width: `${sleepData.stages.awakePercent}%` }}
-              className="bg-[#EF4444] h-full transition-all"
+              className="bg-[#E4E4E7] h-full transition-all"
               title="Awake"
             />
           </div>
@@ -285,7 +302,7 @@ export const SleepView: React.FC<SleepViewProps> = ({
         {/* 4 Stages Legend */}
         <div className="grid grid-cols-4 gap-1.5 pt-1 text-center">
           <div className="p-2 rounded-xl bg-[#16191E] border border-white/5">
-            <div className="text-[9px] font-black uppercase text-[#D946EF] font-condensed">
+            <div className="text-[9px] font-black uppercase text-[#EC4899] font-condensed">
               {isRtl ? 'عميق SWS' : 'DEEP (SWS)'}
             </div>
             <div className="text-sm font-black font-condensed text-white tabular-nums mt-0.5">
@@ -294,7 +311,7 @@ export const SleepView: React.FC<SleepViewProps> = ({
           </div>
 
           <div className="p-2 rounded-xl bg-[#16191E] border border-white/5">
-            <div className="text-[9px] font-black uppercase text-[#7C3AED] font-condensed">
+            <div className="text-[9px] font-black uppercase text-[#A855F7] font-condensed">
               REM
             </div>
             <div className="text-sm font-black font-condensed text-white tabular-nums mt-0.5">
@@ -303,7 +320,7 @@ export const SleepView: React.FC<SleepViewProps> = ({
           </div>
 
           <div className="p-2 rounded-xl bg-[#16191E] border border-white/5">
-            <div className="text-[9px] font-black uppercase text-[#7293B2] font-condensed">
+            <div className="text-[9px] font-black uppercase text-[#38BDF8] font-condensed">
               {isRtl ? 'خفيف' : 'LIGHT'}
             </div>
             <div className="text-sm font-black font-condensed text-white tabular-nums mt-0.5">
@@ -312,7 +329,7 @@ export const SleepView: React.FC<SleepViewProps> = ({
           </div>
 
           <div className="p-2 rounded-xl bg-[#16191E] border border-white/5">
-            <div className="text-[9px] font-black uppercase text-[#EF4444] font-condensed">
+            <div className="text-[9px] font-black uppercase text-[#E4E4E7] font-condensed">
               {isRtl ? 'استيقاظ' : 'AWAKE'}
             </div>
             <div className="text-sm font-black font-condensed text-white tabular-nums mt-0.5">
@@ -345,7 +362,7 @@ export const SleepView: React.FC<SleepViewProps> = ({
           </div>
           <div className="py-2.5 flex items-center justify-between text-xs font-condensed font-bold">
             <span className="text-zinc-400 uppercase">{t('restorativeSleep')}</span>
-            <span className="text-[#D946EF] font-mono font-bold" dir="ltr">
+            <span className="text-[#EC4899] font-mono font-bold" dir="ltr">
               {hoursAsleep !== null ? `${sleepData.stages.deepPercent + sleepData.stages.remPercent}% (SWS + REM)` : '--'}
             </span>
           </div>
@@ -425,8 +442,8 @@ export const SleepView: React.FC<SleepViewProps> = ({
           <div className="flex items-center justify-between text-xs font-black uppercase font-condensed text-white">
             <span>{isRtl ? 'النوم التعويضي (العميق + REM)' : 'RESTORATIVE SLEEP (DEEP + REM)'}</span>
             <div className="flex items-center gap-2 text-[10px] font-mono">
-              <span className="text-[#D946EF]">{isRtl ? '● عميق' : '● Deep'}</span>
-              <span className="text-[#7C3AED]">{isRtl ? '● REM' : '● REM'}</span>
+              <span className="text-[#EC4899]">{isRtl ? '● عميق' : '● Deep'}</span>
+              <span className="text-[#A855F7]">{isRtl ? '● REM' : '● REM'}</span>
             </div>
           </div>
           <div className="h-32 w-full pt-2">
@@ -434,8 +451,8 @@ export const SleepView: React.FC<SleepViewProps> = ({
               <BarChart data={restorative7Day} margin={{ top: 5, right: 0, left: -25, bottom: 0 }}>
                 <XAxis dataKey="day" stroke="#52525B" tick={{ fontSize: 9 }} tickLine={false} />
                 <YAxis domain={[0, 5]} stroke="#52525B" tick={{ fontSize: 9 }} tickLine={false} />
-                <Bar dataKey="deep" stackId="a" fill="#D946EF" />
-                <Bar dataKey="rem" stackId="a" fill="#7C3AED" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="deep" stackId="a" fill="#EC4899" />
+                <Bar dataKey="rem" stackId="a" fill="#A855F7" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>

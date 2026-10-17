@@ -23,7 +23,7 @@ export const DynamicIslandBanner: React.FC<DynamicIslandBannerProps> = ({ onActi
   const getIcon = () => {
     switch (toast.type) {
       case 'battery':
-        return <Battery className="w-4 h-4 text-[#FF0026] animate-pulse" />;
+        return <Battery className="w-4 h-4 text-[#FF3344] animate-pulse" />;
       case 'stress':
         return <Zap className="w-4 h-4 text-[#FFDE00] animate-bounce" />;
       case 'recovery':
@@ -58,7 +58,7 @@ export const DynamicIslandBanner: React.FC<DynamicIslandBannerProps> = ({ onActi
           <div className="flex-1 min-w-0 pr-1 text-start">
             <div className="flex items-center gap-1.5">
               <span className="text-[10px] font-black uppercase tracking-wider font-condensed text-zinc-400">
-                {isRtl ? 'تنبيه نظام WHOOP' : 'WHOOP SYSTEM ALERT'}
+                {isRtl ? 'ØªÙ†Ø¨ÙŠÙ‡ Ù†Ø¸Ø§Ù… WHOOP' : 'WHOOP SYSTEM ALERT'}
               </span>
               <span className="w-1.5 h-1.5 rounded-full bg-[#16EC06] animate-ping" />
             </div>
@@ -83,7 +83,7 @@ export const DynamicIslandBanner: React.FC<DynamicIslandBannerProps> = ({ onActi
                   onClick={() => notificationEngine.dismissToast()}
                   className="text-[10px] text-zinc-400 font-condensed font-bold uppercase tracking-wider hover:text-white px-1.5 py-1"
                 >
-                  {isRtl ? 'تجاهل' : 'Dismiss'}
+                  {isRtl ? 'ØªØ¬Ø§Ù‡Ù„' : 'Dismiss'}
                 </button>
               </div>
             )}

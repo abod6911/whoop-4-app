@@ -9,21 +9,39 @@ export default {
     extend: {
       colors: {
         whoop: {
-          black: '#000000',
+          bg: '#0A0C0F',
+          bg2: '#0D1015',
           card: '#12151A',
+          elevated: '#181C23',
+          strain: '#00A3FF',
+          strainDeep: '#0055FF',
+          green: '#16EC06',
+          yellow: '#FFDE00',
+          red: '#FF3344',
+          // backwards compatibility aliases:
+          black: '#0A0C0F',
           surface: '#181C23',
           border: '#262B35',
           borderLight: '#323846',
-          blue: '#0093E9',
+          blue: '#00A3FF',
           cyan: '#00B4D8',
-          green: '#16EC06',
-          yellow: '#FFDE00',
-          red: '#FF0026',
           sleep: '#7395B7',
           gray: '#8E9BAE',
           muted: '#626D7F',
           text: '#FFFFFF',
         }
+      },
+      fontSize: {
+        badge: ['10px', { lineHeight: '12px', fontWeight: '800' }],
+        sub: ['11px', { lineHeight: '14px', fontWeight: '500' }],
+        metric: ['32px', { lineHeight: '36px', fontWeight: '900' }],
+        'metric-lg': ['48px', { lineHeight: '52px', fontWeight: '900' }],
+      },
+      boxShadow: {
+        'glow-green': '0 0 25px -5px rgba(22, 236, 6, 0.4)',
+        'glow-yellow': '0 0 25px -5px rgba(255, 222, 0, 0.4)',
+        'glow-red': '0 0 25px -5px rgba(255, 51, 68, 0.45)',
+        'glow-strain': '0 0 25px -5px rgba(0, 163, 255, 0.45)',
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],

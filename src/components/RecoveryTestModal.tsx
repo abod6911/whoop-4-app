@@ -12,6 +12,7 @@ import {
 import type { LiveMetrics, UserSettings } from '../types/whoop';
 import { biometricEngine } from '../utils/biometricEngine';
 import { useLanguage } from '../i18n/LanguageContext';
+import { SheetBackdrop, SheetPanel } from './motion/Sheet';
 
 interface RecoveryTestModalProps {
   isOpen: boolean;
@@ -118,22 +119,20 @@ export const RecoveryTestModal: React.FC<RecoveryTestModalProps> = ({
     }
   };
 
-  if (!isOpen) return null;
-
   const progressPercent = Math.min(100, Math.round((elapsedSec / TOTAL_TEST_SEC) * 100));
   const remainingSec = TOTAL_TEST_SEC - elapsedSec;
   const remMin = Math.floor(remainingSec / 60);
   const remSec = remainingSec % 60;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
-      <div className="relative w-full max-w-[430px] p-6 rounded-[24px] bg-[#16191E] border border-white/10 shadow-2xl space-y-5 animate-in zoom-in-95">
+    <SheetBackdrop isOpen={isOpen} onClose={onClose}>
+      <SheetPanel onClose={onClose} className="p-6 max-h-[90vh] overflow-y-auto space-y-5">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-white/5 pb-3">
           <div className="flex items-center gap-2">
             <Timer className="w-5 h-5 text-[#16EC06]" />
             <h3 className="text-sm font-black uppercase tracking-wider text-white font-condensed">
-              {isRtl ? 'اختبار الاستشفاء الصباحي' : 'Morning Recovery Assessment'}
+              {isRtl ? 'Ø§Ø®ØªØ¨Ø§Ø± Ø§Ù„Ø§Ø³ØªØ´ÙØ§Ø¡ Ø§Ù„ØµØ¨Ø§Ø­ÙŠ' : 'Morning Recovery Assessment'}
             </h3>
           </div>
           <button
@@ -152,11 +151,11 @@ export const RecoveryTestModal: React.FC<RecoveryTestModalProps> = ({
 
             <div className="space-y-1">
               <h4 className="text-base font-bold text-white font-sans">
-                {isRtl ? 'بروتوكول التنفس الموجه لـ 3 دقائق' : '3-Minute Resonant Paced Protocol'}
+                {isRtl ? 'Ø¨Ø±ÙˆØªÙˆÙƒÙˆÙ„ Ø§Ù„ØªÙ†ÙØ³ Ø§Ù„Ù…ÙˆØ¬Ù‡ Ù„Ù€ 3 Ø¯Ù‚Ø§Ø¦Ù‚' : '3-Minute Resonant Paced Protocol'}
               </h4>
               <p className="text-xs text-zinc-400 leading-relaxed font-sans">
                 {isRtl
-                  ? 'اجلس باسترخاء وأرخِ كتفيك واتبع إرشادات التنفس. يقيس هذا الاختبار خط الأساس الحقيقي للجهاز العصبي اللاإرادي.'
+                  ? 'Ø§Ø¬Ù„Ø³ Ø¨Ø§Ø³ØªØ±Ø®Ø§Ø¡ ÙˆØ£Ø±Ø®Ù ÙƒØªÙÙŠÙƒ ÙˆØ§ØªØ¨Ø¹ Ø¥Ø±Ø´Ø§Ø¯Ø§Øª Ø§Ù„ØªÙ†ÙØ³. ÙŠÙ‚ÙŠØ³ Ù‡Ø°Ø§ Ø§Ù„Ø§Ø®ØªØ¨Ø§Ø± Ø®Ø· Ø§Ù„Ø£Ø³Ø§Ø³ Ø§Ù„Ø­Ù‚ÙŠÙ‚ÙŠ Ù„Ù„Ø¬Ù‡Ø§Ø² Ø§Ù„Ø¹ØµØ¨ÙŠ Ø§Ù„Ù„Ø§Ø¥Ø±Ø§Ø¯ÙŠ.'
                   : 'Sit comfortably, relax your shoulders, and follow the paced breathing guide. This calculates your true resting autonomic baseline.'}
               </p>
             </div>
@@ -165,7 +164,7 @@ export const RecoveryTestModal: React.FC<RecoveryTestModalProps> = ({
               onClick={startTest}
               className="w-full py-3.5 rounded-xl bg-[#16EC06] hover:bg-[#13d405] text-black font-black text-xs uppercase tracking-wider font-condensed transition-all shadow-lg shadow-green-500/20 active:scale-98"
             >
-              {isRtl ? 'بدء اختبار الاستشفاء (3 دقائق)' : 'Start 3-Minute Assessment'}
+              {isRtl ? 'Ø¨Ø¯Ø¡ Ø§Ø®ØªØ¨Ø§Ø± Ø§Ù„Ø§Ø³ØªØ´ÙØ§Ø¡ (3 Ø¯Ù‚Ø§Ø¦Ù‚)' : 'Start 3-Minute Assessment'}
             </button>
           </div>
         )}
@@ -186,7 +185,7 @@ export const RecoveryTestModal: React.FC<RecoveryTestModalProps> = ({
                 }`}
               >
                 <span className="text-sm font-black uppercase tracking-wider text-white font-condensed">
-                  {breathPhase === 'Inhale' ? t('inhale') : breathPhase === 'Hold' ? t('hold') : breathPhase === 'Exhale' ? t('exhale') : (isRtl ? 'استرخاء' : 'Relax')}
+                  {breathPhase === 'Inhale' ? t('inhale') : breathPhase === 'Hold' ? t('hold') : breathPhase === 'Exhale' ? t('exhale') : (isRtl ? 'Ø§Ø³ØªØ±Ø®Ø§Ø¡' : 'Relax')}
                 </span>
                 <span className="text-[10px] text-zinc-400 font-mono mt-1" dir="ltr">
                   {metrics.currentHr !== null ? `${metrics.currentHr} BPM` : '--'}
@@ -231,25 +230,25 @@ export const RecoveryTestModal: React.FC<RecoveryTestModalProps> = ({
                       ? '#16EC06'
                       : result.category === 'yellow'
                       ? '#FFDE00'
-                      : '#FF0026',
+                      : '#FF3344',
                 }}
               >
                 {result.score !== null ? `${result.score}%` : '--'}
               </div>
               <div className="text-xs font-black uppercase tracking-widest text-white font-condensed">
                 {isRtl
-                  ? `استشفاء ${result.category === 'green' ? 'أخضر (ممتاز)' : result.category === 'yellow' ? 'أصفر (معتدل)' : 'أحمر (منخفض)'}`
+                  ? `Ø§Ø³ØªØ´ÙØ§Ø¡ ${result.category === 'green' ? 'Ø£Ø®Ø¶Ø± (Ù…Ù…ØªØ§Ø²)' : result.category === 'yellow' ? 'Ø£ØµÙØ± (Ù…Ø¹ØªØ¯Ù„)' : 'Ø£Ø­Ù…Ø± (Ù…Ù†Ø®ÙØ¶)'}`
                   : `${result.category.toUpperCase()} RECOVERY`}
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3 font-mono text-xs">
               <div className="p-3 rounded-xl bg-[#0B0D10] border border-white/5">
-                <div className="text-zinc-500 text-[10px] uppercase">{isRtl ? 'معدل تقلب القلب (HRV)' : 'Assessed HRV'}</div>
+                <div className="text-zinc-500 text-[10px] uppercase">{isRtl ? 'Ù…Ø¹Ø¯Ù„ ØªÙ‚Ù„Ø¨ Ø§Ù„Ù‚Ù„Ø¨ (HRV)' : 'Assessed HRV'}</div>
                 <div className="text-xl font-bold text-white mt-0.5" dir="ltr">{result.hrv} ms</div>
               </div>
               <div className="p-3 rounded-xl bg-[#0B0D10] border border-white/5">
-                <div className="text-zinc-500 text-[10px] uppercase">{isRtl ? 'نبض الراحة (RHR)' : 'Resting HR'}</div>
+                <div className="text-zinc-500 text-[10px] uppercase">{isRtl ? 'Ù†Ø¨Ø¶ Ø§Ù„Ø±Ø§Ø­Ø© (RHR)' : 'Resting HR'}</div>
                 <div className="text-xl font-bold text-white mt-0.5" dir="ltr">{result.rhr} bpm</div>
               </div>
             </div>
@@ -269,11 +268,11 @@ export const RecoveryTestModal: React.FC<RecoveryTestModalProps> = ({
               }}
               className="w-full py-3.5 rounded-xl bg-white text-black font-black text-xs uppercase tracking-wider font-condensed transition-all active:scale-98 shadow-lg hover:bg-zinc-200"
             >
-              {isRtl ? 'اعتماد التقييم لليوم' : 'Apply Assessment to Today'}
+              {isRtl ? 'Ø§Ø¹ØªÙ…Ø§Ø¯ Ø§Ù„ØªÙ‚ÙŠÙŠÙ… Ù„Ù„ÙŠÙˆÙ…' : 'Apply Assessment to Today'}
             </button>
           </div>
         )}
-      </div>
-    </div>
+      </SheetPanel>
+    </SheetBackdrop>
   );
 };

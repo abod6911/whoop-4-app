@@ -3,6 +3,7 @@ import { notificationEngine } from '../services/notificationEngine';
 import type { WhoopNotification, NotificationType } from '../services/notificationEngine';
 import { X, Bell, Trash2, CheckCircle2, Battery, Zap, HeartPulse, Activity, Moon, ShieldCheck } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
+import { SheetBackdrop, SheetPanel } from './motion/Sheet';
 
 interface NotificationDrawerModalProps {
   isOpen: boolean;
@@ -26,17 +27,15 @@ export const NotificationDrawerModal: React.FC<NotificationDrawerModalProps> = (
     });
   }, []);
 
-  if (!isOpen) return null;
-
   const handleRequestPush = async () => {
     const granted = await notificationEngine.requestPermission();
     setIsPushEnabled(granted);
     if (granted) {
       notificationEngine.dispatch({
         type: 'system',
-        title: isRtl ? 'تم تفعيل الإشعارات الفورية' : 'Push Notifications Enabled',
+        title: isRtl ? 'ØªÙ… ØªÙØ¹ÙŠÙ„ Ø§Ù„Ø¥Ø´Ø¹Ø§Ø±Ø§Øª Ø§Ù„ÙÙˆØ±ÙŠØ©' : 'Push Notifications Enabled',
         message: isRtl
-          ? 'ستتلقى الآن تنبيهات فورية في المتصفح عند انخفاض البطارية أو تحقيق الجهد المستهدف.'
+          ? 'Ø³ØªØªÙ„Ù‚Ù‰ Ø§Ù„Ø¢Ù† ØªÙ†Ø¨ÙŠÙ‡Ø§Øª ÙÙˆØ±ÙŠØ© ÙÙŠ Ø§Ù„Ù…ØªØµÙØ­ Ø¹Ù†Ø¯ Ø§Ù†Ø®ÙØ§Ø¶ Ø§Ù„Ø¨Ø·Ø§Ø±ÙŠØ© Ø£Ùˆ ØªØ­Ù‚ÙŠÙ‚ Ø§Ù„Ø¬Ù‡Ø¯ Ø§Ù„Ù…Ø³ØªÙ‡Ø¯Ù.'
           : 'You will now receive urgent low-battery and optimal strain alerts in browser.',
       });
     }
@@ -45,7 +44,7 @@ export const NotificationDrawerModal: React.FC<NotificationDrawerModalProps> = (
   const getTypeIcon = (type: NotificationType) => {
     switch (type) {
       case 'battery':
-        return <Battery className="w-4 h-4 text-[#FF0026]" />;
+        return <Battery className="w-4 h-4 text-[#FF3344]" />;
       case 'stress':
         return <Zap className="w-4 h-4 text-[#FFDE00]" />;
       case 'recovery':
@@ -62,8 +61,8 @@ export const NotificationDrawerModal: React.FC<NotificationDrawerModalProps> = (
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="w-full max-w-[430px] bg-[#0B0D10] border-t sm:border border-white/10 rounded-t-[28px] sm:rounded-[28px] max-h-[85vh] flex flex-col overflow-hidden text-white shadow-2xl">
+    <SheetBackdrop isOpen={isOpen} onClose={onClose}>
+      <SheetPanel onClose={onClose} className="max-h-[85vh]">
         {/* Drawer Header */}
         <div className="p-4 border-b border-white/5 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -110,14 +109,14 @@ export const NotificationDrawerModal: React.FC<NotificationDrawerModalProps> = (
             }`}
           >
             <ShieldCheck className="w-3.5 h-3.5" />
-            <span>{isPushEnabled ? (isRtl ? 'الإشعارات مفعلة' : 'Push Active') : (isRtl ? 'تفعيل الإشعارات' : 'Enable Push')}</span>
+            <span>{isPushEnabled ? (isRtl ? 'Ø§Ù„Ø¥Ø´Ø¹Ø§Ø±Ø§Øª Ù…ÙØ¹Ù„Ø©' : 'Push Active') : (isRtl ? 'ØªÙØ¹ÙŠÙ„ Ø§Ù„Ø¥Ø´Ø¹Ø§Ø±Ø§Øª' : 'Enable Push')}</span>
           </button>
 
           <button
             onClick={() => notificationEngine.triggerTestNotification()}
             className="px-3 py-1.5 rounded-full bg-[#16191E] border border-white/10 text-xs font-condensed font-bold text-zinc-300 hover:text-white hover:border-zinc-500 active:scale-95 transition-all"
           >
-            {isRtl ? 'تنبيه اختباري' : 'Test Alert'}
+            {isRtl ? 'ØªÙ†Ø¨ÙŠÙ‡ Ø§Ø®ØªØ¨Ø§Ø±ÙŠ' : 'Test Alert'}
           </button>
         </div>
 
@@ -127,10 +126,10 @@ export const NotificationDrawerModal: React.FC<NotificationDrawerModalProps> = (
             <div className="py-12 text-center text-zinc-500">
               <CheckCircle2 className="w-8 h-8 mx-auto mb-2 opacity-30 text-[#16EC06]" />
               <p className="text-xs font-condensed uppercase tracking-wider text-zinc-400">
-                {isRtl ? 'لا توجد تنبيهات جديدة' : 'All caught up'}
+                {isRtl ? 'Ù„Ø§ ØªÙˆØ¬Ø¯ ØªÙ†Ø¨ÙŠÙ‡Ø§Øª Ø¬Ø¯ÙŠØ¯Ø©' : 'All caught up'}
               </p>
               <p className="text-[11px] text-zinc-600 mt-1">
-                {isRtl ? 'تنبيهات الحساسات والبطارية ستظهر هنا فورياً.' : 'Real biometric & hardware alerts will appear here in real-time.'}
+                {isRtl ? 'ØªÙ†Ø¨ÙŠÙ‡Ø§Øª Ø§Ù„Ø­Ø³Ø§Ø³Ø§Øª ÙˆØ§Ù„Ø¨Ø·Ø§Ø±ÙŠØ© Ø³ØªØ¸Ù‡Ø± Ù‡Ù†Ø§ ÙÙˆØ±ÙŠØ§Ù‹.' : 'Real biometric & hardware alerts will appear here in real-time.'}
               </p>
             </div>
           ) : (
@@ -193,10 +192,10 @@ export const NotificationDrawerModal: React.FC<NotificationDrawerModalProps> = (
             onClick={() => notificationEngine.markAllAsRead()}
             className="text-xs font-condensed font-bold text-zinc-400 hover:text-white uppercase tracking-wider"
           >
-            {isRtl ? 'تحديد الكل كمقروء' : 'Mark All As Read'}
+            {isRtl ? 'ØªØ­Ø¯ÙŠØ¯ Ø§Ù„ÙƒÙ„ ÙƒÙ…Ù‚Ø±ÙˆØ¡' : 'Mark All As Read'}
           </button>
         </div>
-      </div>
-    </div>
+      </SheetPanel>
+    </SheetBackdrop>
   );
 };

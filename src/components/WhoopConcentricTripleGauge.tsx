@@ -1,7 +1,8 @@
 import React from 'react';
+import { motion } from 'framer-motion';
 import type { LiveMetrics, HomeSubTab } from '../types/whoop';
 import { WhoopEmblemIcon } from './WhoopLogo';
-
+import { RING_SPRING, TAP } from './motion/springs';
 import { useLanguage } from '../i18n/LanguageContext';
 
 interface WhoopConcentricTripleGaugeProps {
@@ -22,41 +23,46 @@ export const WhoopConcentricTripleGauge: React.FC<WhoopConcentricTripleGaugeProp
       : metrics.recoveryCategory === 'yellow'
       ? '#FFDE00'
       : metrics.recoveryCategory === 'red'
-      ? '#FF0026'
+      ? '#FF3344'
       : '#52525B';
 
-  const size = 150;
+  const size = 154;
   const center = size / 2;
 
   // Ring 1: Outer - Day Strain (0.0 to 21.0)
-  const rOuter = 65;
+  const rOuter = 66;
   const strokeOuter = 6.5;
   const circOuter = 2 * Math.PI * rOuter;
   const strainRatio = Math.min(1, Math.max(0, metrics.dailyStrain / 21.0));
   const strainOffset = circOuter - strainRatio * circOuter;
 
   // Ring 2: Middle - Recovery (0 to 100%)
-  const rMiddle = 52;
+  const rMiddle = 53;
   const strokeMiddle = 6;
   const circMiddle = 2 * Math.PI * rMiddle;
   const recoveryRatio = metrics.recoveryScore !== null ? Math.min(1, Math.max(0, metrics.recoveryScore / 100)) : 0;
   const recoveryOffset = circMiddle - recoveryRatio * circMiddle;
 
   // Ring 3: Inner - Sleep Performance (0 to 100%)
-  const rInner = 39;
+  const rInner = 40;
   const strokeInner = 5.5;
   const circInner = 2 * Math.PI * rInner;
   const sleepRatio = metrics.sleepPerformance !== null ? Math.min(1, Math.max(0, metrics.sleepPerformance / 100)) : 0;
   const sleepOffset = circInner - sleepRatio * circInner;
+
+  // Heartbeat pulse cycle duration
+  const currentHr = metrics.currentHr && metrics.currentHr > 35 ? metrics.currentHr : null;
+  const pulseDuration = currentHr ? Math.max(0.35, 60 / currentHr) : 1.2;
 
   return (
     <div className="flex items-center justify-between px-3 py-2 select-none">
       {/* LEFT COLUMN: Recovery % & HRV */}
       <div className="flex flex-col items-start justify-between min-w-[95px] space-y-4 text-start">
         {/* Top: Recovery */}
-        <button
+        <motion.button
+          whileTap={TAP}
           onClick={() => onSelectTab('recovery')}
-          className="text-start group transition-transform active:scale-95"
+          className="text-start group focus:outline-none"
           title="View Recovery Drill-down"
         >
           <div
@@ -69,12 +75,13 @@ export const WhoopConcentricTripleGauge: React.FC<WhoopConcentricTripleGaugeProp
             <span>{t('recoveryScore')}</span>
             <span className="text-[10px] text-zinc-500">{isRtl ? '‹' : '›'}</span>
           </div>
-        </button>
+        </motion.button>
 
         {/* Bottom: HRV */}
-        <button
+        <motion.button
+          whileTap={TAP}
           onClick={() => onSelectTab('recovery')}
-          className="text-start group transition-transform active:scale-95 pt-1"
+          className="text-start group focus:outline-none pt-1"
           title="View HRV Details"
         >
           <div className="text-2xl font-black font-condensed tracking-tight tabular-nums text-white">
@@ -84,12 +91,25 @@ export const WhoopConcentricTripleGauge: React.FC<WhoopConcentricTripleGaugeProp
           <div className="text-[10px] font-black uppercase tracking-wider text-zinc-500 font-condensed group-hover:text-zinc-300 transition-colors">
             {t('hrv')}
           </div>
-        </button>
+        </motion.button>
       </div>
 
       {/* CENTER COLUMN: Concentric 3-Layer Ring Gauge around the "W" Logo */}
       <div className="relative flex items-center justify-center flex-shrink-0" style={{ width: size, height: size }}>
-        <svg width={size} height={size} className="transform -rotate-90">
+        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="overflow-visible transform -rotate-90">
+          <defs>
+            {/* Linear gradient for Strain: #00A3FF -> #0055FF */}
+            <linearGradient id="whoopStrainGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#00A3FF" />
+              <stop offset="100%" stopColor="#0055FF" />
+            </linearGradient>
+
+            {/* Dynamic filter for Recovery glow */}
+            <filter id="recoveryRingGlow" x="-20%" y="-20%" width="140%" height="140%">
+              <feDropShadow dx="0" dy="0" stdDeviation="4" floodColor={recoveryColor} floodOpacity="0.6" />
+            </filter>
+          </defs>
+
           {/* Ring 1: Outer Day Strain Track & Fill */}
           <circle
             cx={center}
@@ -99,20 +119,19 @@ export const WhoopConcentricTripleGauge: React.FC<WhoopConcentricTripleGaugeProp
             strokeWidth={strokeOuter}
             fill="transparent"
           />
-          {metrics.dailyStrain > 0 && (
-            <circle
-              cx={center}
-              cy={center}
-              r={rOuter}
-              stroke="#0093E9"
-              strokeWidth={strokeOuter}
-              fill="transparent"
-              strokeDasharray={circOuter}
-              strokeDashoffset={strainOffset}
-              strokeLinecap="round"
-              className="transition-all duration-700 ease-out"
-            />
-          )}
+          <motion.circle
+            cx={center}
+            cy={center}
+            r={rOuter}
+            stroke="url(#whoopStrainGradient)"
+            strokeWidth={strokeOuter}
+            fill="transparent"
+            strokeDasharray={circOuter}
+            initial={{ strokeDashoffset: circOuter }}
+            animate={{ strokeDashoffset: strainOffset }}
+            transition={RING_SPRING}
+            strokeLinecap="round"
+          />
 
           {/* Ring 2: Middle Recovery Track & Fill */}
           <circle
@@ -123,20 +142,20 @@ export const WhoopConcentricTripleGauge: React.FC<WhoopConcentricTripleGaugeProp
             strokeWidth={strokeMiddle}
             fill="transparent"
           />
-          {metrics.recoveryScore !== null && (
-            <circle
-              cx={center}
-              cy={center}
-              r={rMiddle}
-              stroke={recoveryColor}
-              strokeWidth={strokeMiddle}
-              fill="transparent"
-              strokeDasharray={circMiddle}
-              strokeDashoffset={recoveryOffset}
-              strokeLinecap="round"
-              className="transition-all duration-700 ease-out"
-            />
-          )}
+          <motion.circle
+            cx={center}
+            cy={center}
+            r={rMiddle}
+            stroke={recoveryColor}
+            strokeWidth={strokeMiddle}
+            fill="transparent"
+            strokeDasharray={circMiddle}
+            initial={{ strokeDashoffset: circMiddle }}
+            animate={{ strokeDashoffset: recoveryOffset }}
+            transition={RING_SPRING}
+            strokeLinecap="round"
+            filter={metrics.recoveryScore !== null ? 'url(#recoveryRingGlow)' : undefined}
+          />
 
           {/* Ring 3: Inner Sleep Performance Track & Fill */}
           <circle
@@ -147,21 +166,36 @@ export const WhoopConcentricTripleGauge: React.FC<WhoopConcentricTripleGaugeProp
             strokeWidth={strokeInner}
             fill="transparent"
           />
-          {metrics.sleepPerformance !== null && (
-            <circle
-              cx={center}
-              cy={center}
-              r={rInner}
-              stroke="#7293B2"
-              strokeWidth={strokeInner}
-              fill="transparent"
-              strokeDasharray={circInner}
-              strokeDashoffset={sleepOffset}
-              strokeLinecap="round"
-              className="transition-all duration-700 ease-out"
-            />
-          )}
+          <motion.circle
+            cx={center}
+            cy={center}
+            r={rInner}
+            stroke="#7395B7"
+            strokeWidth={strokeInner}
+            fill="transparent"
+            strokeDasharray={circInner}
+            initial={{ strokeDashoffset: circInner }}
+            animate={{ strokeDashoffset: sleepOffset }}
+            transition={RING_SPRING}
+            strokeLinecap="round"
+          />
         </svg>
+
+        {/* Heartbeat Pulse Halo behind Center "W" Emblem */}
+        {currentHr && (
+          <motion.div
+            animate={{
+              scale: [0.92, 1.25, 0.92],
+              opacity: [0.35, 0, 0.35],
+            }}
+            transition={{
+              duration: pulseDuration,
+              repeat: Infinity,
+              ease: 'easeInOut',
+            }}
+            className="absolute w-12 h-12 rounded-full border border-[#FF3344] pointer-events-none"
+          />
+        )}
 
         {/* Center Geometric "W" Monogram */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -172,33 +206,35 @@ export const WhoopConcentricTripleGauge: React.FC<WhoopConcentricTripleGaugeProp
       {/* RIGHT COLUMN: Strain & Sleep Performance */}
       <div className="flex flex-col items-end justify-between min-w-[95px] space-y-4 text-end">
         {/* Top: Day Strain */}
-        <button
+        <motion.button
+          whileTap={TAP}
           onClick={() => onSelectTab('strain')}
-          className="text-end group transition-transform active:scale-95"
+          className="text-end group focus:outline-none"
           title="View Strain Drill-down"
         >
-          <div className="text-4xl font-black font-condensed tracking-tight tabular-nums text-[#0093E9]">
-            {metrics.dailyStrain > 0 ? metrics.dailyStrain.toFixed(1) : '--'}
+          <div className="text-4xl font-black font-condensed tracking-tight tabular-nums text-[#00A3FF]">
+            {metrics.dailyStrain > 0 ? metrics.dailyStrain.toFixed(1) : '0.0'}
           </div>
-          <div className="text-[11px] font-black uppercase tracking-wider text-zinc-400 font-condensed group-hover:text-white transition-colors flex items-center justify-end gap-0.5">
+          <div className="text-[11px] font-black uppercase tracking-wider text-zinc-400 font-condensed group-hover:text-white transition-colors flex items-center gap-0.5 justify-end">
+            <span className="text-[10px] text-zinc-500">{isRtl ? '›' : '‹'}</span>
             <span>{t('dayStrain')}</span>
-            <span className="text-[10px] text-zinc-500">{isRtl ? '‹' : '›'}</span>
           </div>
-        </button>
+        </motion.button>
 
         {/* Bottom: Sleep Performance */}
-        <button
+        <motion.button
+          whileTap={TAP}
           onClick={() => onSelectTab('sleep')}
-          className="text-end group transition-transform active:scale-95 pt-1"
-          title="View Sleep Performance Details"
+          className="text-end group focus:outline-none pt-1"
+          title="View Sleep Details"
         >
-          <div className="text-2xl font-black font-condensed tracking-tight tabular-nums text-white">
+          <div className="text-2xl font-black font-condensed tracking-tight tabular-nums text-[#7395B7]">
             {metrics.sleepPerformance !== null ? `${metrics.sleepPerformance}%` : '--'}
           </div>
           <div className="text-[10px] font-black uppercase tracking-wider text-zinc-500 font-condensed group-hover:text-zinc-300 transition-colors">
             {t('sleepPerformance')}
           </div>
-        </button>
+        </motion.button>
       </div>
     </div>
   );

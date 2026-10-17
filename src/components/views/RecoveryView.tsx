@@ -21,10 +21,14 @@ import {
   YAxis,
   Tooltip,
   Cell,
+  ReferenceArea,
+  ReferenceLine,
 } from 'recharts';
 
 import { useLanguage } from '../../i18n/LanguageContext';
 import { hapticMedium } from '../../utils/haptics';
+import { AnimatedRing } from '../motion/AnimatedRing';
+import { biometricEngine } from '../../utils/biometricEngine';
 
 interface RecoveryViewProps {
   metrics: LiveMetrics;
@@ -38,7 +42,7 @@ export const getRecoveryColor = (score: number | null) => {
   if (score === null) return '#52525B';
   if (score >= 67) return '#16EC06';
   if (score >= 34) return '#FFDE00';
-  return '#FF0026';
+  return '#FF3344';
 };
 
 export const RecoveryView: React.FC<RecoveryViewProps> = ({
@@ -52,6 +56,7 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
   const [shared, setShared] = useState(false);
   const recoveryScore = metrics.recoveryScore;
   const recoveryColor = getRecoveryColor(recoveryScore);
+  const baseline = biometricEngine.getPersonalBaseline();
 
   const handleShare = async () => {
     hapticMedium();
@@ -142,49 +147,41 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
           </button>
         </div>
 
-        <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
-          <svg width={size} height={size} className="transform -rotate-90">
-            <circle
-              cx={size / 2}
-              cy={size / 2}
-              r={radius}
-              stroke="#1E2522"
-              strokeWidth={stroke}
-              fill="transparent"
-            />
-            {recoveryScore !== null && (
-              <circle
-                cx={size / 2}
-                cy={size / 2}
-                r={radius}
-                stroke={recoveryColor}
-                strokeWidth={stroke}
-                fill="transparent"
-                strokeDasharray={circ}
-                strokeDashoffset={offset}
-                strokeLinecap="round"
-                className="transition-all duration-700 ease-out"
-              />
-            )}
-          </svg>
-
-          <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span
-              className="text-6xl font-black font-condensed tracking-tight tabular-nums transition-colors"
-              style={{ color: recoveryColor }}
-            >
-              {recoveryScore !== null ? `${recoveryScore}%` : '--'}
-            </span>
-            <span className="text-[11px] font-black uppercase tracking-widest text-zinc-400 font-condensed mt-1">
-              {recoveryScore !== null
+        <div className="relative flex items-center justify-center my-3">
+          <AnimatedRing
+            radius={76}
+            strokeWidth={12}
+            progress={recoveryScore !== null ? Math.min(1, Math.max(0, recoveryScore / 100)) : 0}
+            strokeColor={recoveryColor}
+            glow
+            glowColor={
+              recoveryScore !== null
                 ? recoveryScore >= 67
-                  ? (isRtl ? 'أخضر (جاهزية عالية)' : 'GREEN')
+                  ? 'rgba(22, 236, 6, 0.45)'
                   : recoveryScore >= 34
-                  ? (isRtl ? 'أصفر (متوازن)' : 'YELLOW')
-                  : (isRtl ? 'أحمر (يحتاج راحة)' : 'RED')
-                : t('calibrating')}
-            </span>
-          </div>
+                  ? 'rgba(255, 222, 0, 0.45)'
+                  : 'rgba(255, 51, 68, 0.45)'
+                : undefined
+            }
+          >
+            <div className="flex flex-col items-center justify-center">
+              <span
+                className="text-5xl font-black font-condensed tracking-tight tabular-nums transition-colors"
+                style={{ color: recoveryColor }}
+              >
+                {recoveryScore !== null ? `${recoveryScore}%` : '--'}
+              </span>
+              <span className="text-[11px] font-black uppercase tracking-widest text-zinc-400 font-condensed mt-1">
+                {recoveryScore !== null
+                  ? recoveryScore >= 67
+                    ? (isRtl ? 'أخضر (جاهزية عالية)' : 'GREEN')
+                    : recoveryScore >= 34
+                    ? (isRtl ? 'أصفر (متوازن)' : 'YELLOW')
+                    : (isRtl ? 'أحمر (يحتاج راحة)' : 'RED')
+                  : t('calibrating')}
+              </span>
+            </div>
+          </AnimatedRing>
         </div>
 
         {/* Dynamic Insight Box */}
@@ -205,7 +202,7 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
               )
             ) : (
               isRtl
-                ? 'اربط سوارك الفعلي WHOOP 4.0 لبدء قياس نبض القلب وحساب مؤشر التعافي وتقلب النبض الفعلي.'
+                ? 'Ø§Ø±Ø¨Ø· Ø³ÙˆØ§Ø±Ùƒ Ø§Ù„ÙØ¹Ù„ÙŠ WHOOP 4.0 Ù„Ø¨Ø¯Ø¡ Ù‚ÙŠØ§Ø³ Ù†Ø¨Ø¶ Ø§Ù„Ù‚Ù„Ø¨ ÙˆØ­Ø³Ø§Ø¨ Ù…Ø¤Ø´Ø± Ø§Ù„ØªØ¹Ø§ÙÙŠ ÙˆØªÙ‚Ù„Ø¨ Ø§Ù„Ù†Ø¨Ø¶ Ø§Ù„ÙØ¹Ù„ÙŠ.'
                 : 'Connect your physical WHOOP 4.0 strap to record live heart rate and calculate your daily Recovery Score and HRV metrics.'
             )}
           </p>
@@ -217,14 +214,14 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
           className="mt-3 w-full py-3 px-4 rounded-xl bg-[#0B0D10] hover:bg-[#16191E] border border-white/10 text-white font-black text-xs uppercase tracking-wider font-condensed flex items-center justify-center gap-2 transition-all active:scale-98"
         >
           <Timer className="w-4 h-4 text-[#16EC06]" />
-          <span>{isRtl ? 'قياس التعافي الصباحي (اختبار HRV لمدة 3 دقائق)' : 'Measure Morning Recovery (3-Min HRV Test)'}</span>
+          <span>{isRtl ? 'Ù‚ÙŠØ§Ø³ Ø§Ù„ØªØ¹Ø§ÙÙŠ Ø§Ù„ØµØ¨Ø§Ø­ÙŠ (Ø§Ø®ØªØ¨Ø§Ø± HRV Ù„Ù…Ø¯Ø© 3 Ø¯Ù‚Ø§Ø¦Ù‚)' : 'Measure Morning Recovery (3-Min HRV Test)'}</span>
         </button>
       </div>
 
       {/* 2. RECOVERY STATISTICS Rows */}
       <div className="p-4 rounded-[24px] bg-[#12151A] border border-white/5 space-y-3">
         <h3 className="text-xs font-black uppercase tracking-wider text-zinc-400 font-condensed px-1">
-          {isRtl ? 'إحصائيات التعافي الفسيولوجي' : 'Recovery Statistics'}
+          {isRtl ? 'Ø¥Ø­ØµØ§Ø¦ÙŠØ§Øª Ø§Ù„ØªØ¹Ø§ÙÙŠ Ø§Ù„ÙØ³ÙŠÙˆÙ„ÙˆØ¬ÙŠ' : 'Recovery Statistics'}
         </h3>
 
         <div className="divide-y divide-white/5">
@@ -270,7 +267,7 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
         </div>
       </div>
 
-      {/* 3. 4 Dedicated 7-Day Charts (01:42 – 01:54 in Video) */}
+      {/* 3. 4 Dedicated 7-Day Charts (01:42 â€“ 01:54 in Video) */}
       <div className="space-y-4">
         {/* Chart 1: RECOVERY Vertical Bars */}
         <div className="p-4 rounded-[24px] bg-[#12151A] border border-white/5 space-y-2">
@@ -297,13 +294,26 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
         <div className="p-4 rounded-[24px] bg-[#12151A] border border-white/5 space-y-2">
           <div className="flex items-center justify-between text-xs font-black uppercase font-condensed text-white">
             <span>{t('hrv7Days')}</span>
-            <span className="text-[10px] text-[#16EC06] font-mono">{t('baseline')}: {settings.hrvBaseline} ms</span>
+            <span className="text-[10px] text-[#16EC06] font-mono">{t('baseline')}: {baseline.hrvBaseline} ms</span>
           </div>
           <div className="h-32 w-full pt-2">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={hrv7Day} margin={{ top: 5, right: 0, left: -25, bottom: 0 }}>
                 <XAxis dataKey="day" stroke="#52525B" tick={{ fontSize: 9 }} tickLine={false} />
-                <YAxis domain={[40, 90]} stroke="#52525B" tick={{ fontSize: 9 }} tickLine={false} />
+                <YAxis domain={['auto', 'auto']} stroke="#52525B" tick={{ fontSize: 9 }} tickLine={false} />
+                <ReferenceArea
+                  y1={baseline.hrvBandLo}
+                  y2={baseline.hrvBandHi}
+                  fill="#16EC06"
+                  fillOpacity={0.08}
+                  strokeOpacity={0}
+                />
+                <ReferenceLine
+                  y={baseline.hrvBandMid}
+                  stroke="#16EC06"
+                  strokeDasharray="3 3"
+                  strokeOpacity={0.4}
+                />
                 <Line type="monotone" dataKey="hrv" stroke="#16EC06" strokeWidth={2.5} dot={{ r: 3, fill: '#16EC06' }} />
               </LineChart>
             </ResponsiveContainer>
@@ -314,14 +324,27 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
         <div className="p-4 rounded-[24px] bg-[#12151A] border border-white/5 space-y-2">
           <div className="flex items-center justify-between text-xs font-black uppercase font-condensed text-white">
             <span>{t('restingHeartRate')}</span>
-            <span className="text-[10px] text-zinc-400 font-mono">{t('typicalRange')}: {settings.restingHrBaseline} {t('bpm')}</span>
+            <span className="text-[10px] text-zinc-400 font-mono">{t('typicalRange')}: {baseline.rhrBaseline} {t('bpm')}</span>
           </div>
           <div className="h-32 w-full pt-2">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={rhr7Day} margin={{ top: 5, right: 0, left: -25, bottom: 0 }}>
                 <XAxis dataKey="day" stroke="#52525B" tick={{ fontSize: 9 }} tickLine={false} />
-                <YAxis domain={[45, 65]} stroke="#52525B" tick={{ fontSize: 9 }} tickLine={false} />
-                <Line type="monotone" dataKey="rhr" stroke="#FF0026" strokeWidth={2.5} dot={{ r: 3, fill: '#FF0026' }} />
+                <YAxis domain={['auto', 'auto']} stroke="#52525B" tick={{ fontSize: 9 }} tickLine={false} />
+                <ReferenceArea
+                  y1={baseline.rhrBandLo}
+                  y2={baseline.rhrBandHi}
+                  fill="#FF3344"
+                  fillOpacity={0.08}
+                  strokeOpacity={0}
+                />
+                <ReferenceLine
+                  y={baseline.rhrBaseline}
+                  stroke="#FF3344"
+                  strokeDasharray="3 3"
+                  strokeOpacity={0.4}
+                />
+                <Line type="monotone" dataKey="rhr" stroke="#FF3344" strokeWidth={2.5} dot={{ r: 3, fill: '#FF3344' }} />
               </LineChart>
             </ResponsiveContainer>
           </div>

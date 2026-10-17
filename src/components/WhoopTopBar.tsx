@@ -74,7 +74,7 @@ export const WhoopTopBar: React.FC<WhoopTopBarProps> = ({
 }) => {
   const { t, isRtl } = useLanguage();
   const isBatteryLow = metadata.batteryLevel !== null && metadata.batteryLevel < 15;
-  const batteryColor = isBatteryLow ? 'text-[#FF0026]' : 'text-white';
+  const batteryColor = isBatteryLow ? 'text-[#FF3344]' : 'text-white';
 
   const getMainTabTitle = () => {
     switch (mainTab) {

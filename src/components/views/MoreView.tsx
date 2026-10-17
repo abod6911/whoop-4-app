@@ -254,7 +254,7 @@ export const MoreView: React.FC<MoreViewProps> = ({
           className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wider font-condensed text-zinc-400 hover:text-white transition-colors pt-1"
         >
           <ChevronLeft className={`w-4 h-4 ${isRtl ? 'rotate-180' : ''}`} />
-          <span>{isRtl ? 'العودة لقائمة المزيد' : 'BACK TO MORE MENU'}</span>
+          <span>{isRtl ? 'Ø§Ù„Ø¹ÙˆØ¯Ø© Ù„Ù‚Ø§Ø¦Ù…Ø© Ø§Ù„Ù…Ø²ÙŠØ¯' : 'BACK TO MORE MENU'}</span>
         </button>
       )}
 
@@ -265,7 +265,7 @@ export const MoreView: React.FC<MoreViewProps> = ({
             <h2 className="text-xl font-bold text-white tracking-tight">{t('more')}</h2>
             <p className="text-xs text-zinc-400 font-sans">
               {isRtl
-                ? 'إدارة سوار WHOOP 4.0 ومعدلاتك الحيوية وإعدادات اللغة ومستودع البيانات.'
+                ? 'Ø¥Ø¯Ø§Ø±Ø© Ø³ÙˆØ§Ø± WHOOP 4.0 ÙˆÙ…Ø¹Ø¯Ù„Ø§ØªÙƒ Ø§Ù„Ø­ÙŠÙˆÙŠØ© ÙˆØ¥Ø¹Ø¯Ø§Ø¯Ø§Øª Ø§Ù„Ù„ØºØ© ÙˆÙ…Ø³ØªÙˆØ¯Ø¹ Ø§Ù„Ø¨ÙŠØ§Ù†Ø§Øª.'
                 : 'Manage WHOOP 4.0 hardware, biometric baselines, language, and data.'}
             </p>
           </div>
@@ -286,7 +286,7 @@ export const MoreView: React.FC<MoreViewProps> = ({
                   </div>
                   <div className="text-[11px] text-zinc-400 font-mono">
                     {metadata.connected
-                      ? `${metadata.name} (${t('connected')} • ${metadata.batteryLevel ?? '--'}%)`
+                      ? `${metadata.name} (${t('connected')} â€¢ ${metadata.batteryLevel ?? '--'}%)`
                       : t('disconnected')}
                   </div>
                 </div>
@@ -308,7 +308,7 @@ export const MoreView: React.FC<MoreViewProps> = ({
                     {t('myAccount')}
                   </div>
                   <div className="text-[11px] text-zinc-400 font-mono">
-                    {settings.name || 'Athlete'} • {isRtl ? 'خط الأساس الفسيولوجي' : 'Baselines & Physiology'}
+                    {settings.name || 'Athlete'} â€¢ {isRtl ? 'Ø®Ø· Ø§Ù„Ø£Ø³Ø§Ø³ Ø§Ù„ÙØ³ÙŠÙˆÙ„ÙˆØ¬ÙŠ' : 'Baselines & Physiology'}
                   </div>
                 </div>
               </div>
@@ -329,7 +329,7 @@ export const MoreView: React.FC<MoreViewProps> = ({
                     {t('appSettings')}
                   </div>
                   <div className="text-[11px] text-zinc-400 font-mono">
-                    <span className="text-[#16EC06] font-bold">{language === 'ar' ? 'العربية' : 'English'}</span> • {isRtl ? 'تغيير اللغة، الإشعارات ومستودع البيانات' : 'Language, Notifications & Data'}
+                    <span className="text-[#16EC06] font-bold">{language === 'ar' ? 'Ø§Ù„Ø¹Ø±Ø¨ÙŠØ©' : 'English'}</span> â€¢ {isRtl ? 'ØªØºÙŠÙŠØ± Ø§Ù„Ù„ØºØ©ØŒ Ø§Ù„Ø¥Ø´Ø¹Ø§Ø±Ø§Øª ÙˆÙ…Ø³ØªÙˆØ¯Ø¹ Ø§Ù„Ø¨ÙŠØ§Ù†Ø§Øª' : 'Language, Notifications & Data'}
                   </div>
                 </div>
               </div>
@@ -350,7 +350,7 @@ export const MoreView: React.FC<MoreViewProps> = ({
                     {t('privacy')}
                   </div>
                   <div className="text-[11px] text-zinc-400 font-mono">
-                    {isRtl ? 'تخزين محلي آمن 100% بدون سحابة' : '100% Offline Local BLE Storage'}
+                    {isRtl ? 'ØªØ®Ø²ÙŠÙ† Ù…Ø­Ù„ÙŠ Ø¢Ù…Ù† 100% Ø¨Ø¯ÙˆÙ† Ø³Ø­Ø§Ø¨Ø©' : '100% Offline Local BLE Storage'}
                   </div>
                 </div>
               </div>
@@ -371,7 +371,7 @@ export const MoreView: React.FC<MoreViewProps> = ({
                     {t('tutorials')}
                   </div>
                   <div className="text-[11px] text-zinc-400 font-mono">
-                    {isRtl ? 'ارتداء الحساس، تقلب النبض والشحن' : 'Sensor Placement, HRV & Charging'}
+                    {isRtl ? 'Ø§Ø±ØªØ¯Ø§Ø¡ Ø§Ù„Ø­Ø³Ø§Ø³ØŒ ØªÙ‚Ù„Ø¨ Ø§Ù„Ù†Ø¨Ø¶ ÙˆØ§Ù„Ø´Ø­Ù†' : 'Sensor Placement, HRV & Charging'}
                   </div>
                 </div>
               </div>
@@ -478,8 +478,8 @@ export const MoreView: React.FC<MoreViewProps> = ({
                   }}
                   className="w-full bg-[#0B0D10] border border-white/10 rounded-xl px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-[#16EC06]"
                 >
-                  <option value="ar">العربية (Arabic)</option>
-                  <option value="en">English (الإنجليزية)</option>
+                  <option value="ar">Ø§Ù„Ø¹Ø±Ø¨ÙŠØ© (Arabic)</option>
+                  <option value="en">English (Ø§Ù„Ø¥Ù†Ø¬Ù„ÙŠØ²ÙŠØ©)</option>
                 </select>
               </div>
             </div>
@@ -598,7 +598,7 @@ export const MoreView: React.FC<MoreViewProps> = ({
       {/* 4. APP SETTINGS & DATA VAULT SUB-SCREEN */}
       {subScreen === 'app_settings' && (
         <div className="space-y-4">
-          {/* Language Preference Card (خيار اللغة) */}
+          {/* Language Preference Card (Ø®ÙŠØ§Ø± Ø§Ù„Ù„ØºØ©) */}
           <div className="p-4 rounded-[24px] bg-[#12151A] border border-white/5 space-y-3">
             <div className="flex items-center justify-between border-b border-white/5 pb-2.5">
               <div className="flex items-center gap-2.5">
@@ -610,12 +610,12 @@ export const MoreView: React.FC<MoreViewProps> = ({
                     {t('language')} / LANGUAGE
                   </div>
                   <div className="text-[10px] text-zinc-400 font-sans">
-                    {isRtl ? 'اختر لغة واجهة التطبيق' : 'Choose app display language'}
+                    {isRtl ? 'Ø§Ø®ØªØ± Ù„ØºØ© ÙˆØ§Ø¬Ù‡Ø© Ø§Ù„ØªØ·Ø¨ÙŠÙ‚' : 'Choose app display language'}
                   </div>
                 </div>
               </div>
               <span className="text-xs font-bold font-condensed px-2.5 py-0.5 rounded-full bg-[#16EC06]/15 text-[#16EC06] border border-[#16EC06]/30">
-                {language === 'ar' ? 'العربية' : 'English'}
+                {language === 'ar' ? 'Ø§Ù„Ø¹Ø±Ø¨ÙŠØ©' : 'English'}
               </span>
             </div>
 
@@ -631,7 +631,7 @@ export const MoreView: React.FC<MoreViewProps> = ({
                 }`}
               >
                 <div>
-                  <div className="text-sm font-black font-condensed">العربية</div>
+                  <div className="text-sm font-black font-condensed">Ø§Ù„Ø¹Ø±Ø¨ÙŠØ©</div>
                   <div className="text-[10px] font-mono text-zinc-400">Arabic (RTL)</div>
                 </div>
                 {language === 'ar' && <CheckCircle2 className="w-4 h-4 text-[#16EC06]" />}
@@ -649,7 +649,7 @@ export const MoreView: React.FC<MoreViewProps> = ({
               >
                 <div>
                   <div className="text-sm font-black font-condensed">English</div>
-                  <div className="text-[10px] font-mono text-zinc-400">الإنجليزية (LTR)</div>
+                  <div className="text-[10px] font-mono text-zinc-400">Ø§Ù„Ø¥Ù†Ø¬Ù„ÙŠØ²ÙŠØ© (LTR)</div>
                 </div>
                 {language === 'en' && <CheckCircle2 className="w-4 h-4 text-[#0093E9]" />}
               </button>
@@ -665,7 +665,7 @@ export const MoreView: React.FC<MoreViewProps> = ({
               <div>
                 <div className="text-xs font-bold text-white uppercase font-sans">{t('notificationCenter')}</div>
                 <div className="text-[10px] text-zinc-400 font-sans">
-                  {isRtl ? 'اختبار الأصوات والاهتزازات والتنبيهات الذكية' : 'Test chimes, haptics and push alerts'}
+                  {isRtl ? 'Ø§Ø®ØªØ¨Ø§Ø± Ø§Ù„Ø£ØµÙˆØ§Øª ÙˆØ§Ù„Ø§Ù‡ØªØ²Ø§Ø²Ø§Øª ÙˆØ§Ù„ØªÙ†Ø¨ÙŠÙ‡Ø§Øª Ø§Ù„Ø°ÙƒÙŠØ©' : 'Test chimes, haptics and push alerts'}
                 </div>
               </div>
             </div>
@@ -673,7 +673,7 @@ export const MoreView: React.FC<MoreViewProps> = ({
               onClick={onOpenNotifications}
               className="px-3 py-1.5 rounded-full bg-white text-black font-condensed font-black text-xs uppercase"
             >
-              {isRtl ? 'فتح' : 'Open'}
+              {isRtl ? 'ÙØªØ­' : 'Open'}
             </button>
           </div>
 
@@ -685,7 +685,7 @@ export const MoreView: React.FC<MoreViewProps> = ({
               </h3>
               <p className="text-[11px] text-zinc-400 font-sans mt-0.5">
                 {isRtl
-                  ? 'استيراد سجلات WHOOP الرسمية أو تصدير بياناتك الحيوية المحلية.'
+                  ? 'Ø§Ø³ØªÙŠØ±Ø§Ø¯ Ø³Ø¬Ù„Ø§Øª WHOOP Ø§Ù„Ø±Ø³Ù…ÙŠØ© Ø£Ùˆ ØªØµØ¯ÙŠØ± Ø¨ÙŠØ§Ù†Ø§ØªÙƒ Ø§Ù„Ø­ÙŠÙˆÙŠØ© Ø§Ù„Ù…Ø­Ù„ÙŠØ©.'
                   : 'Ingest historical official WHOOP export archives or export local telemetry.'}
               </p>
             </div>
@@ -715,7 +715,7 @@ export const MoreView: React.FC<MoreViewProps> = ({
                   {t('importWhoop')}
                 </span>
                 <span className="text-[10px] text-zinc-500 font-mono block mt-0.5">
-                  {isRtl ? 'انقر أو اسحب ملف التصدير الرسمي' : 'Click or drag official export file'}
+                  {isRtl ? 'Ø§Ù†Ù‚Ø± Ø£Ùˆ Ø§Ø³Ø­Ø¨ Ù…Ù„Ù Ø§Ù„ØªØµØ¯ÙŠØ± Ø§Ù„Ø±Ø³Ù…ÙŠ' : 'Click or drag official export file'}
                 </span>
                 <input
                   type="file"
@@ -738,12 +738,12 @@ export const MoreView: React.FC<MoreViewProps> = ({
             <div>
               <div className="text-xs font-bold text-white font-sans uppercase">{t('resetTodayStrain')}</div>
               <div className="text-[10px] text-zinc-500 font-sans">
-                {isRtl ? 'تصفير تراكم إجهاد اليوم TRIMP' : 'Clear daily TRIMP accumulator'}
+                {isRtl ? 'ØªØµÙÙŠØ± ØªØ±Ø§ÙƒÙ… Ø¥Ø¬Ù‡Ø§Ø¯ Ø§Ù„ÙŠÙˆÙ… TRIMP' : 'Clear daily TRIMP accumulator'}
               </div>
             </div>
             <button
               onClick={onResetDayCounters}
-              className="px-3 py-1.5 rounded-full bg-[#FF0026]/20 border border-[#FF0026]/40 text-[#FF0026] text-xs font-condensed font-black uppercase hover:bg-[#FF0026]/30"
+              className="px-3 py-1.5 rounded-full bg-[#FF3344]/20 border border-[#FF3344]/40 text-[#FF3344] text-xs font-condensed font-black uppercase hover:bg-[#FF3344]/30"
             >
               {t('reset')}
             </button>
@@ -769,21 +769,21 @@ export const MoreView: React.FC<MoreViewProps> = ({
         <div className="space-y-3">
           <div className="p-4 rounded-2xl bg-[#12151A] border border-white/5 space-y-1.5">
             <h4 className="text-xs font-bold text-white font-sans uppercase">
-              {isRtl ? '1. طريقة الارتداء الصحيحة للسوار' : '1. Proper Strap Placement'}
+              {isRtl ? '1. Ø·Ø±ÙŠÙ‚Ø© Ø§Ù„Ø§Ø±ØªØ¯Ø§Ø¡ Ø§Ù„ØµØ­ÙŠØ­Ø© Ù„Ù„Ø³ÙˆØ§Ø±' : '1. Proper Strap Placement'}
             </h4>
             <p className="text-xs text-zinc-400 font-sans leading-relaxed">
               {isRtl
-                ? 'ارتدِ سوار WHOOP 4.0 على مسافة بوصة واحدة فوق عظمة المعصم. اجعل الحزام محكماً حتى تظل أضواء الحساسات الخضراء وتحت الحمراء ملامسة للجلد بثبات أثناء الحركة.'
+                ? 'Ø§Ø±ØªØ¯Ù Ø³ÙˆØ§Ø± WHOOP 4.0 Ø¹Ù„Ù‰ Ù…Ø³Ø§ÙØ© Ø¨ÙˆØµØ© ÙˆØ§Ø­Ø¯Ø© ÙÙˆÙ‚ Ø¹Ø¸Ù…Ø© Ø§Ù„Ù…Ø¹ØµÙ…. Ø§Ø¬Ø¹Ù„ Ø§Ù„Ø­Ø²Ø§Ù… Ù…Ø­ÙƒÙ…Ø§Ù‹ Ø­ØªÙ‰ ØªØ¸Ù„ Ø£Ø¶ÙˆØ§Ø¡ Ø§Ù„Ø­Ø³Ø§Ø³Ø§Øª Ø§Ù„Ø®Ø¶Ø±Ø§Ø¡ ÙˆØªØ­Øª Ø§Ù„Ø­Ù…Ø±Ø§Ø¡ Ù…Ù„Ø§Ù…Ø³Ø© Ù„Ù„Ø¬Ù„Ø¯ Ø¨Ø«Ø¨Ø§Øª Ø£Ø«Ù†Ø§Ø¡ Ø§Ù„Ø­Ø±ÙƒØ©.'
                 : 'Wear the WHOOP 4.0 one inch above your wrist bone. Keep the band snug so green/infrared optical LEDs remain firmly against skin during heavy movement.'}
             </p>
           </div>
           <div className="p-4 rounded-2xl bg-[#12151A] border border-white/5 space-y-1.5">
             <h4 className="text-xs font-bold text-white font-sans uppercase">
-              {isRtl ? '2. فهم العلاقة بين HRV ونبض الراحة RHR' : '2. Understanding HRV vs. RHR'}
+              {isRtl ? '2. ÙÙ‡Ù… Ø§Ù„Ø¹Ù„Ø§Ù‚Ø© Ø¨ÙŠÙ† HRV ÙˆÙ†Ø¨Ø¶ Ø§Ù„Ø±Ø§Ø­Ø© RHR' : '2. Understanding HRV vs. RHR'}
             </h4>
             <p className="text-xs text-zinc-400 font-sans leading-relaxed">
               {isRtl
-                ? 'يعكس تباين معدل ضربات القلب (HRV) مرونة جهازك العصبي الذاتي. عندما ينخفض نبض الراحة ويرتفع HRV، يكون جسمك في أوج الاستعداد للجهد والتدريب المكثف.'
+                ? 'ÙŠØ¹ÙƒØ³ ØªØ¨Ø§ÙŠÙ† Ù…Ø¹Ø¯Ù„ Ø¶Ø±Ø¨Ø§Øª Ø§Ù„Ù‚Ù„Ø¨ (HRV) Ù…Ø±ÙˆÙ†Ø© Ø¬Ù‡Ø§Ø²Ùƒ Ø§Ù„Ø¹ØµØ¨ÙŠ Ø§Ù„Ø°Ø§ØªÙŠ. Ø¹Ù†Ø¯Ù…Ø§ ÙŠÙ†Ø®ÙØ¶ Ù†Ø¨Ø¶ Ø§Ù„Ø±Ø§Ø­Ø© ÙˆÙŠØ±ØªÙØ¹ HRVØŒ ÙŠÙƒÙˆÙ† Ø¬Ø³Ù…Ùƒ ÙÙŠ Ø£ÙˆØ¬ Ø§Ù„Ø§Ø³ØªØ¹Ø¯Ø§Ø¯ Ù„Ù„Ø¬Ù‡Ø¯ ÙˆØ§Ù„ØªØ¯Ø±ÙŠØ¨ Ø§Ù„Ù…ÙƒØ«Ù.'
                 : 'HRV reflects autonomic resilience. When resting heart rate drops and HRV rises, your body is ready for peak training exertion.'}
             </p>
           </div>

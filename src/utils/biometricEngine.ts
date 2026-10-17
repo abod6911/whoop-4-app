@@ -98,6 +98,28 @@ export class BiometricEngine {
     return this.userSettings;
   }
 
+  public getPersonalBaseline(): {
+    hrvBaseline: number;
+    hrvBandLo: number;
+    hrvBandHi: number;
+    hrvBandMid: number;
+    rhrBaseline: number;
+    rhrBandLo: number;
+    rhrBandHi: number;
+  } {
+    const hrvBaseline = this.userSettings.hrvBaseline || 65;
+    const rhrBaseline = this.userSettings.restingHrBaseline || 52;
+    return {
+      hrvBaseline,
+      hrvBandLo: Math.round(hrvBaseline * 0.82),
+      hrvBandHi: Math.round(hrvBaseline * 1.18),
+      hrvBandMid: hrvBaseline,
+      rhrBaseline,
+      rhrBandLo: Math.max(38, rhrBaseline - 4),
+      rhrBandHi: rhrBaseline + 5,
+    };
+  }
+
   // Load real stored state for today (from localStorage)
   private loadTodayRealState(): void {
     const todayStr = localDateKey();
@@ -293,7 +315,7 @@ export class BiometricEngine {
         name: 'Max Capacity',
         minBpm: Math.round(max * 0.9),
         maxBpm: max,
-        color: '#FF0026',
+        color: '#FF3344',
         intensity: '90% - 100% Max HR',
       },
     ];

@@ -127,11 +127,11 @@ export const HrvBreathePacer: React.FC<HrvBreathePacerProps> = ({ metrics }) => 
   };
 
   const getPhaseInstruction = () => {
-    if (!isActive) return isRtl ? 'اضغط لبدء جلسة التنفس' : 'TAP TO START BREATHE';
-    if (phase === 'inhale') return isRtl ? 'شهيق عميق...' : 'INHALE DEEPLY...';
-    if (phase === 'holdIn') return isRtl ? 'حبس النفس...' : 'HOLD...';
-    if (phase === 'exhale') return isRtl ? 'زفير بطيء...' : 'EXHALE SLOWLY...';
-    return isRtl ? 'استرخاء...' : 'REST...';
+    if (!isActive) return isRtl ? 'Ø§Ø¶ØºØ· Ù„Ø¨Ø¯Ø¡ Ø¬Ù„Ø³Ø© Ø§Ù„ØªÙ†ÙØ³' : 'TAP TO START BREATHE';
+    if (phase === 'inhale') return isRtl ? 'Ø´Ù‡ÙŠÙ‚ Ø¹Ù…ÙŠÙ‚...' : 'INHALE DEEPLY...';
+    if (phase === 'holdIn') return isRtl ? 'Ø­Ø¨Ø³ Ø§Ù„Ù†ÙØ³...' : 'HOLD...';
+    if (phase === 'exhale') return isRtl ? 'Ø²ÙÙŠØ± Ø¨Ø·ÙŠØ¡...' : 'EXHALE SLOWLY...';
+    return isRtl ? 'Ø§Ø³ØªØ±Ø®Ø§Ø¡...' : 'REST...';
   };
 
   const getPhaseColor = () => {
@@ -150,12 +150,12 @@ export const HrvBreathePacer: React.FC<HrvBreathePacerProps> = ({ metrics }) => 
         <div className="flex items-center gap-2">
           <Wind className="w-4 h-4 text-[#00F0FF]" />
           <h3 className="text-xs font-black uppercase tracking-wider text-white font-condensed">
-            {isRtl ? 'منظم التنفس والتوافق الحيوي (HRV)' : 'HRV Biofeedback Breathe Pacer'}
+            {isRtl ? 'Ù…Ù†Ø¸Ù… Ø§Ù„ØªÙ†ÙØ³ ÙˆØ§Ù„ØªÙˆØ§ÙÙ‚ Ø§Ù„Ø­ÙŠÙˆÙŠ (HRV)' : 'HRV Biofeedback Breathe Pacer'}
           </h3>
         </div>
 
         <span className="text-[10px] font-mono text-[#00F0FF] uppercase" dir="ltr">
-          {isRtl ? 'التوافق: ' : 'Coherence: '}{coherencePercent}%
+          {isRtl ? 'Ø§Ù„ØªÙˆØ§ÙÙ‚: ' : 'Coherence: '}{coherencePercent}%
         </span>
       </div>
 
@@ -177,10 +177,10 @@ export const HrvBreathePacer: React.FC<HrvBreathePacerProps> = ({ metrics }) => 
             }`}
           >
             {p === 'coherence'
-              ? (isRtl ? '5.5ث رنين' : '5.5s Resonant')
+              ? (isRtl ? '5.5Ø« Ø±Ù†ÙŠÙ†' : '5.5s Resonant')
               : p === 'relax'
-              ? (isRtl ? '4-6ث استرخاء' : '4-6 Relax')
-              : (isRtl ? 'مربع 4-4' : '4-4-4-4 Box')}
+              ? (isRtl ? '4-6Ø« Ø§Ø³ØªØ±Ø®Ø§Ø¡' : '4-6 Relax')
+              : (isRtl ? 'Ù…Ø±Ø¨Ø¹ 4-4' : '4-4-4-4 Box')}
           </button>
         ))}
       </div>
@@ -208,7 +208,7 @@ export const HrvBreathePacer: React.FC<HrvBreathePacerProps> = ({ metrics }) => 
             {getPhaseInstruction()}
           </span>
           <div className="flex items-center gap-1 text-white font-mono text-xs mt-1" dir="ltr">
-            <Heart className="w-3 h-3 text-[#FF0026] fill-[#FF0026]" />
+            <Heart className="w-3 h-3 text-[#FF3344] fill-[#FF3344]" />
             <span className="font-bold tabular-nums">
               {metrics.currentHr ? `${metrics.currentHr}` : '--'}
             </span>
@@ -219,7 +219,7 @@ export const HrvBreathePacer: React.FC<HrvBreathePacerProps> = ({ metrics }) => 
       {/* Timer & Controls */}
       <div className="flex items-center justify-between pt-1 text-xs font-condensed">
         <div className="text-zinc-400">
-          {isRtl ? 'مدة الجلسة: ' : 'Session Time: '}
+          {isRtl ? 'Ù…Ø¯Ø© Ø§Ù„Ø¬Ù„Ø³Ø©: ' : 'Session Time: '}
           <span className="text-white font-bold" dir="ltr">{Math.ceil(sessionSeconds)}s</span>
         </div>
 
@@ -233,7 +233,7 @@ export const HrvBreathePacer: React.FC<HrvBreathePacerProps> = ({ metrics }) => 
               setCompleted(false);
             }}
             className="p-2 rounded-full bg-[#16191E] border border-white/10 text-zinc-400 hover:text-white active:scale-95"
-            title={isRtl ? 'إعادة ضبط' : 'Reset'}
+            title={isRtl ? 'Ø¥Ø¹Ø§Ø¯Ø© Ø¶Ø¨Ø·' : 'Reset'}
           >
             <RotateCcw className="w-3.5 h-3.5" />
           </button>
@@ -247,7 +247,7 @@ export const HrvBreathePacer: React.FC<HrvBreathePacerProps> = ({ metrics }) => 
             }`}
           >
             {isActive ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
-            <span>{isActive ? (isRtl ? 'إيقاف مؤقت' : 'Pause') : (isRtl ? 'بدء التنفس' : 'Start Pacer')}</span>
+            <span>{isActive ? (isRtl ? 'Ø¥ÙŠÙ‚Ø§Ù Ù…Ø¤Ù‚Øª' : 'Pause') : (isRtl ? 'Ø¨Ø¯Ø¡ Ø§Ù„ØªÙ†ÙØ³' : 'Start Pacer')}</span>
           </button>
         </div>
       </div>

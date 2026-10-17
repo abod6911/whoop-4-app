@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import type { LiveMetrics, HealthMonitorMetric, UserSettings, DeviceMetadata } from '../types/whoop';
 import { useLanguage } from '../i18n/LanguageContext';
+import { SheetBackdrop, SheetPanel } from './motion/Sheet';
 
 interface HealthMonitorModalProps {
   isOpen: boolean;
@@ -35,8 +36,6 @@ export const HealthMonitorModal: React.FC<HealthMonitorModalProps> = ({
   const { t, isRtl, language } = useLanguage();
   const [downloadSuccess, setDownloadSuccess] = useState(false);
 
-  if (!isOpen) return null;
-
   const currentBpm = metrics.currentHr;
   const pulseDuration = currentBpm && currentBpm > 0 ? (60 / currentBpm).toFixed(2) : '1.0';
 
@@ -49,9 +48,9 @@ export const HealthMonitorModal: React.FC<HealthMonitorModalProps> = ({
       day: 'numeric',
     });
 
-    const reportTitle = isArabic ? 'تقرير العلامات الحيوية والفسيولوجية السريري // WHOOP 4.0' : 'WHOOP // Clinical Biometrics Report';
+    const reportTitle = isArabic ? 'ØªÙ‚Ø±ÙŠØ± Ø§Ù„Ø¹Ù„Ø§Ù…Ø§Øª Ø§Ù„Ø­ÙŠÙˆÙŠØ© ÙˆØ§Ù„ÙØ³ÙŠÙˆÙ„ÙˆØ¬ÙŠØ© Ø§Ù„Ø³Ø±ÙŠØ±ÙŠ // WHOOP 4.0' : 'WHOOP // Clinical Biometrics Report';
     const reportSubtitle = isArabic
-      ? `تم استخراجه في ${dateStr} عبر قياسات التخطيط الضوئي (PPG) لسوار WHOOP 4.0`
+      ? `ØªÙ… Ø§Ø³ØªØ®Ø±Ø§Ø¬Ù‡ ÙÙŠ ${dateStr} Ø¹Ø¨Ø± Ù‚ÙŠØ§Ø³Ø§Øª Ø§Ù„ØªØ®Ø·ÙŠØ· Ø§Ù„Ø¶ÙˆØ¦ÙŠ (PPG) Ù„Ø³ÙˆØ§Ø± WHOOP 4.0`
       : `Generated on ${dateStr} via WHOOP 4.0 Optical Photoplethysmography (PPG)`;
 
     const reportHtml = `
@@ -77,58 +76,58 @@ export const HealthMonitorModal: React.FC<HealthMonitorModalProps> = ({
   <div class="subtitle">${reportSubtitle}</div>
   
   <div class="patient-grid">
-    <div><strong>${isArabic ? 'الرياضي / المستخدم:' : 'Athlete:'}</strong> ${settings.name || (isArabic ? 'رياضي WHOOP' : 'WHOOP Athlete')}</div>
-    <div><strong>${isArabic ? 'العمر / الجنس:' : 'Age / Gender:'}</strong> ${settings.age} / ${settings.gender === 'male' ? (isArabic ? 'ذكر' : 'MALE') : (isArabic ? 'أنثى' : 'FEMALE')}</div>
-    <div><strong>${isArabic ? 'إصدار السوار:' : 'Firmware / Hardware:'}</strong> ${metadata.firmwareRevision || 'WHOOP Gen4'} / ${metadata.hardwareRevision || '4.0'}</div>
-    <div><strong>${isArabic ? 'الجهد اليومي / الاستشفاء:' : 'Daily Strain / Recovery:'}</strong> ${metrics.dailyStrain.toFixed(1)} / ${metrics.recoveryScore !== null ? `${metrics.recoveryScore}%` : (isArabic ? 'قيد المعايرة' : 'Calibrating')}</div>
+    <div><strong>${isArabic ? 'Ø§Ù„Ø±ÙŠØ§Ø¶ÙŠ / Ø§Ù„Ù…Ø³ØªØ®Ø¯Ù…:' : 'Athlete:'}</strong> ${settings.name || (isArabic ? 'Ø±ÙŠØ§Ø¶ÙŠ WHOOP' : 'WHOOP Athlete')}</div>
+    <div><strong>${isArabic ? 'Ø§Ù„Ø¹Ù…Ø± / Ø§Ù„Ø¬Ù†Ø³:' : 'Age / Gender:'}</strong> ${settings.age} / ${settings.gender === 'male' ? (isArabic ? 'Ø°ÙƒØ±' : 'MALE') : (isArabic ? 'Ø£Ù†Ø«Ù‰' : 'FEMALE')}</div>
+    <div><strong>${isArabic ? 'Ø¥ØµØ¯Ø§Ø± Ø§Ù„Ø³ÙˆØ§Ø±:' : 'Firmware / Hardware:'}</strong> ${metadata.firmwareRevision || 'WHOOP Gen4'} / ${metadata.hardwareRevision || '4.0'}</div>
+    <div><strong>${isArabic ? 'Ø§Ù„Ø¬Ù‡Ø¯ Ø§Ù„ÙŠÙˆÙ…ÙŠ / Ø§Ù„Ø§Ø³ØªØ´ÙØ§Ø¡:' : 'Daily Strain / Recovery:'}</strong> ${metrics.dailyStrain.toFixed(1)} / ${metrics.recoveryScore !== null ? `${metrics.recoveryScore}%` : (isArabic ? 'Ù‚ÙŠØ¯ Ø§Ù„Ù…Ø¹Ø§ÙŠØ±Ø©' : 'Calibrating')}</div>
   </div>
 
   <table class="metric-table">
     <thead>
       <tr>
-        <th>${isArabic ? 'المؤشر الفسيولوجي' : 'Biometric Parameter'}</th>
-        <th>${isArabic ? 'القيمة المسجلة' : 'Recorded Value'}</th>
-        <th>${isArabic ? 'خط الأساس السريري' : 'Clinical Baseline'}</th>
-        <th>${isArabic ? 'الحالة العصبية والفسيولوجية' : 'Autonomic Status'}</th>
+        <th>${isArabic ? 'Ø§Ù„Ù…Ø¤Ø´Ø± Ø§Ù„ÙØ³ÙŠÙˆÙ„ÙˆØ¬ÙŠ' : 'Biometric Parameter'}</th>
+        <th>${isArabic ? 'Ø§Ù„Ù‚ÙŠÙ…Ø© Ø§Ù„Ù…Ø³Ø¬Ù„Ø©' : 'Recorded Value'}</th>
+        <th>${isArabic ? 'Ø®Ø· Ø§Ù„Ø£Ø³Ø§Ø³ Ø§Ù„Ø³Ø±ÙŠØ±ÙŠ' : 'Clinical Baseline'}</th>
+        <th>${isArabic ? 'Ø§Ù„Ø­Ø§Ù„Ø© Ø§Ù„Ø¹ØµØ¨ÙŠØ© ÙˆØ§Ù„ÙØ³ÙŠÙˆÙ„ÙˆØ¬ÙŠØ©' : 'Autonomic Status'}</th>
       </tr>
     </thead>
     <tbody>
       <tr>
-        <td><strong>${isArabic ? 'نبض القلب وقت الراحة (RHR)' : 'Resting Heart Rate (RHR)'}</strong></td>
-        <td>${metrics.restingHr !== null ? `${metrics.restingHr} ${isArabic ? 'ن/د' : 'BPM'}` : (isArabic ? 'قيد المعايرة (--)' : 'Calibrating (--)')}</td>
-        <td>${settings.restingHrBaseline} ${isArabic ? 'ن/د' : 'BPM'}</td>
-        <td><span class="status-badge">${metrics.restingHr !== null ? (isArabic ? 'ضمن النطاق المعتاد' : 'Within Typical Range') : (isArabic ? 'قيد المعايرة' : 'Calibrating')}</span></td>
+        <td><strong>${isArabic ? 'Ù†Ø¨Ø¶ Ø§Ù„Ù‚Ù„Ø¨ ÙˆÙ‚Øª Ø§Ù„Ø±Ø§Ø­Ø© (RHR)' : 'Resting Heart Rate (RHR)'}</strong></td>
+        <td>${metrics.restingHr !== null ? `${metrics.restingHr} ${isArabic ? 'Ù†/Ø¯' : 'BPM'}` : (isArabic ? 'Ù‚ÙŠØ¯ Ø§Ù„Ù…Ø¹Ø§ÙŠØ±Ø© (--)' : 'Calibrating (--)')}</td>
+        <td>${settings.restingHrBaseline} ${isArabic ? 'Ù†/Ø¯' : 'BPM'}</td>
+        <td><span class="status-badge">${metrics.restingHr !== null ? (isArabic ? 'Ø¶Ù…Ù† Ø§Ù„Ù†Ø·Ø§Ù‚ Ø§Ù„Ù…Ø¹ØªØ§Ø¯' : 'Within Typical Range') : (isArabic ? 'Ù‚ÙŠØ¯ Ø§Ù„Ù…Ø¹Ø§ÙŠØ±Ø©' : 'Calibrating')}</span></td>
       </tr>
       <tr>
-        <td><strong>${isArabic ? 'تباين معدل ضربات القلب (HRV RMSSD)' : 'Heart Rate Variability (HRV RMSSD)'}</strong></td>
-        <td>${metrics.currentHrv !== null ? `${metrics.currentHrv} ${isArabic ? 'مللي ثانية' : 'ms'}` : (isArabic ? 'قيد المعايرة (--)' : 'Calibrating (--)')}</td>
-        <td>${settings.hrvBaseline} ${isArabic ? 'مللي ثانية' : 'ms'}</td>
-        <td><span class="status-badge">${metrics.currentHrv !== null ? (isArabic ? 'نشاط لاودي طبيعي' : 'Normal Autonomic Tone') : (isArabic ? 'قيد المعايرة' : 'Calibrating')}</span></td>
+        <td><strong>${isArabic ? 'ØªØ¨Ø§ÙŠÙ† Ù…Ø¹Ø¯Ù„ Ø¶Ø±Ø¨Ø§Øª Ø§Ù„Ù‚Ù„Ø¨ (HRV RMSSD)' : 'Heart Rate Variability (HRV RMSSD)'}</strong></td>
+        <td>${metrics.currentHrv !== null ? `${metrics.currentHrv} ${isArabic ? 'Ù…Ù„Ù„ÙŠ Ø«Ø§Ù†ÙŠØ©' : 'ms'}` : (isArabic ? 'Ù‚ÙŠØ¯ Ø§Ù„Ù…Ø¹Ø§ÙŠØ±Ø© (--)' : 'Calibrating (--)')}</td>
+        <td>${settings.hrvBaseline} ${isArabic ? 'Ù…Ù„Ù„ÙŠ Ø«Ø§Ù†ÙŠØ©' : 'ms'}</td>
+        <td><span class="status-badge">${metrics.currentHrv !== null ? (isArabic ? 'Ù†Ø´Ø§Ø· Ù„Ø§ÙˆØ¯ÙŠ Ø·Ø¨ÙŠØ¹ÙŠ' : 'Normal Autonomic Tone') : (isArabic ? 'Ù‚ÙŠØ¯ Ø§Ù„Ù…Ø¹Ø§ÙŠØ±Ø©' : 'Calibrating')}</span></td>
       </tr>
       <tr>
-        <td><strong>${isArabic ? 'معدل التنفس (RSA Respiratory Rate)' : 'Respiratory Rate (RSA derived)'}</strong></td>
-        <td>${metrics.respiratoryRate !== null ? `${metrics.respiratoryRate} ${isArabic ? 'د/د' : 'RPM'}` : (isArabic ? 'قيد المعايرة (--)' : 'Calibrating (--)')}</td>
-        <td>13.0 - 16.5 ${isArabic ? 'دورة/دقيقة' : 'RPM'}</td>
-        <td><span class="status-badge">${metrics.respiratoryRate !== null ? (isArabic ? 'معدل مثالي' : 'Within Range') : (isArabic ? 'قيد المعايرة' : 'Calibrating')}</span></td>
+        <td><strong>${isArabic ? 'Ù…Ø¹Ø¯Ù„ Ø§Ù„ØªÙ†ÙØ³ (RSA Respiratory Rate)' : 'Respiratory Rate (RSA derived)'}</strong></td>
+        <td>${metrics.respiratoryRate !== null ? `${metrics.respiratoryRate} ${isArabic ? 'Ø¯/Ø¯' : 'RPM'}` : (isArabic ? 'Ù‚ÙŠØ¯ Ø§Ù„Ù…Ø¹Ø§ÙŠØ±Ø© (--)' : 'Calibrating (--)')}</td>
+        <td>13.0 - 16.5 ${isArabic ? 'Ø¯ÙˆØ±Ø©/Ø¯Ù‚ÙŠÙ‚Ø©' : 'RPM'}</td>
+        <td><span class="status-badge">${metrics.respiratoryRate !== null ? (isArabic ? 'Ù…Ø¹Ø¯Ù„ Ù…Ø«Ø§Ù„ÙŠ' : 'Within Range') : (isArabic ? 'Ù‚ÙŠØ¯ Ø§Ù„Ù…Ø¹Ø§ÙŠØ±Ø©' : 'Calibrating')}</span></td>
       </tr>
       <tr>
-        <td><strong>${isArabic ? 'تشبع الأكسجين في الدم (SpO2)' : 'Blood Oxygen Saturation (SpO2)'}</strong></td>
-        <td>${metrics.spO2 !== null ? `${metrics.spO2}%` : (isArabic ? 'قيد المعايرة (--)' : 'Calibrating (--)')}</td>
+        <td><strong>${isArabic ? 'ØªØ´Ø¨Ø¹ Ø§Ù„Ø£ÙƒØ³Ø¬ÙŠÙ† ÙÙŠ Ø§Ù„Ø¯Ù… (SpO2)' : 'Blood Oxygen Saturation (SpO2)'}</strong></td>
+        <td>${metrics.spO2 !== null ? `${metrics.spO2}%` : (isArabic ? 'Ù‚ÙŠØ¯ Ø§Ù„Ù…Ø¹Ø§ÙŠØ±Ø© (--)' : 'Calibrating (--)')}</td>
         <td>95% - 100%</td>
-        <td><span class="status-badge">${metrics.spO2 !== null ? (isArabic ? 'تشبع ممتاز' : 'Optimal Saturation') : (isArabic ? 'قيد المعايرة' : 'Calibrating')}</span></td>
+        <td><span class="status-badge">${metrics.spO2 !== null ? (isArabic ? 'ØªØ´Ø¨Ø¹ Ù…Ù…ØªØ§Ø²' : 'Optimal Saturation') : (isArabic ? 'Ù‚ÙŠØ¯ Ø§Ù„Ù…Ø¹Ø§ÙŠØ±Ø©' : 'Calibrating')}</span></td>
       </tr>
       <tr>
-        <td><strong>${isArabic ? 'تغير درجة حرارة الجلد' : 'Skin Temperature Delta'}</strong></td>
-        <td>${metrics.skinTempCelsius !== null ? `${metrics.skinTempCelsius >= 0 ? '+' : ''}${metrics.skinTempCelsius.toFixed(1)} °C` : (isArabic ? 'قيد المعايرة (--)' : 'Calibrating (--)')}</td>
-        <td>-0.5°C to +0.5°C</td>
-        <td><span class="status-badge">${metrics.skinTempCelsius !== null ? (isArabic ? 'حرارة طبيعية / خط الأساس' : 'Afebrile / Baseline') : (isArabic ? 'قيد المعايرة' : 'Calibrating')}</span></td>
+        <td><strong>${isArabic ? 'ØªØºÙŠØ± Ø¯Ø±Ø¬Ø© Ø­Ø±Ø§Ø±Ø© Ø§Ù„Ø¬Ù„Ø¯' : 'Skin Temperature Delta'}</strong></td>
+        <td>${metrics.skinTempCelsius !== null ? `${metrics.skinTempCelsius >= 0 ? '+' : ''}${metrics.skinTempCelsius.toFixed(1)} Â°C` : (isArabic ? 'Ù‚ÙŠØ¯ Ø§Ù„Ù…Ø¹Ø§ÙŠØ±Ø© (--)' : 'Calibrating (--)')}</td>
+        <td>-0.5Â°C to +0.5Â°C</td>
+        <td><span class="status-badge">${metrics.skinTempCelsius !== null ? (isArabic ? 'Ø­Ø±Ø§Ø±Ø© Ø·Ø¨ÙŠØ¹ÙŠØ© / Ø®Ø· Ø§Ù„Ø£Ø³Ø§Ø³' : 'Afebrile / Baseline') : (isArabic ? 'Ù‚ÙŠØ¯ Ø§Ù„Ù…Ø¹Ø§ÙŠØ±Ø©' : 'Calibrating')}</span></td>
       </tr>
     </tbody>
   </table>
 
   <div class="footer">
     ${isArabic
-      ? 'تم تسجيل هذا التقرير الفسيولوجي محلياً عبر حساسات سوار WHOOP 4.0 بتقنية Web Bluetooth. هذا التقرير للمتابعة الرياضية والفسيولوجية، وللتقييم الطبي يرجى استشارة الطبيب المختص.'
+      ? 'ØªÙ… ØªØ³Ø¬ÙŠÙ„ Ù‡Ø°Ø§ Ø§Ù„ØªÙ‚Ø±ÙŠØ± Ø§Ù„ÙØ³ÙŠÙˆÙ„ÙˆØ¬ÙŠ Ù…Ø­Ù„ÙŠØ§Ù‹ Ø¹Ø¨Ø± Ø­Ø³Ø§Ø³Ø§Øª Ø³ÙˆØ§Ø± WHOOP 4.0 Ø¨ØªÙ‚Ù†ÙŠØ© Web Bluetooth. Ù‡Ø°Ø§ Ø§Ù„ØªÙ‚Ø±ÙŠØ± Ù„Ù„Ù…ØªØ§Ø¨Ø¹Ø© Ø§Ù„Ø±ÙŠØ§Ø¶ÙŠØ© ÙˆØ§Ù„ÙØ³ÙŠÙˆÙ„ÙˆØ¬ÙŠØ©ØŒ ÙˆÙ„Ù„ØªÙ‚ÙŠÙŠÙ… Ø§Ù„Ø·Ø¨ÙŠ ÙŠØ±Ø¬Ù‰ Ø§Ø³ØªØ´Ø§Ø±Ø© Ø§Ù„Ø·Ø¨ÙŠØ¨ Ø§Ù„Ù…Ø®ØªØµ.'
       : 'This physiological report was recorded locally via WHOOP 4.0 Web Bluetooth telemetry. For clinical assessment, consult your board-certified physician or healthcare practitioner.'}
   </div>
 
@@ -154,8 +153,8 @@ export const HealthMonitorModal: React.FC<HealthMonitorModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/90 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="w-full max-w-[430px] bg-black border-t sm:border border-white/10 rounded-t-[32px] sm:rounded-[32px] h-[92vh] flex flex-col overflow-hidden text-white shadow-2xl">
+    <SheetBackdrop isOpen={isOpen} onClose={onClose}>
+      <SheetPanel onClose={onClose} className="h-[92vh]">
         {/* Header */}
         <div className="p-4 border-b border-white/5 flex items-center justify-between">
           <button
@@ -183,7 +182,7 @@ export const HealthMonitorModal: React.FC<HealthMonitorModalProps> = ({
                   animation: currentBpm && currentBpm > 0 ? `heartbeat ${pulseDuration}s ease-in-out infinite` : 'none',
                 }}
               >
-                <Heart className="w-6 h-6 text-[#FF0026] fill-[#FF0026]" />
+                <Heart className="w-6 h-6 text-[#FF3344] fill-[#FF3344]" />
               </div>
               <div className="text-5xl font-black font-condensed text-white tabular-nums tracking-tight" dir="ltr">
                 {currentBpm !== null ? currentBpm : '--'}
@@ -194,7 +193,7 @@ export const HealthMonitorModal: React.FC<HealthMonitorModalProps> = ({
             </div>
 
             <div className="mt-3 flex items-center gap-1 text-[11px] font-black uppercase tracking-wider text-zinc-400 font-condensed">
-              <span>{isRtl ? 'قراءات الليلة الماضية' : "LAST NIGHT'S READINGS"}</span>
+              <span>{isRtl ? 'Ù‚Ø±Ø§Ø¡Ø§Øª Ø§Ù„Ù„ÙŠÙ„Ø© Ø§Ù„Ù…Ø§Ø¶ÙŠØ©' : "LAST NIGHT'S READINGS"}</span>
               <Info className="w-3.5 h-3.5 text-zinc-500" />
             </div>
           </div>
@@ -267,7 +266,7 @@ export const HealthMonitorModal: React.FC<HealthMonitorModalProps> = ({
               <div className="flex items-center gap-1.5 text-[10px] font-mono">
                 <span className={`w-2 h-2 rounded-full ${metrics.currentHrv !== null ? 'bg-[#16EC06]' : 'bg-zinc-600'}`} />
                 <span className={metrics.currentHrv !== null ? 'text-[#16EC06]' : 'text-zinc-500'}>
-                  {metrics.currentHrv !== null ? (isRtl ? 'مثالي' : 'Optimal') : t('calibrating')}
+                  {metrics.currentHrv !== null ? (isRtl ? 'Ù…Ø«Ø§Ù„ÙŠ' : 'Optimal') : t('calibrating')}
                 </span>
               </div>
             </div>
@@ -280,9 +279,9 @@ export const HealthMonitorModal: React.FC<HealthMonitorModalProps> = ({
               </div>
               <div className="text-2xl font-black font-condensed text-white tabular-nums" dir="ltr">
                 {metrics.skinTempDelta !== null
-                  ? `${metrics.skinTempDelta >= 0 ? '+' : ''}${metrics.skinTempDelta.toFixed(1)}°C`
+                  ? `${metrics.skinTempDelta >= 0 ? '+' : ''}${metrics.skinTempDelta.toFixed(1)}Â°C`
                   : metrics.skinTempCelsius !== null
-                  ? `${metrics.skinTempCelsius.toFixed(1)}°C`
+                  ? `${metrics.skinTempCelsius.toFixed(1)}Â°C`
                   : '--'}
               </div>
               <div className="flex items-center gap-1.5 text-[10px] font-mono">
@@ -301,9 +300,9 @@ export const HealthMonitorModal: React.FC<HealthMonitorModalProps> = ({
                   }
                 >
                   {metrics.skinTempDelta !== null
-                    ? `${metrics.skinTempDelta >= 0 ? '+' : ''}${metrics.skinTempDelta.toFixed(1)}° ${isRtl ? 'من الأساس' : 'from baseline'}`
+                    ? `${metrics.skinTempDelta >= 0 ? '+' : ''}${metrics.skinTempDelta.toFixed(1)}Â° ${isRtl ? 'Ù…Ù† Ø§Ù„Ø£Ø³Ø§Ø³' : 'from baseline'}`
                     : metrics.skinTempCelsius !== null
-                    ? `${isRtl ? 'المعدل الطبيعي: 33.5°' : 'Baseline 33.5°C'}`
+                    ? `${isRtl ? 'Ø§Ù„Ù…Ø¹Ø¯Ù„ Ø§Ù„Ø·Ø¨ÙŠØ¹ÙŠ: 33.5Â°' : 'Baseline 33.5Â°C'}`
                     : t('calibrating')}
                 </span>
               </div>
@@ -316,19 +315,19 @@ export const HealthMonitorModal: React.FC<HealthMonitorModalProps> = ({
             >
               <div className="flex items-center gap-1.5 text-[11px] font-black uppercase text-[#0093E9] font-condensed group-hover:underline">
                 <FileText className="w-3.5 h-3.5 text-[#0093E9]" />
-                <span>{t('shareDoctorsReport')} →</span>
+                <span>{t('shareDoctorsReport')} â†’</span>
               </div>
               <div className="text-[11px] text-zinc-300 leading-snug font-sans">
-                {isRtl ? 'تقرير سريري للطبيب أو الأخصائي أو المدرب.' : 'Clinical report for doctor, physician or trainer.'}
+                {isRtl ? 'ØªÙ‚Ø±ÙŠØ± Ø³Ø±ÙŠØ±ÙŠ Ù„Ù„Ø·Ø¨ÙŠØ¨ Ø£Ùˆ Ø§Ù„Ø£Ø®ØµØ§Ø¦ÙŠ Ø£Ùˆ Ø§Ù„Ù…Ø¯Ø±Ø¨.' : 'Clinical report for doctor, physician or trainer.'}
               </div>
               <div className="text-[10px] text-[#00F0FF] font-mono flex items-center gap-1 pt-1">
                 <Download className="w-3 h-3" />
-                <span>{downloadSuccess ? (isRtl ? 'تم إنشاء التقرير!' : 'Report Generated!') : (isRtl ? 'تصدير / طباعة PDF' : 'Export / Print PDF')}</span>
+                <span>{downloadSuccess ? (isRtl ? 'ØªÙ… Ø¥Ù†Ø´Ø§Ø¡ Ø§Ù„ØªÙ‚Ø±ÙŠØ±!' : 'Report Generated!') : (isRtl ? 'ØªØµØ¯ÙŠØ± / Ø·Ø¨Ø§Ø¹Ø© PDF' : 'Export / Print PDF')}</span>
               </div>
             </button>
           </div>
         </div>
-      </div>
-    </div>
+      </SheetPanel>
+    </SheetBackdrop>
   );
 };

@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 
 import { useLanguage } from '../i18n/LanguageContext';
+import { SheetBackdrop, SheetPanel } from './motion/Sheet';
 
 interface StrapConnectSheetProps {
   isOpen: boolean;
@@ -44,7 +45,6 @@ export const StrapConnectSheet: React.FC<StrapConnectSheetProps> = ({
   const [copied, setCopied] = useState(false);
   const [wakeFeedback, setWakeFeedback] = useState<string | null>(null);
   const [isWaking, setIsWaking] = useState(false);
-  if (!isOpen) return null;
 
   const isBleSupported = whoopBleEngine.isSupported();
   const isBatteryLow = metadata.batteryLevel !== null && metadata.batteryLevel < 15;
@@ -60,11 +60,8 @@ export const StrapConnectSheet: React.FC<StrapConnectSheetProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/80 backdrop-blur-sm animate-in fade-in">
-      <div className="relative w-full max-w-[430px] p-5 rounded-t-[28px] bg-[#16191E] border-t border-x border-white/10 shadow-2xl space-y-4 animate-in slide-in-from-bottom-5 max-h-[90vh] overflow-y-auto">
-        {/* iOS Handle Indicator */}
-        <div className="w-10 h-1 rounded-full bg-zinc-600 mx-auto -mt-1 mb-2" />
-
+    <SheetBackdrop isOpen={isOpen} onClose={onClose}>
+      <SheetPanel onClose={onClose} className="p-5 max-h-[90vh] overflow-y-auto space-y-4">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-white/5 pb-3">
           <div className="flex items-center gap-2.5">
@@ -121,7 +118,7 @@ export const StrapConnectSheet: React.FC<StrapConnectSheetProps> = ({
                       metadata.batteryLevel === null
                         ? 'text-zinc-500'
                         : isBatteryLow
-                        ? 'text-[#FF0026]'
+                        ? 'text-[#FF3344]'
                         : metadata.batteryLevel < 50
                         ? 'text-[#FFDE00]'
                         : 'text-[#16EC06]'
@@ -148,11 +145,11 @@ export const StrapConnectSheet: React.FC<StrapConnectSheetProps> = ({
               }`}
             >
               {metadata.onWrist === true
-                ? (isRtl ? '✓ على المعصم (مُحكم)' : '✓ On Wrist (Locked)')
+                ? (isRtl ? 'âœ“ Ø¹Ù„Ù‰ Ø§Ù„Ù…Ø¹ØµÙ… (Ù…ÙØ­ÙƒÙ…)' : 'âœ“ On Wrist (Locked)')
                 : metadata.onWrist === false
                 ? t('offWrist')
                 : metadata.connected
-                ? (isRtl ? 'جاري الفحص...' : 'Detecting...')
+                ? (isRtl ? 'Ø¬Ø§Ø±ÙŠ Ø§Ù„ÙØ­Øµ...' : 'Detecting...')
                 : '--'}
             </span>
           </div>
@@ -187,7 +184,7 @@ export const StrapConnectSheet: React.FC<StrapConnectSheetProps> = ({
                   <span>{t('hardwareDiagnostics')}</span>
                 </div>
                 <span className="text-[10px] font-mono text-zinc-400">
-                  {metadata.packetsPerMinute || 0} {t('packetsPerMin')} ›
+                  {metadata.packetsPerMinute || 0} {t('packetsPerMin')} â€º
                 </span>
               </button>
             </div>
@@ -202,12 +199,12 @@ export const StrapConnectSheet: React.FC<StrapConnectSheetProps> = ({
                 onClick={async () => {
                   try {
                     setIsWaking(true);
-                    setWakeFeedback(isRtl ? 'جاري إيقاظ الحساس...' : 'Waking sensor...');
+                    setWakeFeedback(isRtl ? 'Ø¬Ø§Ø±ÙŠ Ø¥ÙŠÙ‚Ø§Ø¸ Ø§Ù„Ø­Ø³Ø§Ø³...' : 'Waking sensor...');
                     await whoopBleEngine.wakeSensorAndEnableLiveStream();
-                    setWakeFeedback(isRtl ? '✓ تم إرسال أمر تنشيط البث المباشر للنبض' : '✓ Live HR Stream Activated');
+                    setWakeFeedback(isRtl ? 'âœ“ ØªÙ… Ø¥Ø±Ø³Ø§Ù„ Ø£Ù…Ø± ØªÙ†Ø´ÙŠØ· Ø§Ù„Ø¨Ø« Ø§Ù„Ù…Ø¨Ø§Ø´Ø± Ù„Ù„Ù†Ø¨Ø¶' : 'âœ“ Live HR Stream Activated');
                     setTimeout(() => setWakeFeedback(null), 3500);
                   } catch (e) {
-                    setWakeFeedback(isRtl ? '✕ تعذر إرسال الأمر' : '✕ Command failed');
+                    setWakeFeedback(isRtl ? 'âœ• ØªØ¹Ø°Ø± Ø¥Ø±Ø³Ø§Ù„ Ø§Ù„Ø£Ù…Ø±' : 'âœ• Command failed');
                     setTimeout(() => setWakeFeedback(null), 3500);
                   } finally {
                     setIsWaking(false);
@@ -217,7 +214,7 @@ export const StrapConnectSheet: React.FC<StrapConnectSheetProps> = ({
                 className="w-full py-3.5 rounded-xl bg-gradient-to-r from-[#0093E9] to-[#00F0FF] hover:opacity-90 text-black text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all active:scale-98 shadow-lg shadow-cyan-500/20 disabled:opacity-50"
               >
                 <Zap className="w-4 h-4 fill-black" />
-                <span>{isRtl ? '⚡ إيقاظ الحساس / تنشيط البث المباشر للنبض' : '⚡ Wake Sensor / Force Live HR Stream'}</span>
+                <span>{isRtl ? 'âš¡ Ø¥ÙŠÙ‚Ø§Ø¸ Ø§Ù„Ø­Ø³Ø§Ø³ / ØªÙ†Ø´ÙŠØ· Ø§Ù„Ø¨Ø« Ø§Ù„Ù…Ø¨Ø§Ø´Ø± Ù„Ù„Ù†Ø¨Ø¶' : 'âš¡ Wake Sensor / Force Live HR Stream'}</span>
               </button>
 
               {wakeFeedback && (
@@ -231,7 +228,7 @@ export const StrapConnectSheet: React.FC<StrapConnectSheetProps> = ({
                   onDisconnectBle();
                   onClose();
                 }}
-                className="w-full py-3.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-[#FF0026] border border-rose-500/30 text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-colors"
+                className="w-full py-3.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-[#FF3344] border border-rose-500/30 text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-colors"
               >
                 <BluetoothOff className="w-4 h-4" />
                 <span>{t('disconnectStrap')}</span>
@@ -244,18 +241,18 @@ export const StrapConnectSheet: React.FC<StrapConnectSheetProps> = ({
                 <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-start space-y-2.5">
                   <div className="flex items-center gap-2 text-amber-300 font-bold font-condensed uppercase tracking-wider text-xs">
                     <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0 animate-pulse" />
-                    <span>{isRtl ? 'متصفحك الحالي لا يدعم Web Bluetooth' : 'Web Bluetooth Unsupported In This Browser'}</span>
+                    <span>{isRtl ? 'Ù…ØªØµÙØ­Ùƒ Ø§Ù„Ø­Ø§Ù„ÙŠ Ù„Ø§ ÙŠØ¯Ø¹Ù… Web Bluetooth' : 'Web Bluetooth Unsupported In This Browser'}</span>
                   </div>
                   <p className="text-[11px] text-zinc-300 leading-relaxed font-sans">
                     {isRtl ? (
                       <>
-                        متصفح <strong className="text-white">Safari على الآيفون</strong> لا يدعم تقنية Web Bluetooth مباشرة. للاتصال بسوارك WHOOP 4.0 من الآيفون:
+                        Ù…ØªØµÙØ­ <strong className="text-white">Safari Ø¹Ù„Ù‰ Ø§Ù„Ø¢ÙŠÙÙˆÙ†</strong> Ù„Ø§ ÙŠØ¯Ø¹Ù… ØªÙ‚Ù†ÙŠØ© Web Bluetooth Ù…Ø¨Ø§Ø´Ø±Ø©. Ù„Ù„Ø§ØªØµØ§Ù„ Ø¨Ø³ÙˆØ§Ø±Ùƒ WHOOP 4.0 Ù…Ù† Ø§Ù„Ø¢ÙŠÙÙˆÙ†:
                         <br />
-                        1. حمّل تطبيق <strong className="text-[#00F0FF]">Bluefy - Web BLE Browser</strong> مجاناً من App Store.
+                        1. Ø­Ù…Ù‘Ù„ ØªØ·Ø¨ÙŠÙ‚ <strong className="text-[#00F0FF]">Bluefy - Web BLE Browser</strong> Ù…Ø¬Ø§Ù†Ø§Ù‹ Ù…Ù† App Store.
                         <br />
-                        2. افتح هذا الرابط داخله للاتصال فورياً.
+                        2. Ø§ÙØªØ­ Ù‡Ø°Ø§ Ø§Ù„Ø±Ø§Ø¨Ø· Ø¯Ø§Ø®Ù„Ù‡ Ù„Ù„Ø§ØªØµØ§Ù„ ÙÙˆØ±ÙŠØ§Ù‹.
                         <br />
-                        على أجهزة الكمبيوتر (Windows/Mac): استخدم <strong className="text-white">Google Chrome</strong> أو <strong className="text-white">Microsoft Edge</strong>.
+                        Ø¹Ù„Ù‰ Ø£Ø¬Ù‡Ø²Ø© Ø§Ù„ÙƒÙ…Ø¨ÙŠÙˆØªØ± (Windows/Mac): Ø§Ø³ØªØ®Ø¯Ù… <strong className="text-white">Google Chrome</strong> Ø£Ùˆ <strong className="text-white">Microsoft Edge</strong>.
                       </>
                     ) : (
                       <>
@@ -276,7 +273,7 @@ export const StrapConnectSheet: React.FC<StrapConnectSheetProps> = ({
                       className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-condensed font-bold flex items-center gap-1.5 transition-colors"
                     >
                       <Copy className="w-3.5 h-3.5" />
-                      <span>{copied ? (isRtl ? 'تم نسخ الرابط!' : 'Copied!') : (isRtl ? 'نسخ رابط الموقع' : 'Copy Web URL')}</span>
+                      <span>{copied ? (isRtl ? 'ØªÙ… Ù†Ø³Ø® Ø§Ù„Ø±Ø§Ø¨Ø·!' : 'Copied!') : (isRtl ? 'Ù†Ø³Ø® Ø±Ø§Ø¨Ø· Ø§Ù„Ù…ÙˆÙ‚Ø¹' : 'Copy Web URL')}</span>
                     </button>
                     <a
                       href="https://apps.apple.com/app/bluefy-web-ble-browser/id1492822055"
@@ -285,7 +282,7 @@ export const StrapConnectSheet: React.FC<StrapConnectSheetProps> = ({
                       className="px-3 py-1.5 rounded-lg bg-[#0093E9]/20 hover:bg-[#0093E9]/30 text-[#00F0FF] border border-[#0093E9]/30 text-xs font-condensed font-bold flex items-center gap-1.5 transition-colors"
                     >
                       <ExternalLink className="w-3.5 h-3.5" />
-                      <span>{isRtl ? 'تحميل Bluefy (App Store)' : 'Get Bluefy (App Store)'}</span>
+                      <span>{isRtl ? 'ØªØ­Ù…ÙŠÙ„ Bluefy (App Store)' : 'Get Bluefy (App Store)'}</span>
                     </a>
                   </div>
                 </div>
@@ -335,24 +332,24 @@ export const StrapConnectSheet: React.FC<StrapConnectSheetProps> = ({
                 </div>
                 <ul className="space-y-1 list-disc list-inside text-zinc-300 leading-relaxed text-[11px]">
                   <li>
-                    <strong className="text-white">{isRtl ? 'فصل تطبيق الهاتف: ' : 'Disconnect phone app: '}</strong>
-                    {isRtl ? 'أغلق تطبيق WHOOP على هاتفك (السوار يقبل اتصالاً واحداً فقط).' : 'Close official WHOOP app on your phone (single connection limit).'}
+                    <strong className="text-white">{isRtl ? 'ÙØµÙ„ ØªØ·Ø¨ÙŠÙ‚ Ø§Ù„Ù‡Ø§ØªÙ: ' : 'Disconnect phone app: '}</strong>
+                    {isRtl ? 'Ø£ØºÙ„Ù‚ ØªØ·Ø¨ÙŠÙ‚ WHOOP Ø¹Ù„Ù‰ Ù‡Ø§ØªÙÙƒ (Ø§Ù„Ø³ÙˆØ§Ø± ÙŠÙ‚Ø¨Ù„ Ø§ØªØµØ§Ù„Ø§Ù‹ ÙˆØ§Ø­Ø¯Ø§Ù‹ ÙÙ‚Ø·).' : 'Close official WHOOP app on your phone (single connection limit).'}
                   </li>
                   <li>
-                    <strong className="text-white">{isRtl ? 'تفعيل وضع الإقران: ' : 'Enable Pairing Mode: '}</strong>
-                    {isRtl ? 'انقر مرتين بقوة على أعلى السوار حتى تومض لمبات LED.' : 'Firmly double-tap the top of the sensor until LEDs pulse.'}
+                    <strong className="text-white">{isRtl ? 'ØªÙØ¹ÙŠÙ„ ÙˆØ¶Ø¹ Ø§Ù„Ø¥Ù‚Ø±Ø§Ù†: ' : 'Enable Pairing Mode: '}</strong>
+                    {isRtl ? 'Ø§Ù†Ù‚Ø± Ù…Ø±ØªÙŠÙ† Ø¨Ù‚ÙˆØ© Ø¹Ù„Ù‰ Ø£Ø¹Ù„Ù‰ Ø§Ù„Ø³ÙˆØ§Ø± Ø­ØªÙ‰ ØªÙˆÙ…Ø¶ Ù„Ù…Ø¨Ø§Øª LED.' : 'Firmly double-tap the top of the sensor until LEDs pulse.'}
                   </li>
                   <li>
-                    <strong className="text-white">{isRtl ? 'تشغيل البلوتوث: ' : 'Bluetooth ON: '}</strong>
-                    {isRtl ? 'تأكد من تفعيل البلوتوث في جهاز الكمبيوتر أو المتصفح.' : 'Verify Bluetooth is active in your system settings.'}
+                    <strong className="text-white">{isRtl ? 'ØªØ´ØºÙŠÙ„ Ø§Ù„Ø¨Ù„ÙˆØªÙˆØ«: ' : 'Bluetooth ON: '}</strong>
+                    {isRtl ? 'ØªØ£ÙƒØ¯ Ù…Ù† ØªÙØ¹ÙŠÙ„ Ø§Ù„Ø¨Ù„ÙˆØªÙˆØ« ÙÙŠ Ø¬Ù‡Ø§Ø² Ø§Ù„ÙƒÙ…Ø¨ÙŠÙˆØªØ± Ø£Ùˆ Ø§Ù„Ù…ØªØµÙØ­.' : 'Verify Bluetooth is active in your system settings.'}
                   </li>
                 </ul>
               </div>
             </>
           )}
         </div>
-      </div>
-    </div>
+      </SheetPanel>
+    </SheetBackdrop>
   );
 };
 

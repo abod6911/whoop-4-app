@@ -25,6 +25,7 @@ import {
 
 import { useLanguage } from '../../i18n/LanguageContext';
 import { hapticMedium } from '../../utils/haptics';
+import { AnimatedRing } from '../motion/AnimatedRing';
 
 interface StrainViewProps {
   metrics: LiveMetrics;
@@ -166,52 +167,38 @@ export const StrainView: React.FC<StrainViewProps> = ({
           </button>
         </div>
 
-        <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
-          <svg width={size} height={size} className="transform -rotate-90">
-            <circle
-              cx={size / 2}
-              cy={size / 2}
-              r={radius}
-              stroke="#181D26"
-              strokeWidth={stroke}
-              fill="transparent"
-            />
-            <circle
-              cx={size / 2}
-              cy={size / 2}
-              r={radius}
-              stroke="#0093E9"
-              strokeWidth={stroke}
-              fill="transparent"
-              strokeDasharray={circ}
-              strokeDashoffset={strainOffset}
-              strokeLinecap="round"
-              className="transition-all duration-700 ease-out"
-            />
-          </svg>
-
-          <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-6xl font-black font-condensed text-[#0093E9] tracking-tight tabular-nums">
-              {strainScore.toFixed(1)}
-            </span>
-            <span className="text-[11px] font-black uppercase tracking-widest text-zinc-400 font-condensed mt-1">
-              {isRtl
-                ? `المستهدف: ${metrics.optimalStrainTarget.min.toFixed(1)} - ${metrics.optimalStrainTarget.max.toFixed(1)}`
-                : `Target: ${metrics.optimalStrainTarget.min.toFixed(1)} - ${metrics.optimalStrainTarget.max.toFixed(1)}`}
-            </span>
-          </div>
+        <div className="relative flex items-center justify-center my-3">
+          <AnimatedRing
+            radius={76}
+            strokeWidth={12}
+            progress={strainRatio}
+            strokeColor="#00A3FF"
+            glow
+            glowColor="rgba(0, 163, 255, 0.45)"
+          >
+            <div className="flex flex-col items-center justify-center">
+              <span className="text-5xl font-black font-condensed text-[#00A3FF] tracking-tight tabular-nums">
+                {strainScore.toFixed(1)}
+              </span>
+              <span className="text-[11px] font-black uppercase tracking-widest text-zinc-400 font-condensed mt-1">
+                {isRtl
+                  ? `المستهدف: ${metrics.optimalStrainTarget.min.toFixed(1)} - ${metrics.optimalStrainTarget.max.toFixed(1)}`
+                  : `Target: ${metrics.optimalStrainTarget.min.toFixed(1)} - ${metrics.optimalStrainTarget.max.toFixed(1)}`}
+              </span>
+            </div>
+          </AnimatedRing>
         </div>
 
         {/* Dynamic Coaching Text */}
-        <div className="mt-5 w-full p-3.5 rounded-2xl bg-[#0D1520] border border-[#0093E9]/20 text-xs text-zinc-300 leading-relaxed text-start flex items-start gap-2.5">
-          <Info className="w-4 h-4 text-[#0093E9] flex-shrink-0 mt-0.5" />
+        <div className="mt-5 w-full p-3.5 rounded-2xl bg-[#0D1520] border border-[#00A3FF]/20 text-xs text-zinc-300 leading-relaxed text-start flex items-start gap-2.5">
+          <Info className="w-4 h-4 text-[#00A3FF] flex-shrink-0 mt-0.5" />
           <p>
             {strainScore >= metrics.optimalStrainTarget.min
               ? isRtl
-                ? 'تم تحقيق التحفيز البدني المثالي. لقد بنيت لياقتك ضمن سعتك القلبية الوعائية.'
+                ? 'ØªÙ… ØªØ­Ù‚ÙŠÙ‚ Ø§Ù„ØªØ­ÙÙŠØ² Ø§Ù„Ø¨Ø¯Ù†ÙŠ Ø§Ù„Ù…Ø«Ø§Ù„ÙŠ. Ù„Ù‚Ø¯ Ø¨Ù†ÙŠØª Ù„ÙŠØ§Ù‚ØªÙƒ Ø¶Ù…Ù† Ø³Ø¹ØªÙƒ Ø§Ù„Ù‚Ù„Ø¨ÙŠØ© Ø§Ù„ÙˆØ¹Ø§Ø¦ÙŠØ©.'
                 : 'Optimal stimulus achieved. You have built fitness while staying within your cardiovascular capacity.'
               : isRtl
-                ? 'لديك متسع لمزيد من الإجهاد اليوم. مارس 20-30 دقيقة من التمارين الهوائية للوصول لنطاقك المستهدف.'
+                ? 'Ù„Ø¯ÙŠÙƒ Ù…ØªØ³Ø¹ Ù„Ù…Ø²ÙŠØ¯ Ù…Ù† Ø§Ù„Ø¥Ø¬Ù‡Ø§Ø¯ Ø§Ù„ÙŠÙˆÙ…. Ù…Ø§Ø±Ø³ 20-30 Ø¯Ù‚ÙŠÙ‚Ø© Ù…Ù† Ø§Ù„ØªÙ…Ø§Ø±ÙŠÙ† Ø§Ù„Ù‡ÙˆØ§Ø¦ÙŠØ© Ù„Ù„ÙˆØµÙˆÙ„ Ù„Ù†Ø·Ø§Ù‚Ùƒ Ø§Ù„Ù…Ø³ØªÙ‡Ø¯Ù.'
                 : 'You have room for more strain today. Engage in 20-30 minutes of aerobic exertion to hit your target bracket.'}
           </p>
         </div>
@@ -227,7 +214,7 @@ export const StrainView: React.FC<StrainViewProps> = ({
           {/* Real Steps & Cadence */}
           <div className="py-2.5 flex items-center justify-between text-xs font-condensed font-bold">
             <div className="flex items-center gap-2 text-zinc-400">
-              <Footprints className="w-3.5 h-3.5 text-[#0093E9]" />
+              <Footprints className="w-3.5 h-3.5 text-[#00A3FF]" />
               <div className="flex items-center gap-1.5">
                 <span className="uppercase">{t('steps')}</span>
                 <span className="text-[9px] px-1.5 py-0.2 rounded bg-white/10 text-zinc-300 font-mono">
@@ -280,11 +267,11 @@ export const StrainView: React.FC<StrainViewProps> = ({
       <div className="p-5 rounded-[24px] bg-[#12151A] border border-white/5 space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-white font-condensed">
-            <Dumbbell className="w-4 h-4 text-[#0093E9]" />
+            <Dumbbell className="w-4 h-4 text-[#00A3FF]" />
             <span>{isRtl ? 'مدرب الإجهاد المباشر' : 'Live Strain Coach'}</span>
           </div>
           {isWorkoutActive && (
-            <span className="text-[10px] bg-[#0093E9] text-white px-2 py-0.5 rounded-full font-mono font-bold animate-pulse">
+            <span className="text-[10px] bg-[#00A3FF] text-white px-2 py-0.5 rounded-full font-mono font-bold animate-pulse">
               {isRtl ? 'نشط' : 'ACTIVE'} ({formatSec(workoutElapsedSec)})
             </span>
           )}
@@ -309,7 +296,7 @@ export const StrainView: React.FC<StrainViewProps> = ({
         {!isWorkoutActive ? (
           <button
             onClick={() => onStartWorkout(selectedSport)}
-            className="w-full py-3.5 rounded-2xl bg-[#0093E9] hover:bg-[#0082CF] text-white font-condensed font-black uppercase tracking-wider text-sm flex items-center justify-center gap-2 shadow-lg active:scale-98 transition-all"
+            className="w-full py-3.5 rounded-2xl bg-[#00A3FF] hover:bg-[#0082CF] text-white font-condensed font-black uppercase tracking-wider text-sm flex items-center justify-center gap-2 shadow-lg active:scale-98 transition-all"
           >
             <Play className="w-4 h-4 fill-white" />
             <span>{isRtl ? `بدء جلسة ${sportsMap[selectedSport] || selectedSport}` : `Start ${selectedSport} Session`}</span>
@@ -317,7 +304,7 @@ export const StrainView: React.FC<StrainViewProps> = ({
         ) : (
           <button
             onClick={onStopWorkout}
-            className="w-full py-3.5 rounded-2xl bg-[#FF0026] hover:bg-[#E00022] text-white font-condensed font-black uppercase tracking-wider text-sm flex items-center justify-center gap-2 shadow-lg active:scale-98 transition-all"
+            className="w-full py-3.5 rounded-2xl bg-[#FF3344] hover:bg-[#E00022] text-white font-condensed font-black uppercase tracking-wider text-sm flex items-center justify-center gap-2 shadow-lg active:scale-98 transition-all"
           >
             <Square className="w-4 h-4 fill-white" />
             <span>{isRtl ? 'إنهاء التمرين وحفظه' : 'End & Save Workout'}</span>
@@ -325,20 +312,74 @@ export const StrainView: React.FC<StrainViewProps> = ({
         )}
       </div>
 
-      {/* 4. 3 Dedicated 7-Day Charts (02:02 – 02:13 in Video) */}
+      {/* Heart Rate Zones with Live Cardiac Pulse */}
+      <div className="p-4 rounded-[24px] bg-[#12151A] border border-white/5 space-y-3">
+        <div className="flex items-center justify-between px-1">
+          <h3 className="text-xs font-black uppercase tracking-wider text-zinc-400 font-condensed">
+            {isRtl ? 'نطاقات نبض القلب (HR ZONES)' : 'Heart Rate Zones'}
+          </h3>
+          <span className="text-[10px] text-[#00A3FF] font-mono font-bold" dir="ltr">
+            {metrics.currentHr ? `${metrics.currentHr} bpm` : '--'}
+          </span>
+        </div>
+
+        <div className="space-y-2">
+          {zones.map((z) => {
+            const isActive = metrics.currentZone === z.zone && metrics.currentHr !== null;
+            const timeInSec = metrics.zoneSeconds[z.zone] || 0;
+            return (
+              <div
+                key={z.zone}
+                className={`p-2.5 rounded-xl border transition-all flex items-center justify-between ${
+                  isActive
+                    ? 'bg-[#181C23] border-[#00A3FF]/60 shadow-[0_0_12px_rgba(0,163,255,0.25)]'
+                    : 'bg-[#16191E] border-white/5'
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <div
+                    className={`w-2.5 h-2.5 rounded-full ${isActive ? 'animate-pulse ring-2 ring-white/40' : ''}`}
+                    style={{ backgroundColor: z.color }}
+                  />
+                  <div>
+                    <span className="text-xs font-condensed font-black text-white uppercase block">
+                      {z.name}
+                    </span>
+                    <span className="text-[10px] text-zinc-400 font-mono" dir="ltr">
+                      {z.minBpm} - {z.maxBpm >= 250 ? 'MAX' : z.maxBpm} bpm
+                    </span>
+                  </div>
+                </div>
+                <div className="text-end">
+                  <span className="text-xs font-mono font-bold text-white block" dir="ltr">
+                    {formatSec(timeInSec)}
+                  </span>
+                  {isActive && (
+                    <span className="text-[9px] font-condensed uppercase tracking-wider text-[#00A3FF] font-bold">
+                      {isRtl ? 'النطاق النشط الآن' : 'CURRENT ZONE'}
+                    </span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 4. 3 Dedicated 7-Day Charts (02:02 â€“ 02:13 in Video) */}
       <div className="space-y-4">
         {/* Chart 1: STRAIN Bright Blue Vertical Bars */}
         <div className="p-4 rounded-[24px] bg-[#12151A] border border-white/5 space-y-2">
           <div className="flex items-center justify-between text-xs font-black uppercase font-condensed text-white">
             <span>{t('strain7Days')}</span>
-            <span className="text-[10px] text-[#0093E9] font-mono">{isRtl ? `المتوسط: ${avgStrain}` : `AVG: ${avgStrain}`}</span>
+            <span className="text-[10px] text-[#00A3FF] font-mono">{isRtl ? `المتوسط: ${avgStrain}` : `AVG: ${avgStrain}`}</span>
           </div>
           <div className="h-32 w-full pt-2">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={strain7Day} margin={{ top: 5, right: 0, left: -25, bottom: 0 }}>
                 <XAxis dataKey="day" stroke="#52525B" tick={{ fontSize: 9 }} tickLine={false} />
                 <YAxis domain={[0, 21]} stroke="#52525B" tick={{ fontSize: 9 }} tickLine={false} />
-                <Bar dataKey="strain" fill="#0093E9" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="strain" fill="#00A3FF" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -348,14 +389,14 @@ export const StrainView: React.FC<StrainViewProps> = ({
         <div className="p-4 rounded-[24px] bg-[#12151A] border border-white/5 space-y-2">
           <div className="flex items-center justify-between text-xs font-black uppercase font-condensed text-white">
             <span>{t('avgHr')}</span>
-            <span className="text-[10px] text-[#0093E9] font-mono">{isRtl ? `المتوسط: ${avgHrVal}` : `AVG: ${avgHrVal}`}</span>
+            <span className="text-[10px] text-[#00A3FF] font-mono">{isRtl ? `المتوسط: ${avgHrVal}` : `AVG: ${avgHrVal}`}</span>
           </div>
           <div className="h-32 w-full pt-2">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={avgHr7Day} margin={{ top: 5, right: 0, left: -25, bottom: 0 }}>
                 <XAxis dataKey="day" stroke="#52525B" tick={{ fontSize: 9 }} tickLine={false} />
                 <YAxis domain={[60, 95]} stroke="#52525B" tick={{ fontSize: 9 }} tickLine={false} />
-                <Line type="monotone" dataKey="hr" stroke="#0093E9" strokeWidth={2.5} dot={{ r: 3, fill: '#0093E9' }} />
+                <Line type="monotone" dataKey="hr" stroke="#00A3FF" strokeWidth={2.5} dot={{ r: 3, fill: '#00A3FF' }} />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -365,14 +406,14 @@ export const StrainView: React.FC<StrainViewProps> = ({
         <div className="p-4 rounded-[24px] bg-[#12151A] border border-white/5 space-y-2">
           <div className="flex items-center justify-between text-xs font-black uppercase font-condensed text-white">
             <span>{t('calories7Days')}</span>
-            <span className="text-[10px] text-[#0093E9] font-mono">{isRtl ? `المتوسط: ${avgCalVal}` : `AVG: ${avgCalVal}`}</span>
+            <span className="text-[10px] text-[#00A3FF] font-mono">{isRtl ? `المتوسط: ${avgCalVal}` : `AVG: ${avgCalVal}`}</span>
           </div>
           <div className="h-32 w-full pt-2">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={calories7Day} margin={{ top: 5, right: 0, left: -25, bottom: 0 }}>
                 <XAxis dataKey="day" stroke="#52525B" tick={{ fontSize: 9 }} tickLine={false} />
                 <YAxis stroke="#52525B" tick={{ fontSize: 9 }} tickLine={false} />
-                <Bar dataKey="cal" fill="#0093E9" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="cal" fill="#00A3FF" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>

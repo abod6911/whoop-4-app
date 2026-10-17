@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { whoopBleEngine } from '../services/whoopBleEngine';
 import { useLanguage } from '../i18n/LanguageContext';
+import { SheetBackdrop, SheetPanel } from './motion/Sheet';
 
 interface HardwareDiagnosticsModalProps {
   isOpen: boolean;
@@ -39,8 +40,6 @@ export const HardwareDiagnosticsModal: React.FC<HardwareDiagnosticsModalProps> =
       setCmdFeedback(null);
     }
   }, [isOpen]);
-
-  if (!isOpen) return null;
 
   const handleTriggerHaptic = async () => {
     try {
@@ -78,8 +77,8 @@ export const HardwareDiagnosticsModal: React.FC<HardwareDiagnosticsModalProps> =
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in">
-      <div className="relative w-full max-w-[420px] rounded-[28px] bg-[#12151A] border border-white/10 shadow-2xl p-5 space-y-4 max-h-[90vh] overflow-y-auto">
+    <SheetBackdrop isOpen={isOpen} onClose={onClose}>
+      <SheetPanel onClose={onClose} className="p-5 max-h-[90vh] overflow-y-auto space-y-4">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-white/5 pb-3">
           <div className="flex items-center gap-2.5">
@@ -191,9 +190,9 @@ export const HardwareDiagnosticsModal: React.FC<HardwareDiagnosticsModalProps> =
           <div className="p-3.5 rounded-2xl bg-[#16191E] border border-white/5 space-y-1 text-start">
             <div className="flex items-center justify-between text-[10px] font-mono text-zinc-400">
               <span>{t('packetRate')}</span>
-              <Activity className="w-3.5 h-3.5 text-[#0093E9]" />
+              <Activity className="w-3.5 h-3.5 text-[#00A3FF]" />
             </div>
-            <div className="text-sm font-black font-condensed tracking-wide text-[#0093E9]">
+            <div className="text-sm font-black font-condensed tracking-wide text-[#00A3FF]">
               {metadata.packetsPerMinute || 0} <span className="text-[10px] font-mono font-normal">{t('packetsPerMin')}</span>
             </div>
             <span className="text-[9px] font-mono text-zinc-500 block">
@@ -244,13 +243,13 @@ export const HardwareDiagnosticsModal: React.FC<HardwareDiagnosticsModalProps> =
                 disabled={isSendingCmd}
                 className="py-2.5 px-3 rounded-xl bg-[#222730] hover:bg-[#2C3340] border border-white/10 text-xs font-bold text-white flex items-center justify-center gap-1.5 active:scale-95 transition-all disabled:opacity-50"
               >
-                <RefreshCw className={`w-3.5 h-3.5 ${isSendingCmd ? 'animate-spin text-[#0093E9]' : 'text-zinc-400'}`} />
+                <RefreshCw className={`w-3.5 h-3.5 ${isSendingCmd ? 'animate-spin text-[#00A3FF]' : 'text-zinc-400'}`} />
                 <span>{isRtl ? 'فحص الشحن' : 'Query Battery'}</span>
               </button>
             </div>
           </div>
         )}
-      </div>
-    </div>
+      </SheetPanel>
+    </SheetBackdrop>
   );
 };

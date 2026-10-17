@@ -28,10 +28,16 @@ import {
   Scale,
   Share2,
 } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { TAP } from '../motion/springs';
+import { HeartbeatBadge, EcgWave } from '../motion/LiveHeartbeat';
+import { alarmEngine } from '../../services/alarmEngine';
 import {
   ResponsiveContainer,
   AreaChart,
   Area,
+  ComposedChart,
+  Bar,
   LineChart,
   Line,
   XAxis,
@@ -281,6 +287,22 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
         />
       </div>
 
+      {/* Live Heartbeat & High-DPI Real-Time ECG Wave Card */}
+      {metrics.currentHr !== null && metrics.onWrist !== false && (
+        <div className="rounded-[24px] bg-[#12151A] border border-white/10 p-3.5 space-y-2.5 shadow-lg shadow-black/40">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <HeartbeatBadge bpm={metrics.currentHr} onWrist={metrics.onWrist} />
+              <span className="text-[10px] font-black uppercase tracking-wider text-zinc-400 font-condensed">
+                {isRtl ? 'المخطط القلبي اللحظي' : 'REAL-TIME ECG TRACE'}
+              </span>
+            </div>
+            <span className="text-[10px] font-mono text-zinc-500">70 px/s</span>
+          </div>
+          <EcgWave bpm={metrics.currentHr} height={60} speedPxPerSec={70} />
+        </div>
+      )}
+
       {/* 2. "Your Daily Outlook" Card (00:04) */}
       <div className="rounded-[24px] bg-[#12151A] border border-[#6366F1]/30 p-4 relative overflow-hidden shadow-lg shadow-[#6366F1]/5">
         <div className="flex items-center justify-between">
@@ -291,12 +313,12 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Mini vertical bar chart illustration */}
-            <div className="flex items-end gap-0.5 h-3">
-              <span className="w-1 h-2 bg-[#6366F1]/70 rounded-full" />
-              <span className="w-1 h-3 bg-[#6366F1] rounded-full" />
-              <span className="w-1 h-1.5 bg-[#6366F1]/50 rounded-full" />
-              <span className="w-1 h-2.5 bg-[#6366F1]/80 rounded-full" />
+            {/* Animated vertical spring bars */}
+            <div className="flex items-end gap-1 h-4">
+              <motion.span animate={{ height: ['40%', '85%', '50%'] }} transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }} className="w-1 bg-[#6366F1]/70 rounded-full" />
+              <motion.span animate={{ height: ['65%', '100%', '80%'] }} transition={{ duration: 2.1, repeat: Infinity, ease: 'easeInOut', delay: 0.2 }} className="w-1 bg-[#6366F1] rounded-full" />
+              <motion.span animate={{ height: ['30%', '75%', '45%'] }} transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut', delay: 0.4 }} className="w-1 bg-[#6366F1]/50 rounded-full" />
+              <motion.span animate={{ height: ['55%', '90%', '65%'] }} transition={{ duration: 2.3, repeat: Infinity, ease: 'easeInOut', delay: 0.1 }} className="w-1 bg-[#6366F1]/80 rounded-full" />
             </div>
           </div>
         </div>
@@ -321,7 +343,9 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
         onClick={onOpenCoachChat}
         className="w-full px-4 py-3 rounded-full bg-[#16191E] border border-white/10 hover:border-zinc-700 flex items-center gap-3 text-start transition-all active:scale-98 shadow-sm"
       >
-        <WhoopEmblemIcon size={20} variant="squircle" />
+        <div className="w-6 h-6 rounded-full bg-[#0A0C0F] border border-white/15 flex items-center justify-center flex-shrink-0">
+          <WhoopEmblemIcon size={14} variant="monogram" />
+        </div>
         <span className="text-xs text-zinc-400 font-sans flex-1">
           {t('askCoach')}
         </span>
@@ -332,7 +356,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
         {/* Left: HEALTH MONITOR */}
         <button
           onClick={onOpenHealthMonitorModal}
-          className="p-3.5 rounded-[22px] bg-[#12151A] border border-white/5 hover:border-zinc-700 text-start transition-all active:scale-98 flex flex-col justify-between h-[106px]"
+          className="p-3.5 rounded-[22px] bg-[#12151A] border border-white/5 hover:border-zinc-700 text-start transition-all active:scale-98 flex flex-col justify-between h-[112px]"
         >
           <div className="flex items-center justify-between text-xs font-black uppercase tracking-wider text-white font-condensed">
             <span>{t('healthMonitor')}</span>
@@ -357,24 +381,33 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
         {/* Right: STRESS MONITOR */}
         <button
           onClick={onOpenStressMonitorModal}
-          className="p-3.5 rounded-[22px] bg-[#12151A] border border-white/5 hover:border-zinc-700 text-start transition-all active:scale-98 flex flex-col justify-between h-[106px]"
+          className="p-3.5 rounded-[22px] bg-[#12151A] border border-white/5 hover:border-zinc-700 text-start transition-all active:scale-98 flex flex-col justify-between h-[112px]"
         >
           <div className="flex items-center justify-between text-xs font-black uppercase tracking-wider text-white font-condensed">
             <span>{t('stressMonitor')}</span>
             <ChevronRight className={`w-3.5 h-3.5 text-zinc-500 ${isRtl ? 'rotate-180' : ''}`} />
           </div>
 
-          <div className="flex items-center gap-2">
-            <div className={`px-2 py-1 rounded-lg border font-mono font-black text-xs ${stressBadgeColor}`}>
-              {stressScore !== null ? stressScore.toFixed(1) : '--'}
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2">
+              <div className={`px-2 py-0.5 rounded-lg border font-mono font-black text-xs ${stressBadgeColor}`}>
+                {stressScore !== null ? stressScore.toFixed(1) : '--'}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-black font-condensed uppercase tracking-wide text-white truncate">
+                  {stressText}
+                </div>
+                <div className="text-[10px] text-zinc-400 font-mono">
+                  {stressTime}
+                </div>
+              </div>
             </div>
-            <div>
-              <div className="text-xs font-black font-condensed uppercase tracking-wide text-white">
-                {stressText}
-              </div>
-              <div className="text-[10px] text-zinc-400 font-mono">
-                {stressTime}
-              </div>
+
+            {/* 3-segment spring needle bar */}
+            <div className="flex h-1.5 w-full rounded-full overflow-hidden bg-white/5 gap-0.5">
+              <div className={`flex-1 rounded-l-full transition-opacity ${stressScore !== null && stressScore < 1.0 ? 'bg-[#16EC06] opacity-100' : 'bg-[#16EC06]/30'}`} />
+              <div className={`flex-1 transition-opacity ${stressScore !== null && stressScore >= 1.0 && stressScore < 2.0 ? 'bg-[#FFDE00] opacity-100' : 'bg-[#FFDE00]/30'}`} />
+              <div className={`flex-1 rounded-r-full transition-opacity ${stressScore !== null && stressScore >= 2.0 ? 'bg-[#FF3344] opacity-100' : 'bg-[#FF3344]/30'}`} />
             </div>
           </div>
         </button>
@@ -482,15 +515,32 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
           </div>
         </div>
 
-        {/* TONIGHT'S SLEEP Card */}
+        {/* TONIGHT'S SLEEP Card (Bound dynamically to Alarm Engine) */}
         {(() => {
-          const targetWakeMin = 7 * 60 + 30; // 07:30 wake target
+          const alarmSettings = alarmEngine.getSettings();
+          const isAlarmArmed = alarmSettings.enabled;
+          const alarmDisplayTime = alarmSettings.exactTime || '07:30';
+
+          let targetWakeMin = 7 * 60 + 30;
+          if (alarmSettings.exactTime) {
+            const [h, m] = alarmSettings.exactTime.split(':').map(Number);
+            if (!isNaN(h) && !isNaN(m)) targetWakeMin = h * 60 + m;
+          }
+
           const needMin = Math.round((settings.sleepNeedHours || 7.9) * 60) + 15;
           let bedMin = targetWakeMin - needMin;
           while (bedMin < 0) bedMin += 24 * 60;
           const bedH = Math.floor(bedMin / 60);
           const bedM = bedMin % 60;
           const recommendedBedtime = `${bedH.toString().padStart(2, '0')}:${bedM.toString().padStart(2, '0')}`;
+
+          const statusLabel = isAlarmArmed
+            ? alarmSettings.mode === 'sleep_goal'
+              ? (isRtl ? 'منبه هدف النوم' : 'ALARM (SLEEP GOAL)')
+              : alarmSettings.mode === 'recovery'
+              ? (isRtl ? 'منبه التعافي الأخضر' : 'ALARM (RECOVERY)')
+              : (isRtl ? 'المنبه مفعّل (وقت محدد)' : 'ALARM ON (EXACT)')
+            : (isRtl ? 'المنبه غير مفعّل' : 'NO ALARM SET');
 
           return (
             <button
@@ -513,11 +563,11 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
 
               <div className="text-end">
                 <div className="flex items-center justify-end gap-1.5 text-xs font-mono font-bold text-white">
-                  <span className="w-2 h-2 rounded-full bg-[#16EC06]" />
-                  <span>07:30</span>
+                  <span className={`w-2 h-2 rounded-full ${isAlarmArmed ? 'bg-[#16EC06]' : 'bg-zinc-600'}`} />
+                  <span>{alarmDisplayTime}</span>
                 </div>
-                <div className="text-[10px] font-black uppercase tracking-wider text-[#16EC06] font-condensed">
-                  {isRtl ? 'المنبه الذكي مفعل' : 'ALARM ON (EXACT)'}
+                <div className={`text-[10px] font-black uppercase tracking-wider font-condensed ${isAlarmArmed ? 'text-[#16EC06]' : 'text-zinc-500'}`}>
+                  {statusLabel}
                 </div>
               </div>
             </button>
@@ -684,18 +734,35 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
               </div>
             </div>
 
-            <div className="h-40 w-full">
+            <div className="h-44 w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={dualAxisData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
+                <ComposedChart data={dualAxisData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="chartStrainGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#00A3FF" stopOpacity={0.9} />
+                      <stop offset="100%" stopColor="#0055FF" stopOpacity={0.25} />
+                    </linearGradient>
+                  </defs>
                   <XAxis dataKey="day" stroke="#52525B" tick={{ fontSize: 9 }} tickLine={false} />
-                  <YAxis yAxisId="left" domain={[0, 21]} stroke="#0093E9" tick={{ fontSize: 9 }} tickLine={false} />
+                  <YAxis yAxisId="left" domain={[0, 21]} stroke="#00A3FF" tick={{ fontSize: 9 }} tickLine={false} />
                   <YAxis yAxisId="right" orientation="right" domain={[0, 100]} stroke="#16EC06" tick={{ fontSize: 9 }} tickLine={false} />
                   <Tooltip
-                    contentStyle={{ backgroundColor: '#0B0D10', borderColor: '#27272A', borderRadius: '12px', fontSize: '11px' }}
+                    content={({ active, payload, label }) => {
+                      if (active && payload && payload.length) {
+                        return (
+                          <div className="rounded-xl bg-[#0B0D10]/95 border border-white/10 p-2.5 text-xs shadow-2xl font-condensed">
+                            <div className="font-bold text-zinc-400 mb-1">{label}</div>
+                            <div className="text-[#00A3FF] font-black">{t('dayStrain')}: {payload[0]?.value ?? '--'}</div>
+                            <div className="text-[#16EC06] font-black">{t('recoveryScore')}: {payload[1]?.value ?? '--'}%</div>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
                   />
-                  <Line yAxisId="left" type="monotone" dataKey="strain" stroke="#0093E9" strokeWidth={2.5} dot={{ r: 3, fill: '#0093E9' }} />
-                  <Line yAxisId="right" type="monotone" dataKey="recovery" stroke="#16EC06" strokeWidth={2.5} dot={{ r: 3, fill: '#16EC06' }} />
-                </LineChart>
+                  <Bar yAxisId="left" dataKey="strain" fill="url(#chartStrainGrad)" radius={[4, 4, 0, 0]} maxBarSize={28} />
+                  <Line yAxisId="right" type="monotone" dataKey="recovery" stroke="#16EC06" strokeWidth={2.5} dot={{ r: 3.5, fill: '#16EC06' }} />
+                </ComposedChart>
               </ResponsiveContainer>
             </div>
           </div>

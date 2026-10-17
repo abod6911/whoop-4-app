@@ -1,6 +1,7 @@
 import React from 'react';
 import { X, BookOpen, Clock, Tag, Activity, ArrowRight, ArrowLeft } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
+import { SheetBackdrop, SheetPanel } from './motion/Sheet';
 
 export interface ArticleData {
   id: string;
@@ -196,19 +197,12 @@ export const ArticleModal: React.FC<ArticleModalProps> = ({
   if (!article) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in duration-200"
-      dir={isRtl ? 'rtl' : 'ltr'}
-      onClick={onClose}
-    >
-      <div
-        className="w-full max-w-lg max-h-[90vh] bg-[#0E1116] border border-white/10 rounded-t-[32px] sm:rounded-[32px] overflow-hidden flex flex-col shadow-2xl animate-in slide-in-from-bottom duration-300"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <SheetBackdrop isOpen={Boolean(articleId)} onClose={onClose}>
+      <SheetPanel onClose={onClose} className="max-h-[90vh]">
         {/* Header */}
         <div className="p-5 border-b border-white/5 flex items-center justify-between">
           <div className="flex items-center gap-2 text-xs font-mono">
-            <span className="text-[#0093E9] uppercase font-bold">
+            <span className="text-[#00A3FF] uppercase font-bold">
               {isRtl ? article.categoryAr : article.categoryEn}
             </span>
             <span className="text-zinc-600">•</span>
@@ -229,7 +223,7 @@ export const ArticleModal: React.FC<ArticleModalProps> = ({
         <div className="p-6 space-y-5 overflow-y-auto no-scrollbar flex-1">
           {/* Tag & Title */}
           <div className="space-y-2">
-            <div className="inline-block bg-[#0093E9]/15 text-[#0093E9] border border-[#0093E9]/30 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold">
+            <div className="inline-block bg-[#00A3FF]/15 text-[#00A3FF] border border-[#00A3FF]/30 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold">
               #{article.tag}
             </div>
             <h1 className="text-xl sm:text-2xl font-black text-white font-sans leading-tight">
@@ -238,7 +232,7 @@ export const ArticleModal: React.FC<ArticleModalProps> = ({
           </div>
 
           {/* Abstract / Summary */}
-          <div className="p-4 rounded-2xl bg-[#141820] border-l-4 border-l-[#0093E9] border border-white/5 text-sm text-zinc-300 leading-relaxed font-sans">
+          <div className="p-4 rounded-2xl bg-[#141820] border-l-4 border-l-[#00A3FF] border border-white/5 text-sm text-zinc-300 leading-relaxed font-sans">
             {isRtl ? article.summaryAr : article.summaryEn}
           </div>
 
@@ -273,7 +267,7 @@ export const ArticleModal: React.FC<ArticleModalProps> = ({
                 onClose();
                 onOpenBreathePacer();
               }}
-              className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-[#0093E9] to-[#00F0FF] hover:opacity-90 text-black font-black uppercase tracking-wider font-condensed text-xs flex items-center justify-center gap-2 shadow-lg shadow-[#0093E9]/30 transition-all active:scale-98"
+              className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-[#00A3FF] to-[#00F0FF] hover:opacity-90 text-black font-black uppercase tracking-wider font-condensed text-xs flex items-center justify-center gap-2 shadow-lg shadow-[#00A3FF]/30 transition-all active:scale-98"
             >
               <Activity className="w-4 h-4" />
               <span>{isRtl ? 'بدء جلسة تنفس الرنين الآن (0.1 هرتز)' : 'START RESONANCE BREATHING SESSION'}</span>
@@ -290,7 +284,7 @@ export const ArticleModal: React.FC<ArticleModalProps> = ({
             {isRtl ? 'إغلاق' : 'Close'}
           </button>
         </div>
-      </div>
-    </div>
+      </SheetPanel>
+    </SheetBackdrop>
   );
 };

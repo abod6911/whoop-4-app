@@ -1,6 +1,7 @@
 import React from 'react';
 import { X, Check, RotateCcw, Sliders, Eye, EyeOff } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
+import { SheetBackdrop, SheetPanel } from './motion/Sheet';
 
 export interface DashboardPreferences {
   hrv: boolean;
@@ -43,8 +44,6 @@ export const CustomizeDashboardModal: React.FC<CustomizeDashboardModalProps> = (
   React.useEffect(() => {
     setLocalPrefs(preferences);
   }, [preferences, isOpen]);
-
-  if (!isOpen) return null;
 
   const toggle = (key: keyof DashboardPreferences) => {
     setLocalPrefs((prev) => ({
@@ -128,19 +127,12 @@ export const CustomizeDashboardModal: React.FC<CustomizeDashboardModalProps> = (
   ];
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in duration-200"
-      dir={isRtl ? 'rtl' : 'ltr'}
-      onClick={onClose}
-    >
-      <div
-        className="w-full max-w-lg max-h-[85vh] bg-[#0E1116] border border-white/10 rounded-t-[32px] sm:rounded-[32px] overflow-hidden flex flex-col shadow-2xl animate-in slide-in-from-bottom duration-300"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <SheetBackdrop isOpen={isOpen} onClose={onClose}>
+      <SheetPanel onClose={onClose} className="max-h-[85vh]">
         {/* Header */}
         <div className="p-5 border-b border-white/5 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-[#0093E9]/10 text-[#0093E9] flex items-center justify-center">
+            <div className="w-8 h-8 rounded-xl bg-[#00A3FF]/10 text-[#00A3FF] flex items-center justify-center">
               <Sliders className="w-4 h-4" />
             </div>
             <div>
@@ -177,7 +169,7 @@ export const CustomizeDashboardModal: React.FC<CustomizeDashboardModalProps> = (
                 <div className="flex items-start gap-3">
                   <div
                     className={`w-7 h-7 rounded-lg flex items-center justify-center mt-0.5 transition-colors ${
-                      isEnabled ? 'bg-[#0093E9]/20 text-[#0093E9]' : 'bg-zinc-800 text-zinc-500'
+                      isEnabled ? 'bg-[#00A3FF]/20 text-[#00A3FF]' : 'bg-zinc-800 text-zinc-500'
                     }`}
                   >
                     {isEnabled ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
@@ -228,14 +220,14 @@ export const CustomizeDashboardModal: React.FC<CustomizeDashboardModalProps> = (
             </button>
             <button
               onClick={handleSave}
-              className="px-5 py-2.5 rounded-xl bg-[#0093E9] hover:bg-[#0081cc] text-white text-xs font-black uppercase tracking-wider font-condensed flex items-center gap-1.5 shadow-lg shadow-[#0093E9]/20 transition-all active:scale-95"
+              className="px-5 py-2.5 rounded-xl bg-[#00A3FF] hover:bg-[#0081cc] text-white text-xs font-black uppercase tracking-wider font-condensed flex items-center gap-1.5 shadow-lg shadow-[#00A3FF]/20 transition-all active:scale-95"
             >
               <Check className="w-3.5 h-3.5" />
               <span>{isRtl ? 'حفظ التفضيلات' : 'Save'}</span>
             </button>
           </div>
         </div>
-      </div>
-    </div>
+      </SheetPanel>
+    </SheetBackdrop>
   );
 };

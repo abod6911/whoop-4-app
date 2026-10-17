@@ -3,6 +3,7 @@ import { X, Send, Sparkles, ChevronRight } from 'lucide-react';
 import type { LiveMetrics, UserSettings } from '../types/whoop';
 import { WhoopEmblemIcon } from './WhoopLogo';
 import { useLanguage } from '../i18n/LanguageContext';
+import { SheetBackdrop, SheetPanel } from './motion/Sheet';
 
 interface WhoopCoachChatSheetProps {
   isOpen: boolean;
@@ -36,8 +37,6 @@ export const WhoopCoachChatSheet: React.FC<WhoopCoachChatSheetProps> = ({
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     },
   ]);
-
-  if (!isOpen) return null;
 
   const quickQuestions = isRtl
     ? [
@@ -126,8 +125,8 @@ export const WhoopCoachChatSheet: React.FC<WhoopCoachChatSheetProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="w-full max-w-[430px] bg-[#0B0D10] border-t sm:border border-white/10 rounded-t-[32px] sm:rounded-[32px] h-[85vh] flex flex-col overflow-hidden text-white shadow-2xl">
+    <SheetBackdrop isOpen={isOpen} onClose={onClose}>
+      <SheetPanel onClose={onClose} className="h-[85vh]">
         {/* Header */}
         <div className="p-4 border-b border-white/5 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -218,7 +217,7 @@ export const WhoopCoachChatSheet: React.FC<WhoopCoachChatSheetProps> = ({
             </button>
           </form>
         </div>
-      </div>
-    </div>
+      </SheetPanel>
+    </SheetBackdrop>
   );
 };
