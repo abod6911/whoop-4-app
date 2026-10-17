@@ -13,6 +13,12 @@ import { pedometerEngine } from '../services/pedometerEngine';
 import { sleepEngine } from '../services/sleepEngine';
 import { whoopDb } from '../services/whoopDatabase';
 import { caloriesEngine } from './caloriesEngine';
+import { localDateKey } from './dateKey';
+import {
+  banisterTrimpIncrement,
+  calculateStrainFromTrimp,
+  strainToTrimp,
+} from './strainModel';
 
 export class BiometricEngine {
   private userSettings: UserSettings;
@@ -22,9 +28,20 @@ export class BiometricEngine {
   private maxBufferSize = 300;
   private lastRR: number | null = null;
   private poincarePoints: PoincarePoint[] = [];
+  private consecutiveRejectedRR = 0; // Filter resync counter
 
-  // RSA Respiratory Rate buffer ({ timestamp, rr })
+  // RSA Respiratory Rate buffer ({ timestamp, rr }) with cumulative beat time
   private rsaBuffer: Array<{ timestamp: number; rr: number }> = [];
+  private cumulativeRsaTimeMs = 0;
+
+  // Locked Morning Recovery State for the current day
+  private lockedRecovery: {
+    score: number;
+    category: 'green' | 'yellow' | 'red';
+    morningHrv: number;
+    morningRhr: number;
+  } | null = null;
+  private lastSleepState = false;
 
   // Rolling 5-minute window for true Resting Heart Rate (RHR)
   private rolling5MinSamples: Array<{ timestamp: number; bpm: number }> = [];
@@ -82,8 +99,40 @@ export class BiometricEngine {
 
   // Load real stored state for today (from localStorage)
   private loadTodayRealState(): void {
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = localDateKey();
     caloriesEngine.loadPersistedState(todayStr);
+
+    // Load locked morning recovery if established today
+    try {
+      const lockRaw = localStorage.getItem(`whoop_recovery_lock_${todayStr}`);
+      if (lockRaw) {
+        const parsedLock = JSON.parse(lockRaw);
+        if (parsedLock && typeof parsedLock.lockedRecoveryScore === 'number') {
+          this.lockedRecovery = {
+            score: parsedLock.lockedRecoveryScore,
+            category: parsedLock.recoveryCategory || 'yellow',
+            morningHrv: parsedLock.morningHrv,
+            morningRhr: parsedLock.morningRhr,
+          };
+        }
+      }
+    } catch {}
+
+    // Load rolling skin temp baseline
+    try {
+      const tempMeansRaw = localStorage.getItem('whoop_skin_temp_means');
+      if (tempMeansRaw) {
+        const storedMeans: Record<string, number> = JSON.parse(tempMeansRaw);
+        const pastEntries = Object.entries(storedMeans)
+          .filter(([date]) => date !== todayStr)
+          .sort((a, b) => b[0].localeCompare(a[0]))
+          .slice(0, 14);
+        if (storedMeans[todayStr] && pastEntries.length >= 1) {
+          const baseline = pastEntries.reduce((sum, [, val]) => sum + val, 0) / pastEntries.length;
+          this.skinTempDelta = Number((storedMeans[todayStr] - baseline).toFixed(1));
+        }
+      }
+    } catch {}
 
     let saved = storageService.getRealDayState(todayStr);
     if (!saved) {
@@ -105,7 +154,7 @@ export class BiometricEngine {
 
   // Persist real progress for today
   private persistTodayRealState(): void {
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = localDateKey();
     const currentHrv = this.calculateRMSSD();
     const rhr = this.getRestingHeartRate();
     const sleepMetrics = sleepEngine.getSleepMetrics(this.userSettings, this.dailyStrain);
@@ -113,6 +162,13 @@ export class BiometricEngine {
     const pedo = pedometerEngine.getState();
     const bmrToday = this.getBmrCaloriesElapsedToday();
     const totalCal = Math.round(bmrToday + this.activeCalories);
+    const sleepTimes = sleepEngine.getSleepTimes();
+    const deepHours = sleepMetrics.hoursAsleep
+      ? Number((sleepMetrics.hoursAsleep * (sleepMetrics.stages.deepPercent / 100)).toFixed(2))
+      : null;
+    const remHours = sleepMetrics.hoursAsleep
+      ? Number((sleepMetrics.hoursAsleep * (sleepMetrics.stages.remPercent / 100)).toFixed(2))
+      : null;
 
     // Persist to caloriesEngine
     caloriesEngine.persistState(todayStr);
@@ -126,6 +182,17 @@ export class BiometricEngine {
       recoveryCategory: recovery.category,
       zoneSeconds: this.zoneSeconds,
       stressPoints: this.stressPoints.slice(-120), // keep latest 120 timeline points
+      sleepPerformance: sleepMetrics.sleepPerformance,
+      hoursAsleep: sleepMetrics.hoursAsleep,
+      hoursInBed: sleepMetrics.hoursInBed,
+      sleepNeedHours: sleepMetrics.sleepNeedHours,
+      sleepHours: sleepMetrics.hoursAsleep,
+      sleepNeededHours: sleepMetrics.sleepNeedHours,
+      deepHours,
+      remHours,
+      sleepEfficiency: sleepMetrics.efficiencyPercent,
+      bedtime: sleepTimes.onsetTime,
+      wakeTime: sleepTimes.wakeTime,
     };
 
     storageService.saveRealDayState(todayStr, snapshot);
@@ -160,6 +227,13 @@ export class BiometricEngine {
       hoursAsleep: sleepMetrics.hoursAsleep,
       hoursInBed: sleepMetrics.hoursInBed,
       sleepNeedHours: sleepMetrics.sleepNeedHours,
+      sleepHours: sleepMetrics.hoursAsleep,
+      sleepNeededHours: sleepMetrics.sleepNeedHours,
+      deepHours,
+      remHours,
+      sleepEfficiency: sleepMetrics.efficiencyPercent,
+      bedtime: sleepTimes.onsetTime,
+      wakeTime: sleepTimes.wakeTime,
       stressAvg: this.currentStressScore,
       skinTempDelta: this.skinTempDelta,
       spO2Avg: this.getSpO2NightlyAvg(),
@@ -240,12 +314,23 @@ export class BiometricEngine {
       // 1. Strict physiological range filter: 300ms (200 bpm) to 2000ms (30 bpm)
       if (rr < 300 || rr > 2000) return;
 
-      // 2. Ectopic beat / sudden artifact filter (> 20% jump when buffer has samples)
-      if (this.rrBuffer.length >= 3) {
-        const last = this.rrBuffer[this.rrBuffer.length - 1];
-        const diffRatio = Math.abs(rr - last) / last;
+      // 2. Compare against median of last 5 accepted beats (20% threshold)
+      if (this.rrBuffer.length >= 5) {
+        const last5 = this.rrBuffer.slice(-5);
+        const sorted5 = [...last5].sort((a, b) => a - b);
+        const median = sorted5[2];
+        const diffRatio = Math.abs(rr - median) / median;
+
         if (diffRatio > 0.20) {
-          return; // discard ectopic anomaly
+          this.consecutiveRejectedRR++;
+          if (this.consecutiveRejectedRR >= 5) {
+            // Resync to genuine physiological heart rate shift
+            this.consecutiveRejectedRR = 0;
+          } else {
+            return; // Discard ectopic anomaly
+          }
+        } else {
+          this.consecutiveRejectedRR = 0;
         }
       }
 
@@ -261,19 +346,26 @@ export class BiometricEngine {
         this.rrBuffer.shift();
       }
 
-      // RSA Respiratory rate buffer
-      this.rsaBuffer.push({ timestamp: now, rr });
+      // RSA Respiratory rate buffer using true cumulative beat intervals (t += rr)
+      if (this.cumulativeRsaTimeMs === 0) {
+        this.cumulativeRsaTimeMs = now;
+      }
+      this.cumulativeRsaTimeMs += rr;
+      this.rsaBuffer.push({ timestamp: this.cumulativeRsaTimeMs, rr });
     });
 
     // Prune RSA buffer older than 60 seconds
-    const cutoff = now - 60000;
-    this.rsaBuffer = this.rsaBuffer.filter((pt) => pt.timestamp >= cutoff);
+    if (this.cumulativeRsaTimeMs > 0) {
+      const cutoff = this.cumulativeRsaTimeMs - 60000;
+      this.rsaBuffer = this.rsaBuffer.filter((pt) => pt.timestamp >= cutoff);
+    }
   }
 
-  // --- Real HRV Calculations (RMSSD & SDNN) ---
+  // --- Real HRV Calculations (RMSSD & SDNN: Minimum 30 Clean Beats Required) ---
   public calculateRMSSD(): number | null {
+    const MIN_BEATS_HRV = 30;
     const n = this.rrBuffer.length;
-    if (n < 2) return null; // Calibrating
+    if (n < MIN_BEATS_HRV) return null; // Calibrating until 30 clean beats
 
     let sumDiffSq = 0;
     for (let i = 0; i < n - 1; i++) {
@@ -286,8 +378,9 @@ export class BiometricEngine {
   }
 
   public calculateSDNN(): number | null {
+    const MIN_BEATS_HRV = 30;
     const n = this.rrBuffer.length;
-    if (n < 2) return null;
+    if (n < MIN_BEATS_HRV) return null;
 
     const mean = this.rrBuffer.reduce((a, b) => a + b, 0) / n;
     const variance = this.rrBuffer.reduce((acc, val) => acc + Math.pow(val - mean, 2), 0) / (n - 1);
@@ -356,33 +449,88 @@ export class BiometricEngine {
     return Math.round(si);
   }
 
-  // --- Real Respiratory Rate via Respiratory Sinus Arrhythmia (RSA) ---
+  // --- Real Respiratory Rate via Spectral RSA (4 Hz Resampling + Hann Window + Fourier Power) ---
   public calculateRespiratoryRate(): number | null {
     const n = this.rsaBuffer.length;
-    if (n < 15) return null; // Calibrating
+    if (n < 30) return null; // Calibrating
 
-    const timeSpanSec = (this.rsaBuffer[n - 1].timestamp - this.rsaBuffer[0].timestamp) / 1000;
-    if (timeSpanSec < 25) return null; // Need at least 25-30s clean window
+    const tStart = this.rsaBuffer[0].timestamp;
+    const tEnd = this.rsaBuffer[n - 1].timestamp;
+    const timeSpanSec = (tEnd - tStart) / 1000.0;
+    if (timeSpanSec < 30.0) return null; // Need at least 30s window
 
-    // Moving average smoothing (window = 3)
-    const smoothed: number[] = [];
-    for (let i = 1; i < n - 1; i++) {
-      smoothed.push((this.rsaBuffer[i - 1].rr + this.rsaBuffer[i].rr + this.rsaBuffer[i + 1].rr) / 3);
-    }
+    // 1. Resample to uniform 4 Hz grid (dt = 0.25s)
+    const fs = 4.0;
+    const dt = 1.0 / fs;
+    const numGridPoints = Math.floor(timeSpanSec * fs);
+    if (numGridPoints < 64) return null;
 
-    // Detect modulation peak-to-trough cycles
-    let peaks = 0;
-    for (let i = 1; i < smoothed.length - 1; i++) {
-      if (smoothed[i] > smoothed[i - 1] && smoothed[i] > smoothed[i + 1]) {
-        peaks++;
+    const resampled: number[] = new Array(numGridPoints);
+    let bufferIdx = 0;
+
+    for (let i = 0; i < numGridPoints; i++) {
+      const t = tStart + i * 250.0;
+      while (bufferIdx < n - 1 && this.rsaBuffer[bufferIdx + 1].timestamp < t) {
+        bufferIdx++;
+      }
+      if (bufferIdx >= n - 1) {
+        resampled[i] = this.rsaBuffer[n - 1].rr;
+      } else {
+        const t0 = this.rsaBuffer[bufferIdx].timestamp;
+        const t1 = this.rsaBuffer[bufferIdx + 1].timestamp;
+        const rr0 = this.rsaBuffer[bufferIdx].rr;
+        const rr1 = this.rsaBuffer[bufferIdx + 1].rr;
+        const frac = t1 > t0 ? (t - t0) / (t1 - t0) : 0;
+        resampled[i] = rr0 + frac * (rr1 - rr0);
       }
     }
 
-    if (peaks < 2) return null;
+    // 2. Detrend (zero-mean) & Apply Hann window
+    const meanVal = resampled.reduce((sum, v) => sum + v, 0) / numGridPoints;
+    const windowed: number[] = new Array(numGridPoints);
+    for (let i = 0; i < numGridPoints; i++) {
+      const w = 0.5 * (1 - Math.cos((2 * Math.PI * i) / (numGridPoints - 1)));
+      windowed[i] = (resampled[i] - meanVal) * w;
+    }
 
-    const rpm = (peaks * 60) / timeSpanSec;
-    // Clamp to realistic physiological human respiratory range
-    return Number(Math.min(24.0, Math.max(10.0, rpm)).toFixed(1));
+    // 3. Discrete Fourier Power across 0.167 Hz (10 rpm) to 0.40 Hz (24 rpm)
+    const minFreq = 0.167;
+    const maxFreq = 0.40;
+    const freqStep = 0.005;
+    let maxPower = 0;
+    let bestFreq = 0;
+    let totalPower = 0;
+    let evalCount = 0;
+
+    for (let freq = minFreq; freq <= maxFreq; freq += freqStep) {
+      let real = 0;
+      let imag = 0;
+      const omega = 2 * Math.PI * freq;
+      for (let i = 0; i < numGridPoints; i++) {
+        const timeSec = i * dt;
+        real += windowed[i] * Math.cos(omega * timeSec);
+        imag -= windowed[i] * Math.sin(omega * timeSec);
+      }
+      const power = real * real + imag * imag;
+      totalPower += power;
+      evalCount++;
+
+      if (power > maxPower) {
+        maxPower = power;
+        bestFreq = freq;
+      }
+    }
+
+    if (evalCount === 0 || maxPower <= 0) return null;
+    const meanPower = totalPower / evalCount;
+
+    // Strict spectral peak requirement: bestP >= 2.5 * meanPower (otherwise return null)
+    if (maxPower < 2.5 * meanPower) {
+      return null;
+    }
+
+    const rpm = bestFreq * 60.0;
+    return Number(rpm.toFixed(1));
   }
 
   // --- Real Autonomic Stress Score (0.0 to 3.0 Scale) ---
@@ -440,9 +588,32 @@ export class BiometricEngine {
     this.skinTempReadings.push(this.skinTempCelsius);
     if (this.skinTempReadings.length > 500) this.skinTempReadings.shift();
 
-    const baseline = 33.5; // WHOOP skin temperature baseline reference
-    const mean = this.skinTempReadings.reduce((a, b) => a + b, 0) / this.skinTempReadings.length;
-    this.skinTempDelta = Number((mean - baseline).toFixed(1));
+    const todayStr = localDateKey();
+    const todayMean = Number((this.skinTempReadings.reduce((a, b) => a + b, 0) / this.skinTempReadings.length).toFixed(2));
+
+    try {
+      let storedMeans: Record<string, number> = {};
+      const raw = localStorage.getItem('whoop_skin_temp_means');
+      if (raw) storedMeans = JSON.parse(raw);
+      storedMeans[todayStr] = todayMean;
+      localStorage.setItem('whoop_skin_temp_means', JSON.stringify(storedMeans));
+
+      // Compute rolling 14-day personal baseline from previous recorded days
+      const pastEntries = Object.entries(storedMeans)
+        .filter(([date]) => date !== todayStr)
+        .sort((a, b) => b[0].localeCompare(a[0]))
+        .slice(0, 14);
+
+      if (pastEntries.length >= 1) {
+        const baseline = pastEntries.reduce((sum, [, val]) => sum + val, 0) / pastEntries.length;
+        this.skinTempDelta = Number((todayMean - baseline).toFixed(1));
+      } else {
+        // Calibrating first baseline
+        this.skinTempDelta = null;
+      }
+    } catch {
+      this.skinTempDelta = null;
+    }
   }
 
   public ingestSpO2(percent: number): void {
@@ -470,19 +641,13 @@ export class BiometricEngine {
     return { current: this.spO2, nightlyAvg: this.getSpO2NightlyAvg(), dips: this.spO2DipsCount };
   }
 
-  // --- Real Day Strain (0.0 to 21.0 Logarithmic Scale) ---
+  // --- Real Day Strain (0.0 to 21.0 Logarithmic Scale via Banister TRIMP) ---
   public calculateStrainFromTrimp(trimp: number): number {
-    if (trimp <= 0) return 0;
-    const tau = 70.0;
-    const rawStrain = 21.0 * (1 - Math.exp(-trimp / tau));
-    return Number(Math.min(21.0, Math.max(0, rawStrain)).toFixed(1));
+    return calculateStrainFromTrimp(trimp);
   }
 
   private strainToTrimp(strain: number): number {
-    if (strain <= 0) return 0;
-    if (strain >= 21) return 500;
-    const ratio = 1 - strain / 21.0;
-    return -70.0 * Math.log(Math.max(0.001, ratio));
+    return strainToTrimp(strain);
   }
 
   // --- True Resting Heart Rate (lowest rolling 5-min avg) ---
@@ -497,6 +662,11 @@ export class BiometricEngine {
     currentResp: number | null = null,
     sleepPerformance: number | null = null
   ): { score: number | null; category: 'green' | 'yellow' | 'red' | 'calibrating' } {
+    // If morning recovery is locked for today, return the locked readiness score
+    if (this.lockedRecovery) {
+      return { score: this.lockedRecovery.score, category: this.lockedRecovery.category };
+    }
+
     if (currentHrv === null || currentRhr === null) {
       return { score: null, category: 'calibrating' };
     }
@@ -526,6 +696,29 @@ export class BiometricEngine {
     return { score, category };
   }
 
+  // --- Lock Morning Recovery for Calendar Day ---
+  public lockRecoveryForToday(
+    score: number,
+    category: 'green' | 'yellow' | 'red',
+    morningHrv: number,
+    morningRhr: number
+  ): void {
+    const todayStr = localDateKey();
+    this.lockedRecovery = { score, category, morningHrv, morningRhr };
+    try {
+      localStorage.setItem(
+        `whoop_recovery_lock_${todayStr}`,
+        JSON.stringify({
+          lockedRecoveryScore: score,
+          recoveryCategory: category,
+          morningHrv,
+          morningRhr,
+          lockedAt: Date.now(),
+        })
+      );
+    } catch {}
+  }
+
   // --- Apply Manual Morning Recovery Assessment from 3-Min Resonant Protocol ---
   public applyManualRecoveryAssessment(
     score: number,
@@ -534,12 +727,14 @@ export class BiometricEngine {
     hrv: number
   ): void {
     this.realRhrObserved = rhr;
+    this.lockRecoveryForToday(score, category, hrv, rhr);
+
     // Preload representative RR interval from HRV & RHR into buffer
     const rrEstimate = Math.round(60000.0 / rhr);
     if (this.rrBuffer.length === 0) {
       this.rrBuffer = [rrEstimate, rrEstimate + hrv, rrEstimate - hrv, rrEstimate];
     }
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = localDateKey();
     const saved = storageService.getRealDayState(todayStr) || {
       dayStrain: this.dailyStrain,
       activeCalories: this.activeCalories,
@@ -616,10 +811,13 @@ export class BiometricEngine {
     const isBandOnWrist = onWrist !== false && bpm >= 30 && bpm <= 240;
     this.lastBpm = isBandOnWrist ? bpm : 0;
     this.lastWristStatus = onWrist;
+
+    // Actual elapsed time clamped between 0 and 10 seconds
+    const dtSec = Math.min(10, Math.max(0, (timestamp - this.lastTimestamp) / 1000));
     this.lastTimestamp = timestamp;
 
-    // 1. Process RR intervals only when band is on-wrist
-    if (isBandOnWrist && rrIntervals && rrIntervals.length > 0) {
+    // 1. Process RR intervals only when band is on-wrist (strictly hardware 16-bit BLE RR)
+    if (isBandOnWrist && rrIntervals && rrIntervals.length > 0 && !measurement.isDerivedRR) {
       this.ingestRRIntervals(rrIntervals);
     }
 
@@ -644,19 +842,20 @@ export class BiometricEngine {
         }
       }
 
-      // Zone & Strain Accumulation
+      // Zone & Banister TRIMP Strain Accumulation using actual elapsed time dtSec
       const zone = this.determineZone(bpm);
-      this.zoneSeconds[zone] = (this.zoneSeconds[zone] || 0) + 1;
+      const effectiveDt = dtSec > 0 ? dtSec : 1;
+      this.zoneSeconds[zone] = (this.zoneSeconds[zone] || 0) + Math.round(effectiveDt);
 
-      if (zone >= 1) {
-        const zoneWeights: Record<number, number> = { 1: 1.0, 2: 2.0, 3: 3.5, 4: 5.5, 5: 9.0 };
-        const weight = zoneWeights[zone] || 1.0;
-        this.trimpAccumulator += weight / 60.0;
-        this.dailyStrain = this.calculateStrainFromTrimp(this.trimpAccumulator);
-      }
+      const rhr = this.getRestingHeartRate() || this.userSettings.restingHrBaseline;
+      const maxHr = this.userSettings.maxHr || (220 - this.userSettings.age);
+      const isFemale = this.userSettings.gender === 'female';
+      const trimpInc = banisterTrimpIncrement(bpm, rhr, maxHr, isFemale, effectiveDt);
+      this.trimpAccumulator += trimpInc;
+      this.dailyStrain = this.calculateStrainFromTrimp(this.trimpAccumulator);
 
-      // Calories Accumulation
-      this.activeCalories += this.calculateCaloriesPerSecond(bpm);
+      // Net Active Calories Accumulation
+      this.activeCalories += this.calculateCaloriesPerSecond(bpm) * effectiveDt;
 
       // Ingest into Pedometer Activity-Cadence Model
       pedometerEngine.ingestHeartRate(bpm, zone, timestamp, true);
@@ -672,6 +871,21 @@ export class BiometricEngine {
     const motionIntensity = isBandOnWrist ? Math.min(1.0, pedoCurrent.cadence / 160.0) : 0;
     sleepEngine.ingestSample(isBandOnWrist ? bpm : 0, currentHrv, onWrist, rhr || this.userSettings.restingHrBaseline, timestamp, motionIntensity);
     const sleepMetrics = sleepEngine.getSleepMetrics(this.userSettings, this.dailyStrain);
+
+    // Automatic Morning Recovery Locking upon sleep session completion
+    const isSleepingNow = sleepEngine.getIsSleeping();
+    if (this.lastSleepState && !isSleepingNow && !this.lockedRecovery) {
+      const rec = this.calculateRecovery(currentHrv, rhr, this.calculateRespiratoryRate(), sleepMetrics.sleepPerformance);
+      if (rec.score !== null) {
+        this.lockRecoveryForToday(
+          rec.score,
+          rec.category as 'green' | 'yellow' | 'red',
+          currentHrv || this.userSettings.hrvBaseline,
+          rhr || this.userSettings.restingHrBaseline
+        );
+      }
+    }
+    this.lastSleepState = isSleepingNow;
 
     // 4. Compute Metrics
     const sdnn = this.calculateSDNN();
@@ -777,7 +991,7 @@ export class BiometricEngine {
 
   // --- Real Disconnected / Initial State (Zero Fake Numbers) ---
   public getInitialDisconnectedMetrics(): LiveMetrics {
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = localDateKey();
     const saved = storageService.getRealDayState(todayStr);
     const pedo = pedometerEngine.getState();
     const bmrToday = this.getBmrCaloriesElapsedToday();
@@ -854,7 +1068,9 @@ export class BiometricEngine {
     let totalCals = 0;
     let sessionTrimp = 0;
     const sessionZones: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-    const zoneWeights: Record<number, number> = { 1: 1.0, 2: 2.0, 3: 3.5, 4: 5.5, 5: 9.0 };
+    const isFemale = this.userSettings.gender === 'female';
+    const rhr = this.getRestingHeartRate() || this.userSettings.restingHrBaseline;
+    const maxHrUser = this.userSettings.maxHr || (220 - this.userSettings.age);
 
     samples.forEach((s) => {
       if (s.hr < minHr) minHr = s.hr;
@@ -866,7 +1082,7 @@ export class BiometricEngine {
       const z = this.determineZone(s.hr);
       if (z >= 1) {
         sessionZones[z] = (sessionZones[z] || 0) + 1;
-        sessionTrimp += (zoneWeights[z] || 1) / 60.0;
+        sessionTrimp += banisterTrimpIncrement(s.hr, rhr, maxHrUser, isFemale, 1);
       }
     });
 
@@ -902,12 +1118,14 @@ export class BiometricEngine {
     this.rolling5MinSamples = [];
     this.stressPoints = [];
     this.skinTempReadings = [];
+    this.lockedRecovery = null;
     caloriesEngine.resetDay();
 
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = localDateKey();
     storageService.clearRealDayState(todayStr);
     try {
       localStorage.removeItem(`whoop_day_${todayStr}`);
+      localStorage.removeItem(`whoop_recovery_lock_${todayStr}`);
     } catch {}
   }
 }

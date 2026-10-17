@@ -1,4 +1,5 @@
 import type { SleepMetrics, SleepStagePoint, SleepNeedBreakdown, UserSettings } from '../types/whoop';
+import { localDateKey } from '../utils/dateKey';
 
 export interface SleepSample {
   timestamp: number;
@@ -18,11 +19,11 @@ export class SleepEngine {
   private sleepOnsetTimestamp: number | null = null;
   private wakeTimestamp: number | null = null;
 
-  // Real Classified Timeline (Hypnogram: 30s epoch records)
+  // Real Classified Timeline (Hypnogram: 30s epoch records, up to 1500 epochs = 12.5h)
   private timeline: SleepStagePoint[] = [];
 
-  // Sleep Need & Debt
-  private accumulatedDebtHours = 0.65; // ~39 mins rolling debt
+  // Sleep Need & Debt (No fake hardcoded debt)
+  private accumulatedDebtHours = 0;
 
   constructor() {
     this.loadState();
@@ -30,7 +31,7 @@ export class SleepEngine {
 
   private loadState(): void {
     try {
-      const today = new Date().toISOString().split('T')[0];
+      const today = localDateKey();
       const saved = localStorage.getItem(`whoop_sleep_session_${today}`);
       if (saved) {
         const parsed = JSON.parse(saved);
@@ -47,13 +48,13 @@ export class SleepEngine {
 
   private persistState(): void {
     try {
-      const today = new Date().toISOString().split('T')[0];
+      const today = localDateKey();
       localStorage.setItem(
         `whoop_sleep_session_${today}`,
         JSON.stringify({
           onset: this.sleepOnsetTimestamp,
           wake: this.wakeTimestamp,
-          timeline: this.timeline.slice(-600), // Keep up to 5 hours of 30s epochs
+          timeline: this.timeline.slice(-1500), // Keep up to 12.5 hours of 30s epochs
           isSleeping: this.isSleeping,
           updatedAt: Date.now(),
         })
@@ -83,21 +84,24 @@ export class SleepEngine {
 
     const sample: SleepSample = { timestamp, bpm, rmssd, onWrist, motionIntensity };
     this.samples.push(sample);
-    if (this.samples.length > 300) this.samples.shift();
+    // Keep up to 20 minutes of samples for rolling window checks
+    if (this.samples.length > 1200) this.samples.shift();
 
-    // 1. Automatic Sleep Onset Detection
-    // Condition: Heart rate sustained below RHR + 6 bpm for at least 10 consecutive samples with low motion
+    // 1. Automatic Sleep Onset Detection: 10 full minutes (600,000 ms) sustained low HR & low motion
     const sleepThreshold = rhrBaseline + 6;
-    if (!this.isSleeping && this.samples.length >= 10) {
-      const recent = this.samples.slice(-10);
-      const allLowHr = recent.every((s) => s.bpm <= sleepThreshold);
-      const allLowMotion = recent.every((s) => (s.motionIntensity || 0) < 0.12);
-      if (allLowHr && allLowMotion) {
-        this.isSleeping = true;
-        this.sleepOnsetTimestamp = recent[0].timestamp;
-        this.wakeTimestamp = null;
-        this.currentEpochStart = timestamp;
-        this.currentEpochSamples = [];
+    if (!this.isSleeping) {
+      const window10m = this.samples.filter((s) => s.timestamp >= timestamp - 600000);
+      const spans10m = window10m.length >= 20 && (timestamp - window10m[0].timestamp) >= 590000;
+      if (spans10m) {
+        const allLowHr = window10m.every((s) => s.bpm <= sleepThreshold);
+        const allLowMotion = window10m.every((s) => (s.motionIntensity || 0) < 0.12);
+        if (allLowHr && allLowMotion) {
+          this.isSleeping = true;
+          this.sleepOnsetTimestamp = window10m[0].timestamp;
+          this.wakeTimestamp = null;
+          this.currentEpochStart = timestamp;
+          this.currentEpochSamples = [];
+        }
       }
     }
 
@@ -116,10 +120,11 @@ export class SleepEngine {
         this.currentEpochSamples = [];
       }
 
-      // Automatic Wake Detection (HR elevated above RHR + 18 for > 3 minutes with continuous movement)
-      if (this.samples.length >= 20) {
-        const recentWakeCheck = this.samples.slice(-20);
-        const allElevated = recentWakeCheck.every((s) => s.bpm > rhrBaseline + 16);
+      // Automatic Wake Detection: 3 full minutes (180,000 ms) of sustained elevated HR
+      const window3m = this.samples.filter((s) => s.timestamp >= timestamp - 180000);
+      const spans3m = window3m.length >= 10 && (timestamp - window3m[0].timestamp) >= 175000;
+      if (spans3m) {
+        const allElevated = window3m.every((s) => s.bpm > rhrBaseline + 10 || (s.motionIntensity || 0) > 0.18);
         if (allElevated) {
           this.isSleeping = false;
           this.wakeTimestamp = timestamp;
@@ -136,66 +141,64 @@ export class SleepEngine {
     if (this.currentEpochSamples.length === 0) return;
 
     const count = this.currentEpochSamples.length;
-    const avgHr = Math.round(
-      this.currentEpochSamples.reduce((sum, s) => sum + s.bpm, 0) / count
-    );
-    const validRmssd = this.currentEpochSamples.filter((s) => s.rmssd !== null);
+    const hrMean = this.currentEpochSamples.reduce((sum, s) => sum + s.bpm, 0) / count;
+    const hrVariance = this.currentEpochSamples.reduce((sum, s) => sum + Math.pow(s.bpm - hrMean, 2), 0) / count;
+    const hrStd = Math.sqrt(hrVariance);
+
+    const validRmssd = this.currentEpochSamples.filter((s) => s.rmssd !== null && (s.rmssd ?? 0) > 0);
     const avgRmssd =
       validRmssd.length > 0
         ? Math.round(validRmssd.reduce((sum, s) => sum + (s.rmssd || 0), 0) / validRmssd.length)
         : null;
 
+    let rmssdVariance = 0;
+    if (validRmssd.length >= 2 && avgRmssd !== null) {
+      rmssdVariance =
+        validRmssd.reduce((acc, s) => acc + Math.pow((s.rmssd || 0) - avgRmssd, 2), 0) /
+        validRmssd.length;
+    }
+    const rmssdStdDev = Math.sqrt(rmssdVariance);
+
     const maxMotion = Math.max(
       ...this.currentEpochSamples.map((s) => s.motionIntensity || 0)
     );
 
-    // Calculate HRV volatility (standard deviation of RMSSD across the 30s epoch)
-    let rmssdStdDev = 0;
-    if (validRmssd.length >= 2 && avgRmssd !== null) {
-      const variance =
-        validRmssd.reduce((acc, s) => acc + Math.pow((s.rmssd || 0) - avgRmssd, 2), 0) /
-        validRmssd.length;
-      rmssdStdDev = Math.sqrt(variance);
-    }
-
-    const stage = this.evaluateEpochStage(avgHr, avgRmssd, rmssdStdDev, maxMotion, rhrBaseline);
-    this.recordEpochStage(this.currentEpochStart, stage, avgHr);
+    const stage = this.evaluateEpochStage(hrMean, hrStd, avgRmssd, rmssdStdDev, maxMotion, rhrBaseline);
+    this.recordEpochStage(this.currentEpochStart, stage, Math.round(hrMean));
   }
 
   // --- Dynamic 30s Epoch Stage Classifier (Slow-Wave SWS, REM, Light, Awake) ---
   private evaluateEpochStage(
-    avgHr: number,
-    avgRmssd: number | null,
+    hrMean: number,
+    hrStd: number,
+    _avgRmssd: number | null,
     rmssdStdDev: number,
     motion: number,
-    rhrBaseline: number
+    rhrRef: number
   ): 'awake' | 'light' | 'deep' | 'rem' {
-    const diffFromRhr = avgHr - rhrBaseline;
-
-    // A. Awake: High body motion or HR spikes > 14 bpm above RHR
-    if (motion > 0.18 || diffFromRhr > 14) {
+    // 1. Awake: motion above threshold OR HR > rhrRef + 10
+    if (motion > 0.15 || hrMean > rhrRef + 10) {
       return 'awake';
     }
 
-    // B. Deep / SWS (Slow-Wave Sleep):
-    // Lowest sustained HR (diff from RHR <= 2 bpm), steady low HRV volatility, zero motion (< 0.05)
-    if (diffFromRhr <= 2 && motion < 0.06 && rmssdStdDev < 15) {
+    // 2. Deep / SWS (Slow-Wave Sleep): very low motion, HR <= rhrRef - 3, and low HR variability/volatility
+    if (motion < 0.05 && hrMean <= rhrRef - 3 && hrStd <= 2.2) {
       return 'deep';
     }
 
-    // C. REM Sleep:
-    // Muscle atonia (near zero motion < 0.06), but erratic HR (3 to 10 bpm above RHR) and high autonomic volatility (rmssdStdDev >= 12 or high RMSSD)
-    if (motion < 0.06 && diffFromRhr >= 3 && diffFromRhr <= 11 && (rmssdStdDev >= 12 || (avgRmssd !== null && avgRmssd >= 65))) {
+    // 3. REM Sleep: near-zero motion (muscle atonia), high HR fluctuation/volatility (hrStd > 2.2 or fluctuating RMSSD), and HR near rhrRef
+    const nearRhr = hrMean >= rhrRef - 3 && hrMean <= rhrRef + 8;
+    if (motion < 0.05 && nearRhr && (hrStd > 2.2 || rmssdStdDev >= 8)) {
       return 'rem';
     }
 
-    // D. Light Sleep: Intermediate steady restorative baseline
+    // 4. Light Sleep: all intermediate sleep epochs
     return 'light';
   }
 
   private recordEpochStage(timestamp: number, stage: 'awake' | 'light' | 'deep' | 'rem', hr: number): void {
     this.timeline.push({ timestamp, stage, hr });
-    if (this.timeline.length > 800) {
+    if (this.timeline.length > 1500) {
       this.timeline.shift();
     }
   }

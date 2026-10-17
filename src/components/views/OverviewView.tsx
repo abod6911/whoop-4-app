@@ -114,8 +114,26 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
     }
   }
 
-  // Active health metrics count
+  // Active health metrics count & dynamic status
   const activeHealthCount = healthMetrics.filter((m) => m.value !== null).length;
+  const anyAlertHealth = healthMetrics.some((m) => m.status === 'alert');
+  const allCalibratingHealth = healthMetrics.every((m) => m.status === 'calibrating');
+  const healthStatusText = anyAlertHealth
+    ? (isRtl ? 'خارج النطاق' : 'Outside Range')
+    : allCalibratingHealth
+    ? t('calibrating')
+    : t('withinRange');
+  const healthBadgeStyle = anyAlertHealth
+    ? 'bg-[#351515] text-[#FF453A] border-[#FF453A]/30'
+    : allCalibratingHealth
+    ? 'bg-[#16191E] text-zinc-400 border-white/5'
+    : 'bg-[#0D3528] text-[#16EC06] border-[#16EC06]/30';
+  const healthStatusColor = anyAlertHealth
+    ? 'text-[#FF453A]'
+    : allCalibratingHealth
+    ? 'text-zinc-400'
+    : 'text-[#16EC06]';
+  const healthBadgeIcon = anyAlertHealth ? '!' : allCalibratingHealth ? '⋯' : '✓';
 
   // 7-Day Strain & Recovery Dual-Axis Chart Data derived from real records (Zero Fake Data)
   const dualAxisData = (daysHistory || []).slice(0, 7).reverse().map((d) => {
@@ -152,7 +170,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
       <div className="rounded-[24px] bg-[#12151A] border border-[#6366F1]/30 p-4 relative overflow-hidden shadow-lg shadow-[#6366F1]/5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-black uppercase tracking-wider font-condensed text-white">
+            <span className="text-xs font-black tracking-wider font-condensed text-white">
               {isRtl ? 'نظرتك اليومية' : 'Your Daily Outlook'}
             </span>
           </div>
@@ -212,12 +230,12 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-[#0D3528] text-[#16EC06] flex items-center justify-center font-bold text-xs border border-[#16EC06]/30">
-              ✓
+            <div className={`w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs border ${healthBadgeStyle}`}>
+              {healthBadgeIcon}
             </div>
             <div>
-              <div className="text-xs font-black text-[#16EC06] font-condensed uppercase tracking-wide">
-                {t('withinRange')}
+              <div className={`text-xs font-black font-condensed uppercase tracking-wide ${healthStatusColor}`}>
+                {healthStatusText}
               </div>
               <div className="text-[10px] text-zinc-400 font-mono">
                 {activeHealthCount > 0 ? `${activeHealthCount}/5 ${isRtl ? 'مؤشرات' : 'Metrics'}` : t('calibrating')}
@@ -439,42 +457,74 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
 
         {/* Metric Row 1: HEART RATE VARIABILITY */}
         {dashboardPrefs.hrv && (
-          <div className="p-4 rounded-[22px] bg-[#12151A] border border-white/5 flex items-center justify-between">
-            <div>
-              <div className="text-xs font-black uppercase tracking-wider text-zinc-400 font-condensed">
-                {t('hrvFull')}
+          <div className="w-full p-4 rounded-[22px] bg-[#12151A] border border-white/5 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-white/[0.04] flex items-center justify-center text-[#8A94A6]">
+                <Activity className="w-5 h-5 stroke-[1.8]" />
               </div>
-              <div className="flex items-baseline gap-2 mt-0.5">
-                <span className="text-3xl font-black font-condensed text-white tabular-nums">
+              <div>
+                <div className="text-xs font-black uppercase tracking-wider text-zinc-300 font-condensed">
+                  {t('hrvFull')}
+                </div>
+                <div className="text-[10px] text-zinc-500 font-mono">
+                  {t('baseline')}: {settings.hrvBaseline} ms
+                </div>
+              </div>
+            </div>
+
+            <div className="text-end">
+              <div className="flex items-baseline justify-end gap-1">
+                <span className="text-2xl font-black font-condensed text-white tabular-nums">
                   {metrics.currentHrv !== null ? metrics.currentHrv : '--'}
                 </span>
                 <span className="text-xs text-zinc-400 font-sans">ms</span>
               </div>
-              <div className="text-[10px] text-zinc-500 font-mono mt-0.5">
-                {t('baseline')}: {settings.hrvBaseline} ms
-              </div>
+              {metrics.currentHrv !== null && settings.hrvBaseline ? (
+                <div
+                  className={`text-[10px] font-mono font-bold ${
+                    metrics.currentHrv >= settings.hrvBaseline ? 'text-[#16EC06]' : 'text-[#FF453A]'
+                  }`}
+                  dir="ltr"
+                >
+                  {metrics.currentHrv >= settings.hrvBaseline ? '+' : ''}
+                  {metrics.currentHrv - settings.hrvBaseline} ms
+                </div>
+              ) : (
+                <div className="text-[10px] text-zinc-500 font-mono">--</div>
+              )}
             </div>
-            <ChevronRight className={`w-4 h-4 text-zinc-600 ${isRtl ? 'rotate-180' : ''}`} />
           </div>
         )}
 
         {/* Metric Row 2: SLEEP PERFORMANCE */}
         {dashboardPrefs.sleep && (
-          <div className="p-4 rounded-[22px] bg-[#12151A] border border-white/5 flex items-center justify-between">
-            <div>
-              <div className="text-xs font-black uppercase tracking-wider text-zinc-400 font-condensed">
-                {t('sleepPerformance')}
+          <div className="w-full p-4 rounded-[22px] bg-[#12151A] border border-white/5 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-white/[0.04] flex items-center justify-center text-[#8A94A6]">
+                <Moon className="w-5 h-5 stroke-[1.8]" />
               </div>
-              <div className="flex items-baseline gap-2 mt-0.5">
-                <span className="text-3xl font-black font-condensed text-white tabular-nums">
-                  {metrics.sleepPerformance !== null ? `${metrics.sleepPerformance}%` : '--'}
-                </span>
-              </div>
-              <div className="text-[10px] text-zinc-500 font-mono mt-0.5">
-                {t('target')}: {settings.sleepNeedHours}h • {t('sleepNeed')}
+              <div>
+                <div className="text-xs font-black uppercase tracking-wider text-zinc-300 font-condensed">
+                  {t('sleepPerformance')}
+                </div>
+                <div className="text-[10px] text-zinc-500 font-mono">
+                  {t('target')}: {settings.sleepNeedHours}h • {t('sleepNeed')}
+                </div>
               </div>
             </div>
-            <ChevronRight className={`w-4 h-4 text-zinc-600 ${isRtl ? 'rotate-180' : ''}`} />
+
+            <div className="text-end">
+              <div className="text-2xl font-black font-condensed text-white tabular-nums">
+                {metrics.sleepPerformance !== null ? `${metrics.sleepPerformance}%` : '--'}
+              </div>
+              {metrics.hoursAsleep !== null && metrics.hoursAsleep !== undefined ? (
+                <div className="text-[10px] text-zinc-400 font-mono" dir="ltr">
+                  {metrics.hoursAsleep.toFixed(1)}h / {settings.sleepNeedHours}h
+                </div>
+              ) : (
+                <div className="text-[10px] text-zinc-500 font-mono">--</div>
+              )}
+            </div>
           </div>
         )}
 
@@ -486,7 +536,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
           >
             <div className="flex items-center justify-between text-xs font-black uppercase tracking-wider font-condensed text-white">
               <div className="flex items-center gap-1.5">
-                <Moon className="w-3.5 h-3.5 text-[#7293B2]" />
+                <Activity className="w-3.5 h-3.5 text-[#00F0FF]" />
                 <span>{t('stressMonitor')}</span>
               </div>
               <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full border ${stressBadgeColor}`}>

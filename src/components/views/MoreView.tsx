@@ -22,6 +22,7 @@ import {
 import { whoopBleEngine } from '../../services/whoopBleEngine';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { whoopDb } from '../../services/whoopDatabase';
+import { localDateKey } from '../../utils/dateKey';
 
 interface MoreViewProps {
   settings: UserSettings;
@@ -111,20 +112,20 @@ export const MoreView: React.FC<MoreViewProps> = ({
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `whoop-history-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.download = `whoop-history-${localDateKey()}.csv`;
       a.click();
       URL.revokeObjectURL(url);
     } catch {
       const days = storageService.getDaysHistory();
-      let csv = 'Date,Label,DayStrain,RecoveryScore,RecoveryCategory,RHR_BPM,HRV_RMSSD_ms,Calories\n';
+      let csv = 'Date,Label,DayStrain,RecoveryScore,RecoveryCategory,RHR_BPM,HRV_RMSSD_ms,Calories,SleepHours,SleepNeededHours,DeepHours,RemHours,SleepEfficiency,Bedtime,WakeTime\n';
       days.forEach((d) => {
-        csv += `${d.date},${d.label},${d.dayStrain},${d.recoveryScore || ''},${d.recoveryCategory},${d.rhr || ''},${d.hrv || ''},${d.activeCalories}\n`;
+        csv += `${d.date},${d.label},${d.dayStrain},${d.recoveryScore ?? ''},${d.recoveryCategory},${d.rhr ?? ''},${d.hrv ?? ''},${d.activeCalories},${d.hoursAsleep ?? d.sleepHours ?? ''},${d.sleepNeedHours ?? d.sleepNeededHours ?? ''},${d.deepHours ?? ''},${d.remHours ?? ''},${d.sleepEfficiency ?? ''},${d.bedtime ?? ''},${d.wakeTime ?? ''}\n`;
       });
       const blob = new Blob([csv], { type: 'text/csv' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `whoop-history-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.download = `whoop-history-${localDateKey()}.csv`;
       a.click();
       URL.revokeObjectURL(url);
     }
@@ -156,6 +157,13 @@ export const MoreView: React.FC<MoreViewProps> = ({
                   hrv: d.hrv || null,
                   activeCalories: d.activeCalories || 0,
                   zoneSeconds: d.zoneSeconds || { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+                  sleepHours: d.sleepHours ?? d.hoursAsleep ?? null,
+                  sleepNeededHours: d.sleepNeededHours ?? d.sleepNeedHours ?? null,
+                  deepHours: d.deepHours ?? null,
+                  remHours: d.remHours ?? null,
+                  sleepEfficiency: d.sleepEfficiency ?? null,
+                  bedtime: d.bedtime ?? null,
+                  wakeTime: d.wakeTime ?? null,
                 });
               }
             });
@@ -169,15 +177,38 @@ export const MoreView: React.FC<MoreViewProps> = ({
         } else if (file.name.endsWith('.csv')) {
           const lines = text.split('\n');
           let importedCount = 0;
+          const headers = lines[0].split(',').map((h) => h.trim().toLowerCase());
+          const getColIdx = (name: string) => headers.findIndex((h) => h.includes(name));
+          const dateIdx = getColIdx('date') !== -1 ? getColIdx('date') : 0;
+          const strainIdx = getColIdx('strain') !== -1 ? getColIdx('strain') : 2;
+          const recoveryIdx = getColIdx('recovery') !== -1 ? getColIdx('recovery') : 3;
+          const rhrIdx = getColIdx('rhr') !== -1 ? getColIdx('rhr') : 5;
+          const hrvIdx = getColIdx('hrv') !== -1 ? getColIdx('hrv') : 6;
+          const calIdx = getColIdx('cal') !== -1 ? getColIdx('cal') : 7;
+          const sleepHoursIdx = getColIdx('sleephour') !== -1 ? getColIdx('sleephour') : (getColIdx('asleep') !== -1 ? getColIdx('asleep') : 8);
+          const sleepNeedIdx = getColIdx('sleepneed') !== -1 ? getColIdx('sleepneed') : 9;
+          const deepIdx = getColIdx('deep') !== -1 ? getColIdx('deep') : 10;
+          const remIdx = getColIdx('rem') !== -1 ? getColIdx('rem') : 11;
+          const effIdx = getColIdx('efficiency') !== -1 ? getColIdx('efficiency') : 12;
+          const bedIdx = getColIdx('bed') !== -1 ? getColIdx('bed') : 13;
+          const wakeIdx = getColIdx('wake') !== -1 ? getColIdx('wake') : 14;
+
           lines.slice(1).forEach((line) => {
             const cols = line.split(',');
-            if (cols.length >= 7 && cols[0]) {
-              const date = cols[0].trim();
-              const dayStrain = parseFloat(cols[2]) || 0;
-              const recoveryScore = parseInt(cols[3], 10) || null;
-              const rhr = parseInt(cols[5], 10) || null;
-              const hrv = parseInt(cols[6], 10) || null;
-              const cal = parseInt(cols[7], 10) || 0;
+            if (cols.length >= 4 && cols[dateIdx]) {
+              const date = cols[dateIdx].trim();
+              const dayStrain = parseFloat(cols[strainIdx]) || 0;
+              const recoveryScore = parseInt(cols[recoveryIdx], 10) || null;
+              const rhr = parseInt(cols[rhrIdx], 10) || null;
+              const hrv = parseInt(cols[hrvIdx], 10) || null;
+              const cal = parseInt(cols[calIdx], 10) || 0;
+              const sleepHours = cols[sleepHoursIdx] && cols[sleepHoursIdx].trim() ? parseFloat(cols[sleepHoursIdx]) : null;
+              const sleepNeededHours = cols[sleepNeedIdx] && cols[sleepNeedIdx].trim() ? parseFloat(cols[sleepNeedIdx]) : null;
+              const deepHours = cols[deepIdx] && cols[deepIdx].trim() ? parseFloat(cols[deepIdx]) : null;
+              const remHours = cols[remIdx] && cols[remIdx].trim() ? parseFloat(cols[remIdx]) : null;
+              const sleepEfficiency = cols[effIdx] && cols[effIdx].trim() ? parseInt(cols[effIdx], 10) : null;
+              const bedtime = cols[bedIdx] && cols[bedIdx].trim() ? cols[bedIdx].trim() : null;
+              const wakeTime = cols[wakeIdx] && cols[wakeIdx].trim() ? cols[wakeIdx].trim() : null;
 
               let cat: any = 'calibrating';
               if (recoveryScore !== null) {
@@ -192,6 +223,13 @@ export const MoreView: React.FC<MoreViewProps> = ({
                 hrv,
                 activeCalories: cal,
                 zoneSeconds: { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+                sleepHours,
+                sleepNeededHours,
+                deepHours,
+                remHours,
+                sleepEfficiency,
+                bedtime,
+                wakeTime,
               });
               importedCount++;
             }

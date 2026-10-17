@@ -8,6 +8,7 @@ import {
   ChevronDown,
 } from 'lucide-react';
 import { useLanguage } from '../../i18n/LanguageContext';
+import { banisterTrimpIncrement, calculateStrainFromTrimp } from '../../utils/strainModel';
 
 interface WorkoutHudModalProps {
   isOpen: boolean;
@@ -59,11 +60,11 @@ export const WorkoutHudModal: React.FC<WorkoutHudModalProps> = ({
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Activity-specific strain calculation for live HUD
+  // Activity-specific strain calculation for live HUD using Banister TRIMP on HRR
   const validHr = currentHr || settings.restingHrBaseline;
-  const hrFraction = Math.max(0, (validHr - settings.restingHrBaseline) / Math.max(30, settings.maxHr - settings.restingHrBaseline));
-  const sessionTrimp = (elapsedSec / 60) * hrFraction * 0.64 * Math.exp(1.92 * hrFraction);
-  const liveSessionStrain = Number((21 * (1 - Math.exp(-sessionTrimp / 35))).toFixed(1));
+  const female = settings.gender === 'female';
+  const sessionTrimp = banisterTrimpIncrement(validHr, settings.restingHrBaseline, settings.maxHr, female, elapsedSec);
+  const liveSessionStrain = calculateStrainFromTrimp(sessionTrimp);
 
   // Pulse animation duration
   const pulseDuration = currentHr && currentHr > 0 ? (60 / currentHr).toFixed(2) : '1.0';

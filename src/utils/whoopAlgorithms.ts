@@ -6,7 +6,7 @@ import type { HealthMonitorMetric, SleepMetrics, UserSettings } from '../types/w
  */
 export function calculateWhoopStrain(trimp: number): number {
   if (trimp <= 0) return 0;
-  const tau = 70.0;
+  const tau = 95.0;
   const raw = 21.0 * (1 - Math.exp(-trimp / tau));
   return Number(Math.min(21.0, Math.max(0, raw)).toFixed(1));
 }
@@ -25,10 +25,11 @@ export function calculateOptimalStrainTarget(recoveryScore: number | null): { mi
 
 /**
  * Filters and calculates RMSSD (Root Mean Square of Successive Differences)
+ * Requires MIN_BEATS_HRV = 30 clean beats before returning valid metric
  */
 export function calculateRMSSD(rrIntervalsMs: number[]): number | null {
   const valid = rrIntervalsMs.filter((rr) => rr >= 300 && rr <= 2000);
-  if (valid.length < 2) return null;
+  if (valid.length < 30) return null;
 
   let sumDiffSq = 0;
   for (let i = 0; i < valid.length - 1; i++) {
@@ -68,7 +69,7 @@ export function calculateWhoopRecovery(
 
 /**
  * Generates the official WHOOP 5-Metric Health Monitor items
- * (Displays real sensor values or 'Calibrating' if still acquiring samples)
+ * Dynamically computes 'Within Range' vs 'Outside Range' vs 'Calibrating' based on personal baselines
  */
 export function generateHealthMonitorMetrics(
   liveHrv: number | null,
@@ -76,58 +77,96 @@ export function generateHealthMonitorMetrics(
   liveResp: number | null,
   settings: UserSettings,
   liveTemp: number | null = null,
-  liveSpo2: number | null = null
+  liveSpo2: number | null = null,
+  liveTempDelta: number | null = null
 ): HealthMonitorMetric[] {
+  // 1. Respiratory Rate (Typical 12 - 20 rpm)
+  const respOk = liveResp !== null && liveResp >= 12.0 && liveResp <= 20.0;
+  const respStatus = liveResp === null ? 'calibrating' : respOk ? 'ok' : 'alert';
+  const respStatusText = liveResp === null ? 'Calibrating' : respOk ? 'Within Range' : 'Outside Range';
+  const respDelta = liveResp !== null ? `${liveResp >= 14.5 ? '+' : ''}${(liveResp - 14.5).toFixed(1)}` : undefined;
+
+  // 2. Blood Oxygen (SpO2: Typical >= 95%)
+  const spo2Ok = liveSpo2 !== null && liveSpo2 >= 95;
+  const spo2Status = liveSpo2 === null ? 'calibrating' : spo2Ok ? 'ok' : 'alert';
+  const spo2StatusText = liveSpo2 === null ? 'Calibrating' : spo2Ok ? 'Optimal' : 'Outside Range';
+  const spo2Delta = liveSpo2 !== null ? `${liveSpo2 >= 98 ? '±0%' : `${liveSpo2 - 98}%`}` : undefined;
+
+  // 3. Resting Heart Rate vs Personal Baseline
+  const rhrDelta = liveRhr !== null ? liveRhr - settings.restingHrBaseline : null;
+  const rhrOk = rhrDelta !== null && Math.abs(rhrDelta) <= 8;
+  const rhrStatus = liveRhr === null ? 'calibrating' : rhrOk ? 'ok' : 'alert';
+  const rhrStatusText = liveRhr === null ? 'Calibrating' : rhrOk ? 'Within Range' : 'Outside Range';
+  const rhrDeltaStr = rhrDelta !== null ? `${rhrDelta >= 0 ? '+' : ''}${rhrDelta}` : undefined;
+
+  // 4. HRV vs Personal Baseline
+  const hrvDelta = liveHrv !== null ? liveHrv - settings.hrvBaseline : null;
+  const hrvOk = liveHrv !== null && liveHrv >= Math.round(settings.hrvBaseline * 0.7);
+  const hrvStatus = liveHrv === null ? 'calibrating' : hrvOk ? 'ok' : 'alert';
+  const hrvStatusText = liveHrv === null ? 'Calibrating' : hrvOk ? 'Within Range' : 'Outside Range';
+  const hrvDeltaStr = hrvDelta !== null ? `${hrvDelta >= 0 ? '+' : ''}${hrvDelta}` : undefined;
+
+  // 5. Skin Temperature Delta vs Rolling 14-day Baseline
+  const hasTempDelta = liveTemp !== null && liveTempDelta !== null;
+  const tempOk = hasTempDelta && Math.abs(liveTempDelta!) <= 1.2;
+  const tempStatus = !hasTempDelta ? 'calibrating' : tempOk ? 'ok' : 'alert';
+  const tempStatusText = !hasTempDelta
+    ? 'Calibrating'
+    : tempOk
+    ? (liveTempDelta === 0 ? 'Baseline (0.0°)' : `${liveTempDelta! > 0 ? '+' : ''}${liveTempDelta!.toFixed(1)}° vs Baseline`)
+    : 'Outside Range';
+  const tempDeltaStr = hasTempDelta ? `${liveTempDelta! > 0 ? '+' : ''}${liveTempDelta!.toFixed(1)}°` : undefined;
+
   return [
     {
       key: 'respiratoryRate',
       label: 'Respiratory Rate',
       value: liveResp,
       unit: 'rpm',
-      status: liveResp !== null ? 'ok' : 'calibrating',
-      typicalRange: '13.5 - 16.5 rpm',
-      statusText: liveResp !== null ? 'Within Range' : 'Calibrating',
-      dailyDelta: liveResp !== null ? '±0.0' : undefined,
+      status: respStatus,
+      typicalRange: '12.0 - 20.0 rpm',
+      statusText: respStatusText,
+      dailyDelta: respDelta,
     },
     {
       key: 'bloodOxygen',
       label: 'Blood Oxygen (SpO2)',
       value: liveSpo2,
       unit: '%',
-      status: liveSpo2 !== null ? 'ok' : 'calibrating',
+      status: spo2Status,
       typicalRange: '95 - 99%',
-      statusText: liveSpo2 !== null ? 'Optimal' : 'Calibrating',
-      dailyDelta: liveSpo2 !== null ? '0%' : undefined,
+      statusText: spo2StatusText,
+      dailyDelta: spo2Delta,
     },
     {
       key: 'restingHeartRate',
       label: 'Resting Heart Rate',
       value: liveRhr,
       unit: 'bpm',
-      status: liveRhr !== null ? 'ok' : 'calibrating',
-      typicalRange: `${settings.restingHrBaseline - 4} - ${settings.restingHrBaseline + 5} bpm`,
-      statusText: liveRhr !== null ? 'Within Range' : 'Calibrating',
-      dailyDelta: liveRhr !== null ? `${liveRhr <= settings.restingHrBaseline ? '-' : '+'}${Math.abs(liveRhr - settings.restingHrBaseline)}` : undefined,
+      status: rhrStatus,
+      typicalRange: `${settings.restingHrBaseline - 6} - ${settings.restingHrBaseline + 6} bpm`,
+      statusText: rhrStatusText,
+      dailyDelta: rhrDeltaStr,
     },
     {
       key: 'hrv',
       label: 'Heart Rate Variability',
       value: liveHrv,
       unit: 'ms',
-      status: liveHrv !== null ? 'ok' : 'calibrating',
-      typicalRange: `${settings.hrvBaseline - 8} - ${settings.hrvBaseline + 10} ms`,
-      statusText: liveHrv !== null ? 'Within Range' : 'Calibrating',
-      dailyDelta: liveHrv !== null ? `${liveHrv >= settings.hrvBaseline ? '+' : '-'}${Math.abs(liveHrv - settings.hrvBaseline)}` : undefined,
+      status: hrvStatus,
+      typicalRange: `${Math.round(settings.hrvBaseline * 0.75)} - ${Math.round(settings.hrvBaseline * 1.35)} ms`,
+      statusText: hrvStatusText,
+      dailyDelta: hrvDeltaStr,
     },
     {
       key: 'skinTemp',
       label: 'Skin Temperature',
       value: liveTemp,
       unit: '°C',
-      status: liveTemp !== null ? 'ok' : 'calibrating',
-      typicalRange: '33.2 - 34.4 °C',
-      statusText: liveTemp !== null ? 'Baseline (0.0°)' : 'Calibrating',
-      dailyDelta: liveTemp !== null ? '±0.0°' : undefined,
+      status: tempStatus,
+      typicalRange: '±1.0° of Baseline',
+      statusText: tempStatusText,
+      dailyDelta: tempDeltaStr,
     },
   ];
 }
@@ -158,7 +197,7 @@ export function generateSleepMetrics(
     efficiencyPercent: null,
     latencyMinutes: null,
     disturbancesCount: null,
-    sleepDebtHours: 0.65,
+    sleepDebtHours: 0,
     stages: {
       awakePercent: 0,
       remPercent: 0,

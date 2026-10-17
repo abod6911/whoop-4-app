@@ -120,11 +120,62 @@ export function encodeWhoopFrame(payload: Uint8Array): Uint8Array {
   return fullFrame;
 }
 
+export function crc32Zlib(data: Uint8Array): number {
+  let crc = 0xffffffff;
+  for (let i = 0; i < data.length; i++) {
+    crc ^= data[i];
+    for (let j = 0; j < 8; j++) {
+      if ((crc & 1) !== 0) {
+        crc = (crc >>> 1) ^ 0xedb88320;
+      } else {
+        crc = crc >>> 1;
+      }
+    }
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
 export function decodeWhoopFrame(data: Uint8Array): { valid: boolean; payload: Uint8Array | null } {
   if (data.length < 8) return { valid: false, payload: null };
   if (data[0] !== 0xaa) return { valid: false, payload: null };
   const len = data[1] | (data[2] << 8);
   if (data.length < 4 + len + 4) return { valid: false, payload: null };
+
+  // 1. Strict CRC-8 check on 3-byte header [0xaa, len_lo, len_hi]
+  const headerCrc8 = crc8Whoop(data.slice(0, 3));
+  if (headerCrc8 !== data[3]) {
+    return { valid: false, payload: null };
+  }
+
+  // 2. Strict CRC-32 check on frame without trailing CRC bytes
+  const frameBody = data.slice(0, 4 + len);
+  const offset = 4 + len;
+  const receivedCrcLE =
+    (data[offset] |
+      (data[offset + 1] << 8) |
+      (data[offset + 2] << 16) |
+      (data[offset + 3] << 24)) >>>
+    0;
+  const receivedCrcBE =
+    ((data[offset] << 24) |
+      (data[offset + 1] << 16) |
+      (data[offset + 2] << 8) |
+      data[offset + 3]) >>>
+    0;
+
+  const expectedWhoop = crc32Whoop(frameBody);
+  const expectedZlib = crc32Zlib(frameBody);
+
+  const crcOk =
+    receivedCrcLE === expectedWhoop ||
+    receivedCrcLE === expectedZlib ||
+    receivedCrcBE === expectedWhoop ||
+    receivedCrcBE === expectedZlib;
+
+  if (!crcOk) {
+    return { valid: false, payload: null };
+  }
+
   const payload = data.slice(4, 4 + len);
   return { valid: true, payload };
 }
@@ -1182,18 +1233,7 @@ export class WhoopBleEngine {
               const rawZ = pData.getInt16(5, true);
               pedometerEngine.ingestRawAccel(rawX / 4096.0, rawY / 4096.0, rawZ / 4096.0, Date.now(), this.metadata.onWrist !== false);
             } else if (pType === 0x02 && pData.byteLength >= 9) {
-              // PPG Optical frame -> compute modulation ratio R = (AC_red / DC_red) / (AC_ir / DC_ir)
-              try {
-                const acRed = Math.abs(pData.getInt16(1, true));
-                const dcRed = Math.max(1, pData.getUint16(3, true));
-                const acIr = Math.abs(pData.getInt16(5, true));
-                const dcIr = Math.max(1, pData.getUint16(7, true));
-                const rRatio = (acRed / dcRed) / (acIr / dcIr);
-                if (rRatio > 0.2 && rRatio < 1.8) {
-                  const spo2 = Math.min(100, Math.max(90, Math.round(110 - 25 * rRatio)));
-                  biometricEngine.ingestSpO2(spo2);
-                }
-              } catch {}
+              // Raw PPG optical stream: do not fabricate uncalibrated SpO2 without calibration table
             } else if (pType === 0x03 && pData.byteLength >= 3) {
               // Skin thermistor frame
               const rawTemp = pData.getUint16(1, true);
@@ -1203,27 +1243,8 @@ export class WhoopBleEngine {
               }
             }
           }
-        } else {
-          // Direct IMU & telemetry packet
-          try {
-            const rawX = data.getInt16(0, true);
-            const rawY = data.getInt16(2, true);
-            const rawZ = data.getInt16(4, true);
-            const gX = rawX / 4096.0;
-            const gY = rawY / 4096.0;
-            const gZ = rawZ / 4096.0;
-            pedometerEngine.ingestRawAccel(gX, gY, gZ, Date.now(), this.metadata.onWrist !== false);
-
-            // If packet includes trailing thermistor bytes (offsets 6-7)
-            if (data.byteLength >= 8) {
-              const rawTemp = data.getUint16(6, true);
-              const tempC = rawTemp / 100.0;
-              if (tempC >= 28.0 && tempC <= 42.0) {
-                biometricEngine.ingestSkinTemp(tempC);
-              }
-            }
-          } catch { /* ignore parse anomaly */ }
         }
+        // Strictly reject unframed packets on DATA_FROM_STRAP to prevent false pedometer steps
       }
     }
   }

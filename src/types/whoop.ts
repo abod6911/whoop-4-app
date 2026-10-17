@@ -75,6 +75,8 @@ export interface SleepMetrics {
     lightPercent: number;
     deepPercent: number;
   };
+  bedtime?: string | null;
+  wakeTime?: string | null;
 }
 
 export interface StressPoint {
@@ -104,6 +106,8 @@ export interface LiveMetrics {
   recoveryScore: number | null; // 1 - 100 or null if calibrating
   recoveryCategory: 'green' | 'yellow' | 'red' | 'calibrating';
   sleepPerformance: number | null;
+  hoursAsleep?: number | null;
+  hoursInBed?: number | null;
   activeCalories: number;
   bmrCalories: number;
   totalCalories: number;
@@ -180,6 +184,16 @@ export interface DayHistoryRecord {
   recoveryScore: number | null;
   recoveryCategory: 'green' | 'yellow' | 'red' | 'calibrating';
   sleepPerformance: number | null;
+  hoursAsleep?: number | null;
+  hoursInBed?: number | null;
+  sleepNeedHours?: number | null;
+  sleepHours?: number | null;
+  sleepNeededHours?: number | null;
+  deepHours?: number | null;
+  remHours?: number | null;
+  sleepEfficiency?: number | null;
+  bedtime?: string | null;
+  wakeTime?: string | null;
   rhr: number | null;
   hrv: number | null;
   activeCalories: number;
@@ -294,11 +308,20 @@ export interface DailyRecordEntity {
   hoursAsleep: number | null;
   hoursInBed: number | null;
   sleepNeedHours: number;
+  sleepHours?: number | null;
+  sleepNeededHours?: number | null;
+  deepHours?: number | null;
+  remHours?: number | null;
+  sleepEfficiency?: number | null;
+  bedtime?: string | null;
+  wakeTime?: string | null;
   stressAvg: number | null;
   skinTempDelta: number | null;
   spO2Avg: number | null;
   zoneSeconds: Record<number, number>;
 }
+
+export type DailyRecord = DailyRecordEntity;
 
 export interface JournalEntryEntity {
   date: string; // primary key: YYYY-MM-DD

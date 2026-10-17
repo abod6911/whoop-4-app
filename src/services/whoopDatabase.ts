@@ -185,6 +185,11 @@ export class WhoopPulseDatabase extends Dexie {
       'stressAvg',
       'skinTempDelta',
       'spO2Avg',
+      'deepHours',
+      'remHours',
+      'sleepEfficiency',
+      'bedtime',
+      'wakeTime',
     ];
 
     const rows = records.map((r) => [
@@ -205,6 +210,11 @@ export class WhoopPulseDatabase extends Dexie {
       r.stressAvg ?? '',
       r.skinTempDelta ?? '',
       r.spO2Avg ?? '',
+      r.deepHours ?? '',
+      r.remHours ?? '',
+      r.sleepEfficiency ?? '',
+      r.bedtime ?? '',
+      r.wakeTime ?? '',
     ]);
 
     return [headers.join(','), ...rows.map((row) => row.join(','))].join('\n');

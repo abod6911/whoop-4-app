@@ -1,4 +1,5 @@
 import type { SessionRecord, UserSettings, RawBlePacket, DayHistoryRecord, StressPoint } from '../types/whoop';
+import { localDateKey } from '../utils/dateKey';
 
 const DB_NAME = 'WhoopPulseLocalDB';
 const DB_VERSION = 2;
@@ -14,6 +15,17 @@ export interface RealDayPersistedState {
   recoveryCategory: 'green' | 'yellow' | 'red' | 'calibrating';
   zoneSeconds: Record<number, number>;
   stressPoints?: StressPoint[];
+  sleepPerformance?: number | null;
+  hoursAsleep?: number | null;
+  hoursInBed?: number | null;
+  sleepNeedHours?: number | null;
+  sleepHours?: number | null;
+  sleepNeededHours?: number | null;
+  deepHours?: number | null;
+  remHours?: number | null;
+  sleepEfficiency?: number | null;
+  bedtime?: string | null;
+  wakeTime?: string | null;
 }
 
 export const DEFAULT_SETTINGS: UserSettings = {
@@ -141,7 +153,7 @@ class StorageService {
 
     for (let offset = 0; offset < 7; offset++) {
       const targetTime = now - offset * 86400000;
-      const dateStr = new Date(targetTime).toISOString().slice(0, 10);
+      const dateStr = localDateKey(targetTime);
       const saved = this.getRealDayState(dateStr);
 
       let label = 'TODAY';
@@ -156,7 +168,17 @@ class StorageService {
           dayStrain: saved.dayStrain || 0,
           recoveryScore: saved.recoveryScore || null,
           recoveryCategory: saved.recoveryCategory || 'calibrating',
-          sleepPerformance: null,
+          sleepPerformance: saved.sleepPerformance ?? null,
+          hoursAsleep: saved.hoursAsleep ?? saved.sleepHours ?? null,
+          hoursInBed: saved.hoursInBed ?? null,
+          sleepNeedHours: saved.sleepNeedHours ?? saved.sleepNeededHours ?? null,
+          sleepHours: saved.sleepHours ?? saved.hoursAsleep ?? null,
+          sleepNeededHours: saved.sleepNeededHours ?? saved.sleepNeedHours ?? null,
+          deepHours: saved.deepHours ?? null,
+          remHours: saved.remHours ?? null,
+          sleepEfficiency: saved.sleepEfficiency ?? null,
+          bedtime: saved.bedtime ?? null,
+          wakeTime: saved.wakeTime ?? null,
           rhr: saved.rhr || null,
           hrv: saved.hrv || null,
           activeCalories: saved.activeCalories || 0,
@@ -173,6 +195,16 @@ class StorageService {
           recoveryScore: null,
           recoveryCategory: 'calibrating',
           sleepPerformance: null,
+          hoursAsleep: null,
+          hoursInBed: null,
+          sleepNeedHours: null,
+          sleepHours: null,
+          sleepNeededHours: null,
+          deepHours: null,
+          remHours: null,
+          sleepEfficiency: null,
+          bedtime: null,
+          wakeTime: null,
           rhr: null,
           hrv: null,
           activeCalories: 0,
@@ -215,7 +247,7 @@ class StorageService {
   async getSessionsForDay(dateStr: string): Promise<SessionRecord[]> {
     const all = await this.getAllSessions();
     return all.filter((s) => {
-      const d = new Date(s.startTime).toISOString().slice(0, 10);
+      const d = localDateKey(s.startTime);
       return d === dateStr;
     });
   }

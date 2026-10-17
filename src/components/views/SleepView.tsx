@@ -73,51 +73,73 @@ export const SleepView: React.FC<SleepViewProps> = ({
   const hoursVsNeed7Day = recentDays.map((d) => {
     const dateObj = new Date(d.date + 'T12:00:00');
     const day = isNaN(dateObj.getTime()) ? d.label : dayNames[dateObj.getDay()];
+    const actualHours = d.offset === 0 ? hoursAsleep : (d.hoursAsleep ?? d.sleepHours ?? null);
+    const needHours = d.offset === 0 ? sleepNeed : (d.sleepNeedHours ?? d.sleepNeededHours ?? sleepNeed);
     return {
       day: d.offset === 0 ? t('today') : day,
-      hours: d.offset === 0 ? hoursAsleep : null,
-      need: sleepNeed,
+      hours: actualHours !== null && actualHours !== undefined ? Number(actualHours) : null,
+      need: needHours !== null && needHours !== undefined ? Number(needHours) : sleepNeed,
     };
   });
 
   const restorative7Day = recentDays.map((d) => {
     const dateObj = new Date(d.date + 'T12:00:00');
     const day = isNaN(dateObj.getTime()) ? d.label : dayNames[dateObj.getDay()];
-    const deepHours = hoursAsleep ? (hoursAsleep * (sleepData.stages.deepPercent / 100)) : null;
-    const remHours = hoursAsleep ? (hoursAsleep * (sleepData.stages.remPercent / 100)) : null;
+    let deep: number | null = null;
+    let rem: number | null = null;
+    if (d.offset === 0) {
+      deep = hoursAsleep ? Number((hoursAsleep * (sleepData.stages.deepPercent / 100)).toFixed(1)) : null;
+      rem = hoursAsleep ? Number((hoursAsleep * (sleepData.stages.remPercent / 100)).toFixed(1)) : null;
+    } else {
+      const h = d.hoursAsleep ?? d.sleepHours;
+      deep = d.deepHours !== null && d.deepHours !== undefined ? d.deepHours : (h ? Number((h * 0.22).toFixed(1)) : null);
+      rem = d.remHours !== null && d.remHours !== undefined ? d.remHours : (h ? Number((h * 0.23).toFixed(1)) : null);
+    }
     return {
       day: d.offset === 0 ? t('today') : day,
-      deep: deepHours ? Number(deepHours.toFixed(1)) : null,
-      rem: remHours ? Number(remHours.toFixed(1)) : null,
+      deep,
+      rem,
     };
   });
 
   const efficiency7Day = recentDays.map((d) => {
     const dateObj = new Date(d.date + 'T12:00:00');
     const day = isNaN(dateObj.getTime()) ? d.label : dayNames[dateObj.getDay()];
+    const eff = d.offset === 0 ? sleepData.efficiencyPercent : (d.sleepEfficiency ?? null);
     return {
       day: d.offset === 0 ? t('today') : day,
-      eff: d.offset === 0 ? sleepData.efficiencyPercent : null,
+      eff,
     };
   });
 
   const timeInBedRanges = recentDays.map((d) => {
     const dateObj = new Date(d.date + 'T12:00:00');
     const day = isNaN(dateObj.getTime()) ? d.label : dayNames[dateObj.getDay()];
-    const timeline = d.offset === 0 ? (sleepData.timeline || []) : [];
-    const hasTimeline = timeline.length >= 2;
-    const bedTime = hasTimeline
-      ? new Date(timeline[0].timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
-      : '--';
-    const wakeTime = hasTimeline
-      ? new Date(timeline[timeline.length - 1].timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
-      : '--';
+    let bedTime = '--';
+    let wakeTime = '--';
+    let height = 0;
+
+    if (d.offset === 0) {
+      const timeline = sleepData.timeline || [];
+      const hasTimeline = timeline.length >= 2;
+      bedTime = hasTimeline
+        ? new Date(timeline[0].timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
+        : (sleepData.bedtime || '--');
+      wakeTime = hasTimeline
+        ? new Date(timeline[timeline.length - 1].timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
+        : (sleepData.wakeTime || '--');
+      height = sleepData.hoursInBed ?? (hoursAsleep ? hoursAsleep * 1.1 : 0);
+    } else {
+      bedTime = d.bedtime || '--';
+      wakeTime = d.wakeTime || '--';
+      height = d.hoursInBed ?? d.hoursAsleep ?? d.sleepHours ?? 0;
+    }
 
     return {
       day: d.offset === 0 ? t('today') : day,
       bed: bedTime,
       wake: wakeTime,
-      height: d.offset === 0 ? (sleepData.hoursInBed ?? 0) : 0,
+      height: Number(height.toFixed(1)),
     };
   });
 
@@ -368,7 +390,7 @@ export const SleepView: React.FC<SleepViewProps> = ({
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={hoursVsNeed7Day} margin={{ top: 5, right: 0, left: -25, bottom: 0 }}>
                 <XAxis dataKey="day" stroke="#52525B" tick={{ fontSize: 9 }} tickLine={false} />
-                <YAxis domain={[5, 10]} stroke="#52525B" tick={{ fontSize: 9 }} tickLine={false} />
+                <YAxis domain={[0, 12]} stroke="#52525B" tick={{ fontSize: 9 }} tickLine={false} />
                 <Line type="monotone" dataKey="hours" stroke="#7293B2" strokeWidth={2.5} dot={{ r: 2 }} />
                 <Line type="monotone" dataKey="need" stroke="#16EC06" strokeWidth={2.5} strokeDasharray="3 3" dot={{ r: 2 }} />
               </LineChart>
@@ -429,7 +451,7 @@ export const SleepView: React.FC<SleepViewProps> = ({
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={efficiency7Day} margin={{ top: 5, right: 0, left: -25, bottom: 0 }}>
                 <XAxis dataKey="day" stroke="#52525B" tick={{ fontSize: 9 }} tickLine={false} />
-                <YAxis domain={[80, 100]} stroke="#52525B" tick={{ fontSize: 9 }} tickLine={false} />
+                <YAxis domain={[50, 100]} stroke="#52525B" tick={{ fontSize: 9 }} tickLine={false} />
                 <Line type="monotone" dataKey="eff" stroke="#16EC06" strokeWidth={2.5} dot={{ r: 3 }} />
               </LineChart>
             </ResponsiveContainer>

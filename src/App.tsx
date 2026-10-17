@@ -19,6 +19,7 @@ import {
   generateSleepMetrics,
   calculateOptimalStrainTarget,
 } from './utils/whoopAlgorithms';
+import { localDateKey } from './utils/dateKey';
 
 import { WhoopTopBar } from './components/WhoopTopBar';
 import { WhoopBottomNav } from './components/WhoopBottomNav';
@@ -319,7 +320,11 @@ export const App: React.FC = () => {
 
   const effectiveMetrics: LiveMetrics = useMemo(() => {
     if (selectedDateIndex === 0) {
-      return liveMetrics;
+      return {
+        ...liveMetrics,
+        hoursAsleep: sleepData.hoursAsleep,
+        hoursInBed: sleepData.hoursInBed,
+      };
     }
 
     // Historical day snapshot
@@ -338,6 +343,8 @@ export const App: React.FC = () => {
       recoveryScore: currentDayRecord.recoveryScore,
       recoveryCategory: currentDayRecord.recoveryCategory,
       sleepPerformance: currentDayRecord.sleepPerformance,
+      hoursAsleep: currentDayRecord.hoursAsleep ?? currentDayRecord.sleepHours ?? null,
+      hoursInBed: currentDayRecord.hoursInBed ?? null,
       activeCalories: currentDayRecord.activeCalories,
       bmrCalories: bmr,
       totalCalories: currentDayRecord.activeCalories + bmr,
@@ -366,7 +373,7 @@ export const App: React.FC = () => {
       return sessions;
     }
     const targetDate = currentDayRecord.date;
-    return sessions.filter((s) => new Date(s.startTime).toISOString().slice(0, 10) === targetDate);
+    return sessions.filter((s) => localDateKey(s.startTime) === targetDate);
   }, [selectedDateIndex, sessions, currentDayRecord]);
 
   const healthMetrics: HealthMonitorMetric[] = useMemo(() => {
@@ -376,7 +383,8 @@ export const App: React.FC = () => {
       effectiveMetrics.respiratoryRate,
       settings,
       effectiveMetrics.skinTempCelsius,
-      effectiveMetrics.spO2
+      effectiveMetrics.spO2,
+      effectiveMetrics.skinTempDelta
     );
   }, [
     effectiveMetrics.currentHrv,
@@ -384,6 +392,7 @@ export const App: React.FC = () => {
     effectiveMetrics.respiratoryRate,
     effectiveMetrics.skinTempCelsius,
     effectiveMetrics.spO2,
+    effectiveMetrics.skinTempDelta,
     settings,
   ]);
 

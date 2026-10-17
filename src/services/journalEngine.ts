@@ -1,5 +1,6 @@
 import type { JournalHabitItem, JournalDayEntry, HabitCorrelationStat } from '../types/whoop';
 import { whoopDb } from './whoopDatabase';
+import { localDateKey } from '../utils/dateKey';
 
 export const WHOOP_STANDARD_HABITS: JournalHabitItem[] = [
   {
@@ -88,7 +89,7 @@ export class JournalEngine {
   constructor() {}
 
   public getTodayKey(): string {
-    return new Date().toISOString().split('T')[0];
+    return localDateKey();
   }
 
   // Save Today's Habits
@@ -145,7 +146,7 @@ export class JournalEngine {
       allJournalEntries.forEach((entry) => {
         // Find next morning's recovery score
         const entryDate = new Date(entry.date + 'T12:00:00');
-        const nextDay = new Date(entryDate.getTime() + 86400000).toISOString().split('T')[0];
+        const nextDay = localDateKey(entryDate.getTime() + 86400000);
         const nextMorningRecovery = recoveryByDate.get(nextDay) ?? recoveryByDate.get(entry.date);
 
         if (nextMorningRecovery !== undefined) {

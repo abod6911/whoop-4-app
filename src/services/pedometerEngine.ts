@@ -1,3 +1,5 @@
+import { localDateKey } from '../utils/dateKey';
+
 export interface PedometerState {
   steps: number;
   cadence: number; // steps per minute
@@ -32,7 +34,7 @@ export class PedometerEngine {
   }
 
   private getTodayKey(): string {
-    return new Date().toISOString().split('T')[0];
+    return localDateKey();
   }
 
   private loadPersistedSteps(): void {

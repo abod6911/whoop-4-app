@@ -1,4 +1,5 @@
 import type { UserSettings } from '../types/whoop';
+import { localDateKey } from './dateKey';
 
 export interface CaloriesState {
   activeCalories: number;
@@ -16,7 +17,7 @@ export class CaloriesEngine {
   }
 
   private getTodayDateString(): string {
-    return new Date().toISOString().split('T')[0];
+    return localDateKey();
   }
 
   private getStorageKey(dateStr = this.currentDate): string {
@@ -106,8 +107,11 @@ export class CaloriesEngine {
       calPerMin = (-55.0969 + 0.6309 * bpm + 0.1988 * w + 0.2017 * a) / 4.184;
     }
 
-    const perSec = calPerMin / 60.0;
-    return perSec > 0 ? perSec : 0;
+    const bmrDaily = this.calculateDailyBmr(settings);
+    const bmrPerSec = bmrDaily / 86400.0;
+    const grossKeytelPerSec = Math.max(0, calPerMin / 60.0);
+    const netActiveKcalPerSec = Math.max(0, grossKeytelPerSec - bmrPerSec);
+    return netActiveKcalPerSec;
   }
 
   /**
