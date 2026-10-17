@@ -183,11 +183,6 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
               <span className="w-1 h-1.5 bg-[#6366F1]/50 rounded-full" />
               <span className="w-1 h-2.5 bg-[#6366F1]/80 rounded-full" />
             </div>
-            {/* Checklist badge */}
-            <div className="bg-[#222730] border border-white/10 px-2 py-0.5 rounded-full flex items-center gap-1 text-[10px] font-mono text-zinc-300">
-              <span className="text-[#16EC06] font-bold">✓</span>
-              <span>3</span>
-            </div>
           </div>
         </div>
 

@@ -76,28 +76,8 @@ export const StrengthTrainerModal: React.FC<StrengthTrainerModalProps> = ({
   const { t, isRtl } = useLanguage();
   const [activeTab, setActiveTab] = useState<'strength' | 'cardio_hiit'>('strength');
 
-  // Strength Trainer State
-  const [exercises, setExercises] = useState<StrengthExercise[]>([
-    {
-      id: 'ex-1',
-      name: 'Barbell Back Squat',
-      targetMuscle: 'Quads & Glutes',
-      sets: [
-        { id: 's-1', setNumber: 1, weightKg: 80, reps: 8, completed: false },
-        { id: 's-2', setNumber: 2, weightKg: 80, reps: 8, completed: false },
-        { id: 's-3', setNumber: 3, weightKg: 85, reps: 6, completed: false },
-      ],
-    },
-    {
-      id: 'ex-2',
-      name: 'Barbell Bench Press',
-      targetMuscle: 'Chest & Triceps',
-      sets: [
-        { id: 's-4', setNumber: 1, weightKg: 70, reps: 10, completed: false },
-        { id: 's-5', setNumber: 2, weightKg: 75, reps: 8, completed: false },
-      ],
-    },
-  ]);
+  // Strength Trainer State (Starts empty - zero fake workouts)
+  const [exercises, setExercises] = useState<StrengthExercise[]>([]);
   const [muscularLoadAccumulator, setMuscularLoadAccumulator] = useState(0);
 
   // HIIT Interval Timer State
@@ -314,6 +294,14 @@ export const StrengthTrainerModal: React.FC<StrengthTrainerModalProps> = ({
 
               {/* Exercises List */}
               <div className="space-y-3">
+                {exercises.length === 0 && (
+                  <div className="p-6 rounded-2xl bg-[#12151A] border border-white/5 text-center space-y-2">
+                    <Dumbbell className="w-8 h-8 text-zinc-600 mx-auto" />
+                    <p className="text-xs text-zinc-400 font-sans">
+                      {isRtl ? 'لا توجد تمارين مضافة بعد. اختر تمريناً من القائمة أدناه لبدء تسجيل مجموعاتك.' : 'No movements added yet. Select an exercise below to begin tracking your sets.'}
+                    </p>
+                  </div>
+                )}
                 {exercises.map((ex, exIdx) => (
                   <div
                     key={ex.id}

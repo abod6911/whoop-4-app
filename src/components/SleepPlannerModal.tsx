@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, Moon, Bell, Shield, Sparkles, Clock, BedDouble, Sun } from 'lucide-react';
-import type { LiveMetrics } from '../types/whoop';
+import type { LiveMetrics, UserSettings } from '../types/whoop';
 import { notificationEngine } from '../services/notificationEngine';
 import { useLanguage } from '../i18n/LanguageContext';
 
@@ -9,6 +9,7 @@ interface SleepPlannerModalProps {
   onClose: () => void;
   metrics: LiveMetrics;
   onLaunchOledNightLock: () => void;
+  settings?: UserSettings;
 }
 
 export const SleepPlannerModal: React.FC<SleepPlannerModalProps> = ({
@@ -16,6 +17,7 @@ export const SleepPlannerModal: React.FC<SleepPlannerModalProps> = ({
   onClose,
   metrics,
   onLaunchOledNightLock,
+  settings,
 }) => {
   const { t, isRtl } = useLanguage();
   const [goal, setGoal] = useState<'peak' | 'perform' | 'get_by'>('peak');
@@ -25,9 +27,9 @@ export const SleepPlannerModal: React.FC<SleepPlannerModalProps> = ({
   if (!isOpen) return null;
 
   // Real Sleep Need Math based on WHOOP Physiology
-  const baselineHours = 7.6; // Baseline adult requirement
+  const baselineHours = settings?.sleepNeedHours || 7.9; // User's personal baseline requirement
   const strainDebtHours = Math.round((metrics.dailyStrain / 21.0) * 1.2 * 10) / 10; // Extra strain debt
-  const sleepDebtHours = 0.5; // Recent accumulated debt
+  const sleepDebtHours = 0; // Recent accumulated debt (starts at 0, no fake debt)
 
   const totalNeedHours = baselineHours + strainDebtHours + sleepDebtHours;
 

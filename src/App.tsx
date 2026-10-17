@@ -520,6 +520,7 @@ export const App: React.FC = () => {
             <PlanView
               metrics={effectiveMetrics}
               settings={settings}
+              daysHistory={daysHistory}
               onOpenSleepPlanner={() => setIsSleepPlannerOpen(true)}
             />
           )}
@@ -602,6 +603,7 @@ export const App: React.FC = () => {
           isOpen={isSleepPlannerOpen}
           onClose={() => setIsSleepPlannerOpen(false)}
           metrics={effectiveMetrics}
+          settings={settings}
           onLaunchOledNightLock={() => setIsOledNightLockOpen(true)}
         />
 
