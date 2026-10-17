@@ -361,11 +361,11 @@ export class BiometricEngine {
     }
   }
 
-  // --- Real HRV Calculations (RMSSD & SDNN: Minimum 5 Clean Beats Required for Fast Sync) ---
+  // --- Real HRV Calculations (RMSSD & SDNN: Minimum 30 Clean Beats Required) ---
   public calculateRMSSD(): number | null {
-    const MIN_BEATS_HRV = 5;
+    const MIN_BEATS_HRV = 30;
     const n = this.rrBuffer.length;
-    if (n < MIN_BEATS_HRV) return null; // Fast sync after 5 clean beats
+    if (n < MIN_BEATS_HRV) return null; // Calibrating until 30 clean beats
 
     let sumDiffSq = 0;
     for (let i = 0; i < n - 1; i++) {
@@ -378,7 +378,7 @@ export class BiometricEngine {
   }
 
   public calculateSDNN(): number | null {
-    const MIN_BEATS_HRV = 5;
+    const MIN_BEATS_HRV = 30;
     const n = this.rrBuffer.length;
     if (n < MIN_BEATS_HRV) return null;
 
@@ -452,40 +452,18 @@ export class BiometricEngine {
   // --- Real Respiratory Rate via Spectral RSA (4 Hz Resampling + Hann Window + Fourier Power) ---
   public calculateRespiratoryRate(): number | null {
     const n = this.rsaBuffer.length;
-    if (n < 10) return null; // Need at least 10 beats to compute respiration
+    if (n < 30) return null; // Calibrating
 
     const tStart = this.rsaBuffer[0].timestamp;
     const tEnd = this.rsaBuffer[n - 1].timestamp;
     const timeSpanSec = (tEnd - tStart) / 1000.0;
-
-    // Fast fallback: if window is still filling (< 20s or < 25 beats), compute peak-to-trough RSA cycle count
-    if (n < 25 || timeSpanSec < 20.0) {
-      let cycleCount = 0;
-      for (let i = 1; i < n - 1; i++) {
-        const prev = this.rsaBuffer[i - 1].rr;
-        const curr = this.rsaBuffer[i].rr;
-        const next = this.rsaBuffer[i + 1].rr;
-        if (curr > prev && curr > next && (curr - Math.min(prev, next)) > 10) {
-          cycleCount++;
-        }
-      }
-      if (cycleCount > 0 && timeSpanSec > 5.0) {
-        const rpmEst = (cycleCount / (timeSpanSec / 60.0));
-        if (rpmEst >= 10.0 && rpmEst <= 24.0) {
-          return Number(rpmEst.toFixed(1));
-        }
-      }
-      // Physiological heart-rate derived resting respiration rate (12 - 18 rpm)
-      const curBpm = this.lastBpm ?? 0;
-      const baseRpm = curBpm > 0 ? Math.min(20, Math.max(12, 12 + (curBpm - 60) * 0.08)) : 14.5;
-      return Number(baseRpm.toFixed(1));
-    }
+    if (timeSpanSec < 30.0) return null; // Need at least 30s window
 
     // 1. Resample to uniform 4 Hz grid (dt = 0.25s)
     const fs = 4.0;
     const dt = 1.0 / fs;
     const numGridPoints = Math.floor(timeSpanSec * fs);
-    if (numGridPoints < 40) return null;
+    if (numGridPoints < 64) return null;
 
     const resampled: number[] = new Array(numGridPoints);
     let bufferIdx = 0;
@@ -546,32 +524,13 @@ export class BiometricEngine {
     if (evalCount === 0 || maxPower <= 0) return null;
     const meanPower = totalPower / evalCount;
 
-    // If spectral peak >= 1.8 * meanPower, use it directly
-    if (maxPower >= 1.8 * meanPower && bestFreq > 0) {
-      const rpm = bestFreq * 60.0;
-      return Number(rpm.toFixed(1));
+    // Strict spectral peak requirement: bestP >= 2.5 * meanPower (otherwise return null)
+    if (maxPower < 2.5 * meanPower) {
+      return null;
     }
 
-    // Peak-to-trough cycle counting fallback
-    let cycles = 0;
-    for (let i = 1; i < n - 1; i++) {
-      const prev = this.rsaBuffer[i - 1].rr;
-      const curr = this.rsaBuffer[i].rr;
-      const next = this.rsaBuffer[i + 1].rr;
-      if (curr > prev && curr > next && (curr - Math.min(prev, next)) > 10) {
-        cycles++;
-      }
-    }
-    if (cycles > 0 && timeSpanSec > 5.0) {
-      const rpmEst = (cycles / (timeSpanSec / 60.0));
-      if (rpmEst >= 10.0 && rpmEst <= 24.0) {
-        return Number(rpmEst.toFixed(1));
-      }
-    }
-
-    const curBpm = this.lastBpm ?? 0;
-    const baseRpm = curBpm > 0 ? Math.min(20, Math.max(12, 12 + (curBpm - 60) * 0.08)) : 14.5;
-    return Number(baseRpm.toFixed(1));
+    const rpm = bestFreq * 60.0;
+    return Number(rpm.toFixed(1));
   }
 
   // --- Real Autonomic Stress Score (0.0 to 3.0 Scale) ---
@@ -857,8 +816,8 @@ export class BiometricEngine {
     const dtSec = Math.min(10, Math.max(0, (timestamp - this.lastTimestamp) / 1000));
     this.lastTimestamp = timestamp;
 
-    // 1. Process RR intervals when band is on-wrist
-    if (isBandOnWrist && rrIntervals && rrIntervals.length > 0) {
+    // 1. Process RR intervals only when band is on-wrist (strictly hardware 16-bit BLE RR)
+    if (isBandOnWrist && rrIntervals && rrIntervals.length > 0 && !measurement.isDerivedRR) {
       this.ingestRRIntervals(rrIntervals);
     }
 
