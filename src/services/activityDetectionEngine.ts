@@ -124,9 +124,10 @@ export class ActivityDetectionEngine {
       return;
     }
 
-    // Zone 2+ elevation condition: HR > RHR + 25 bpm AND physical motion
-    const hrElevationThreshold = rhr + 25;
-    const isElevated = bpm >= hrElevationThreshold && (motionIntensity >= 0.12 || bpm >= rhr + 35);
+    // Zone 2+ elevation condition: HR >= 60% HR Max OR HR >= RHR + 35 bpm
+    const maxHrUser = settings.maxHr || 220 - settings.age;
+    const hrZone2Threshold = Math.min(maxHrUser * 0.60, rhr + 35);
+    const isElevated = bpm >= hrZone2Threshold;
     const baselineThreshold = rhr + 15;
 
     const sample: ActivitySample = {
@@ -148,7 +149,7 @@ export class ActivityDetectionEngine {
         this.lastNonElevatedTime = null;
 
         const elapsedSec = (timestamp - this.candidateStartTime) / 1000;
-        // Sustained effort > 12 minutes reached: promote to active activity
+        // Sustained effort > 12 minutes (720s) reached: promote to active activity
         if (elapsedSec >= REQUIRED_ELEVATION_SEC && this.candidateSamples.length >= 60) {
           console.log(`[ACTIVITY ENGINE] ⚡ 12-Minute Effort Threshold Reached! Auto-activity flagged.`);
           this.isTrackingActive = true;
@@ -173,26 +174,30 @@ export class ActivityDetectionEngine {
     // --- PHASE 2: Active ongoing workout session ---
     this.candidateSamples.push(sample);
 
-    // Check for session completion (HR returns to baseline for > 5 continuous minutes)
-    if (bpm <= baselineThreshold) {
+    // Auto-Close & Cooldown Trimming:
+    // Conclude workout when HR returns to baseline (<= RHR + 15) and cadence stops (<= 30) for >= 5 minutes (300s)
+    const isAtRest = bpm <= baselineThreshold && cadence <= 30;
+    if (isAtRest) {
       if (this.lowHrStartTime === null) {
         this.lowHrStartTime = timestamp;
       } else {
         const cooldownSec = (timestamp - this.lowHrStartTime) / 1000;
         if (cooldownSec >= BASELINE_COOLDOWN_SEC) {
           // Session completed! Auto-close and compile metrics
+          // Automatically trim the 5-minute cooldown period from the final recorded workout duration
           const actualEndTime = this.lowHrStartTime;
           this.finalizeDetectedSession(actualEndTime, settings, rhr);
         }
       }
     } else {
-      // HR spiked back up, cancel baseline cooldown timer
+      // HR or cadence spiked back up, cancel baseline cooldown timer
       this.lowHrStartTime = null;
     }
   }
 
   /**
-   * Finalizes the detected activity session and produces interactive confirmation banner
+   * Finalizes the detected activity session, performs WHOOP 5-way sport classification,
+   * trims cooldown, and produces interactive confirmation banner
    */
   private finalizeDetectedSession(
     endTime: number,
@@ -250,21 +255,54 @@ export class ActivityDetectionEngine {
     const avgCadence = Math.round(cadenceSum / activeSamples.length);
     const strain = calculateStrainFromTrimp(sessionTrimp);
 
+    // Standard deviation metrics for physiological classification
+    const hrMean = hrSum / activeSamples.length;
+    const hrVariance =
+      activeSamples.reduce((acc, s) => acc + Math.pow(s.hr - hrMean, 2), 0) /
+      activeSamples.length;
+    const hrStdDev = Math.sqrt(hrVariance);
+
+    // Track Zone 4/5 oscillation frequency for HIIT detection
+    let zoneOscillations = 0;
+    let prevZoneHigh: boolean | null = null;
+    activeSamples.forEach((s) => {
+      const isHigh = s.hr >= maxHrUser * 0.8;
+      const isLow = s.hr <= rhr + (maxHrUser - rhr) * 0.6;
+      if (isHigh && prevZoneHigh === false) zoneOscillations++;
+      if (isLow && prevZoneHigh === true) zoneOscillations++;
+      if (isHigh) prevZoneHigh = true;
+      else if (isLow) prevZoneHigh = false;
+    });
+
+    const highZoneRatio =
+      (sessionZones[4] + sessionZones[5]) / Math.max(1, activeSamples.length);
+
+    // --- 5 WHOOP Multi-Sport Classification Heuristics ---
+    let inferredSport = 'Functional Fitness';
+    if (avgCadence >= 138) {
+      // 1. Running: Sustained high cadence (>= 138 SPM) and progressive heart rate drift
+      inferredSport = 'Running';
+    } else if (avgCadence >= 75 && avgCadence < 138 && avgHr <= rhr + 48) {
+      // 2. Walking: Moderate cadence (75 - 134 SPM) and steady Zone 1-2 heart rate
+      inferredSport = 'Walking';
+    } else if (zoneOscillations >= 4 || (hrStdDev >= 18 && highZoneRatio >= 0.15)) {
+      // 3. HIIT: Rapid oscillation between Zone 4/5 and Zone 2 recovery intervals
+      inferredSport = 'HIIT';
+    } else if (avgCadence < 40 && avgHr >= rhr + 30 && hrStdDev < 14) {
+      // 4. Cycling / Stationary: Elevated HR with minimal wrist shock / low cadence (< 40 SPM or steady flywheel cadence)
+      inferredSport = 'Cycling';
+    } else if (avgCadence < 65 && (hrStdDev >= 12 || avgHr >= rhr + 35)) {
+      // 5. Weightlifting / Functional Fitness: Bursts of elevated HR and HRV drops interspersed with rest intervals
+      inferredSport = 'Weightlifting';
+    } else if (avgCadence >= 70) {
+      inferredSport = 'Walking';
+    } else {
+      inferredSport = 'Functional Fitness';
+    }
+
     // Approximate Active Calories: Keytel formula estimate
     const calPerSec = Math.max(0.015, (avgHr * 0.2017 + (settings.weightKg || 75) * 0.1988 - 55.0969) / 60 / 4.184);
     const calories = Math.round(calPerSec * durationSec);
-
-    // Infer sport by cadence and movement
-    let inferredSport = 'Cardio Workout';
-    if (avgCadence >= 135) {
-      inferredSport = 'Running';
-    } else if (avgCadence >= 75) {
-      inferredSport = 'Outdoor Walk';
-    } else if (avgHr >= 140) {
-      inferredSport = 'Functional Fitness';
-    } else {
-      inferredSport = 'Workout';
-    }
 
     const detected: DetectedActivity = {
       id: `detected-${Date.now()}`,
@@ -297,10 +335,10 @@ export class ActivityDetectionEngine {
     // Post system alert toast
     notificationEngine.addNotification({
       type: 'strain',
-      title: 'Activity Detected',
-      message: `${detected.sport}: ${Math.round(durationSec / 60)} min • ${strain.toFixed(1)} Strain. Tap to confirm & save.`,
+      title: 'تم رصد نشاط رياضي تلقائياً',
+      message: `${detected.sport}: ${Math.round(durationSec / 60)} دقيقة • ${strain.toFixed(1)} جهد. انقر للتأكيد والحفظ.`,
       priority: 'high',
-      actionLabel: 'Confirm',
+      actionLabel: 'تأكيد',
       actionType: 'confirm_detected_activity',
     });
 
@@ -363,36 +401,103 @@ export class ActivityDetectionEngine {
   }
 
   /**
-   * Test / diagnostic trigger for UI demonstration
+   * Simulate Auto-Detected Workout (e.g. 30m Run, 8.5 Strain)
+   * Injects telemetry, triggers confirmation banner, and allows saving to "أنشطة اليوم".
    */
-  public triggerTestActivity(sport: string = 'Running', durationMinutes: number = 24): DetectedActivity {
+  public simulateDetectedWorkout(
+    sport: string = 'Running',
+    durationMinutes: number = 30,
+    targetStrain: number = 8.5
+  ): DetectedActivity {
     const now = Date.now();
     const durationSec = durationMinutes * 60;
     const startTime = now - durationSec * 1000;
     const endTime = now;
 
+    let avgHr = 154;
+    let maxHr = 178;
+    let minHr = 108;
+    let avgCadence = 152;
+    let calories = 312;
+
+    if (sport === 'Running') {
+      avgHr = 154;
+      maxHr = 178;
+      minHr = 108;
+      avgCadence = 152;
+      calories = 312;
+    } else if (sport === 'Walking') {
+      avgHr = 108;
+      maxHr = 126;
+      minHr = 78;
+      avgCadence = 102;
+      calories = 145;
+    } else if (sport === 'Cycling') {
+      avgHr = 142;
+      maxHr = 168;
+      minHr = 95;
+      avgCadence = 22;
+      calories = 265;
+    } else if (sport === 'Weightlifting') {
+      avgHr = 132;
+      maxHr = 166;
+      minHr = 88;
+      avgCadence = 15;
+      calories = 210;
+    } else if (sport === 'HIIT') {
+      avgHr = 160;
+      maxHr = 184;
+      minHr = 92;
+      avgCadence = 85;
+      calories = 340;
+    }
+
     const testActivity: DetectedActivity = {
-      id: `detected-test-${Date.now()}`,
+      id: `detected-${Date.now()}`,
       sport,
       startTime,
       endTime,
       durationSec,
-      avgHr: 148,
-      maxHr: 172,
-      minHr: 98,
-      strain: 10.4,
-      calories: 285,
-      avgHrv: 58,
-      zoneDistribution: { 1: 180, 2: 420, 3: 540, 4: 240, 5: 60 },
+      avgHr,
+      maxHr,
+      minHr,
+      strain: targetStrain,
+      calories,
+      avgHrv: 52,
+      zoneDistribution: {
+        1: Math.round(durationSec * 0.1),
+        2: Math.round(durationSec * 0.25),
+        3: Math.round(durationSec * 0.35),
+        4: Math.round(durationSec * 0.2),
+        5: Math.round(durationSec * 0.1),
+      },
       dataPoints: [],
       detectedAt: now,
-      cadenceAvg: 145,
+      cadenceAvg: avgCadence,
     };
 
     this.pendingActivity = testActivity;
     this.persistPending(testActivity);
+    this.resetTracking();
+
+    notificationEngine.addNotification({
+      type: 'strain',
+      title: 'تم رصد نشاط رياضي تلقائياً',
+      message: `${sport}: ${durationMinutes} دقيقة • ${targetStrain.toFixed(1)} جهد. انقر للتأكيد والحفظ.`,
+      priority: 'high',
+      actionLabel: 'تأكيد',
+      actionType: 'confirm_detected_activity',
+    });
+
     this.notify();
     return testActivity;
+  }
+
+  /**
+   * Diagnostic test trigger
+   */
+  public triggerTestActivity(sport: string = 'Running', durationMinutes: number = 24): DetectedActivity {
+    return this.simulateDetectedWorkout(sport, durationMinutes, 10.4);
   }
 }
 

@@ -1,4 +1,5 @@
 import { localDateKey } from '../utils/dateKey';
+import { storageService } from './StorageService';
 
 export interface PedometerState {
   steps: number;
@@ -14,6 +15,7 @@ export class PedometerEngine {
   private source: 'imu_hardware' | 'activity_inference' = 'activity_inference';
   private lastStepTimestamp = 0;
   private recentStepTimestamps: number[] = [];
+  private processedEpochs = new Set<string>();
 
   // IMU DSP Filtering & Dynamic Thresholding
   private accelWindow: number[] = [];
@@ -96,14 +98,19 @@ export class PedometerEngine {
 
   private persistSteps(): void {
     try {
+      const todayKey = this.getTodayKey();
       localStorage.setItem(
-        `whoop_steps_${this.getTodayKey()}`,
+        `whoop_steps_${todayKey}`,
         JSON.stringify({
           steps: this.steps,
           source: this.source,
           updatedAt: Date.now(),
         })
       );
+      const saved = storageService.getRealDayState(todayKey);
+      if (saved) {
+        storageService.saveRealDayState(todayKey, { ...saved, steps: this.steps });
+      }
     } catch {}
   }
 
@@ -296,6 +303,83 @@ export class PedometerEngine {
       lastStepTimestamp: this.lastStepTimestamp,
       activeMovementMinutes: Math.round(this.activeSeconds / 60),
     };
+  }
+
+  // --- Offline Steps Reconciliation & Historical Catch-up ---
+
+  /**
+   * Reconcile cumulative hardware counter upon strap reconnection.
+   * Updates total if hardware count exceeds current tracked steps.
+   */
+  public reconcileCumulativeHardwareSteps(hardwareDailyTotal: number): number {
+    if (hardwareDailyTotal > this.steps) {
+      const delta = hardwareDailyTotal - this.steps;
+      this.steps = hardwareDailyTotal;
+      this.lastStepTimestamp = Date.now();
+      this.source = 'imu_hardware';
+      this.persistSteps();
+      this.notifySubscribers();
+      return delta;
+    }
+    return 0;
+  }
+
+  /**
+   * Process historical minute-by-minute IMU/cadence buffer offloaded from strap:
+   * Delta Steps = Sum ( Cadence_epoch * Delta_t )
+   * Deduplicates by checking epoch timestamps before appending.
+   */
+  public reconcileOfflineCadenceEpochs(
+    epochs: Array<{ timestamp: number; cadence: number; durationMinutes?: number }>
+  ): number {
+    let deltaSteps = 0;
+    epochs.forEach((ep) => {
+      const key = `${ep.timestamp}_${ep.cadence}`;
+      if (!this.processedEpochs.has(key)) {
+        this.processedEpochs.add(key);
+        const durationMin = ep.durationMinutes ?? 1;
+        const stepsInEpoch = Math.round(ep.cadence * durationMin);
+        if (stepsInEpoch > 0) {
+          deltaSteps += stepsInEpoch;
+        }
+      }
+    });
+
+    if (deltaSteps > 0) {
+      this.steps += deltaSteps;
+      this.lastStepTimestamp = Date.now();
+      this.source = 'imu_hardware';
+      this.persistSteps();
+      this.notifySubscribers();
+    }
+    return deltaSteps;
+  }
+
+  /**
+   * Add a known offline step delta directly (e.g. from telemetry catch-up)
+   */
+  public addOfflineStepDelta(
+    delta: number,
+    source: 'imu_hardware' | 'activity_inference' = 'imu_hardware'
+  ): void {
+    if (delta <= 0) return;
+    this.steps += delta;
+    this.lastStepTimestamp = Date.now();
+    this.source = source;
+    this.persistSteps();
+    this.notifySubscribers();
+  }
+
+  /**
+   * Simulate reconnecting after a 45-minute outdoor walk without the phone (+2,500 Steps)
+   */
+  public simulateOfflineWalkReconnection(additionalSteps = 2500): number {
+    this.steps += additionalSteps;
+    this.lastStepTimestamp = Date.now();
+    this.source = 'imu_hardware';
+    this.persistSteps();
+    this.notifySubscribers();
+    return additionalSteps;
   }
 
   public resetTodaySteps(): void {

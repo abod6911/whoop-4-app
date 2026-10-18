@@ -5,6 +5,7 @@ import { whoopBleEngine } from '../../services/whoopBleEngine';
 import { notificationEngine } from '../../services/notificationEngine';
 import { pedometerEngine } from '../../services/pedometerEngine';
 import { sleepEngine } from '../../services/sleepEngine';
+import { activityDetectionEngine } from '../../services/activityDetectionEngine';
 import { GattExplorer } from '../GattExplorer';
 import { WhoopLogo } from '../WhoopLogo';
 import {
@@ -25,6 +26,8 @@ import {
   RotateCcw,
   Moon,
   RefreshCw,
+  Dumbbell,
+  Flame,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -353,6 +356,91 @@ export const StrapLabView: React.FC<StrapLabViewProps> = ({
             >
               <RotateCcw className="w-3.5 h-3.5 text-zinc-400" />
               <span>{isRtl ? 'إعادة ضبط (1,245)' : 'Reset (1,245)'}</span>
+            </button>
+
+            {/* Primary Offline Step Catch-up Reconnection Simulation */}
+            <button
+              onClick={async () => {
+                setCommandFeedback(isRtl ? 'جاري محاكاة إعادة الاتصال ومزامنة خطوات المشي...' : 'Simulating offline steps sync...');
+                const credited = await whoopBleEngine.simulateOfflineStepReconnection(2500, 45);
+                setCommandFeedback(
+                  isRtl
+                    ? `✓ تمت مزامنة +${credited.toLocaleString()} خطوة مسجلة بدون الهاتف`
+                    : `✓ Offline synced: +${credited.toLocaleString()} steps`
+                );
+                setTimeout(() => setCommandFeedback(null), 3500);
+              }}
+              className="py-3 px-4 rounded-xl bg-gradient-to-r from-[#00F0FF]/20 via-[#16EC06]/15 to-[#00F0FF]/20 border border-[#00F0FF]/40 hover:border-[#16EC06] text-white flex items-center justify-center gap-2 active:scale-95 transition-all shadow-[0_0_20px_rgba(0,240,255,0.15)] font-black uppercase tracking-wider text-xs font-condensed col-span-2"
+            >
+              <RefreshCw className="w-4 h-4 text-[#00F0FF]" />
+              <span>{isRtl ? 'محاكاة إعادة الاتصال واسترداد خطوات المشي (+2,500 خطوة)' : 'Simulate Offline Reconnection (+2,500 Steps)'}</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Automated Activity Detection Engine Lab (WHOOP 4.0 Style) */}
+        <div className="p-4 rounded-2xl bg-[#0B0D10] border border-white/5 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-lg bg-[#FF8A00]/15 flex items-center justify-center">
+                <Flame className="w-3.5 h-3.5 text-[#FF8A00]" />
+              </div>
+              <span className="text-xs font-black uppercase text-white font-condensed tracking-wider">
+                {isRtl ? 'محاكي الرصد التلقائي للتمارين (Auto-Workout Engine)' : 'Automatic Activity Detection Engine'}
+              </span>
+            </div>
+            <span className="text-[10px] font-mono text-[#FF8A00]">
+              {activityDetectionEngine.getPendingActivity()
+                ? (isRtl ? 'بانتظار الاعتماد' : 'Pending Review')
+                : (isRtl ? 'جاهز للرصد' : 'Ready')}
+            </span>
+          </div>
+
+          <p className="text-[11px] text-zinc-400 font-sans leading-relaxed">
+            {isRtl
+              ? 'حقن جلسة تمرين واقعية مستمرة لأكثر من 12 دقيقة مع معدل نبض مرتفع لتوليد بنر الاعتماد الفوري في صفحة اليوم وحفظها في "أنشطة اليوم".'
+              : 'Inject sustained exercise session (>12m) to trigger the WHOOP auto-detection banner and log into Today\'s Activities.'}
+          </p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 font-condensed text-xs font-bold">
+            <button
+              onClick={() => {
+                activityDetectionEngine.simulateDetectedWorkout('Running', 30, 8.5);
+                setCommandFeedback(
+                  isRtl
+                    ? '✓ تم رصد تمرين جري تلقائياً (30 دقيقة • جهد 8.5) - تفقد بنر الاعتماد في الشاشة الرئيسية'
+                    : '✓ Auto-detected Run simulated (30m, 8.5 Strain)'
+                );
+                setTimeout(() => setCommandFeedback(null), 3500);
+              }}
+              className="py-3 px-4 rounded-xl bg-gradient-to-r from-[#FF8A00]/20 via-[#FF3344]/15 to-[#FF8A00]/20 border border-[#FF8A00]/40 hover:border-[#16EC06] text-white flex items-center justify-center gap-2 active:scale-95 transition-all shadow-[0_0_20px_rgba(255,138,0,0.15)] font-black uppercase tracking-wider text-xs font-condensed sm:col-span-2"
+            >
+              <Flame className="w-4 h-4 text-[#FF8A00]" />
+              <span>{isRtl ? 'محاكاة رصد تمرين جري تلقائياً (30 دقيقة • جهد 8.5)' : 'Simulate Auto-Detected Run (30m, 8.5 Strain)'}</span>
+            </button>
+
+            <button
+              onClick={() => {
+                activityDetectionEngine.simulateDetectedWorkout('HIIT', 25, 12.1);
+                setCommandFeedback(isRtl ? '✓ تم رصد تمرين HIIT تلقائياً (25 دقيقة • جهد 12.1)' : '✓ Auto-detected HIIT simulated');
+                setTimeout(() => setCommandFeedback(null), 3500);
+              }}
+              className="py-2.5 px-3 rounded-xl bg-[#16191E] border border-white/10 hover:border-[#FF3344]/40 text-white flex items-center justify-center gap-1.5 active:scale-95 transition-all"
+            >
+              <Activity className="w-3.5 h-3.5 text-[#FF3344]" />
+              <span>{isRtl ? 'تمرين HIIT (جهد 12.1)' : 'HIIT (12.1 Strain)'}</span>
+            </button>
+
+            <button
+              onClick={() => {
+                activityDetectionEngine.simulateDetectedWorkout('Cycling', 45, 11.4);
+                setCommandFeedback(isRtl ? '✓ تم رصد تمرين دراجة تلقائياً (45 دقيقة • جهد 11.4)' : '✓ Auto-detected Cycling simulated');
+                setTimeout(() => setCommandFeedback(null), 3500);
+              }}
+              className="py-2.5 px-3 rounded-xl bg-[#16191E] border border-white/10 hover:border-[#0093E9]/40 text-white flex items-center justify-center gap-1.5 active:scale-95 transition-all"
+            >
+              <Dumbbell className="w-3.5 h-3.5 text-[#0093E9]" />
+              <span>{isRtl ? 'ركوب دراجة (45د)' : 'Cycling (45m)'}</span>
             </button>
           </div>
         </div>

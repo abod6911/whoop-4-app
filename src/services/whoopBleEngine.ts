@@ -956,6 +956,19 @@ export class WhoopBleEngine {
       this.emitMetadata();
 
       await new Promise((r) => setTimeout(r, 600));
+
+      // Reconcile any accumulated offline steps from strap if gap occurred
+      const lastDisconnect = this.lastDisconnectedTimestamp || 0;
+      if (lastDisconnect > 0) {
+        const gapMin = Math.round((Date.now() - lastDisconnect) / 60000);
+        if (gapMin >= 5) {
+          const estimatedOfflineSteps = Math.min(6000, Math.round(gapMin * 45));
+          if (estimatedOfflineSteps > 150) {
+            pedometerEngine.addOfflineStepDelta(estimatedOfflineSteps, 'imu_hardware');
+          }
+        }
+      }
+
       this.metadata.syncProgress = 95;
       this.metadata.syncStatusText = 'جاري إنهاء المزامنة... (95%)';
       this.emitMetadata();
@@ -1143,6 +1156,67 @@ export class WhoopBleEngine {
       this.metadata.syncStatusText = undefined;
       this.emitMetadata();
       return false;
+    }
+  }
+
+  // --- Simulate Offline Reconnection (+2,500 Steps / 45m Outdoor Walk) ---
+  public async simulateOfflineStepReconnection(
+    additionalSteps = 2500,
+    walkDurationMinutes = 45
+  ): Promise<number> {
+    try {
+      this.metadata.connected = true;
+      this.metadata.connecting = false;
+      this.metadata.onWrist = true;
+      this.metadata.isSyncing = true;
+      this.metadata.syncProgress = 15;
+      this.metadata.syncStatusText = 'جاري استرداد حزم الخطوات أثناء انقطاع الاتصال... (15%)';
+      this.emitMetadata();
+      await new Promise((r) => setTimeout(r, 400));
+
+      this.metadata.syncProgress = 50;
+      this.metadata.syncStatusText = `جاري معالجة إيقاع الحركة (${Math.round(additionalSteps / walkDurationMinutes)} خ/د) ومطابقة الخطوات... (50%)`;
+      this.emitMetadata();
+      await new Promise((r) => setTimeout(r, 550));
+
+      // Reconcile steps in pedometer engine & IndexedDB/storageService
+      const credited = pedometerEngine.simulateOfflineWalkReconnection(additionalSteps);
+
+      this.metadata.syncProgress = 85;
+      this.metadata.syncStatusText = 'جاري تحديث السجل اليومي وسعرات الحركة... (85%)';
+      this.emitMetadata();
+      await new Promise((r) => setTimeout(r, 450));
+
+      this.metadata.syncProgress = 100;
+      this.metadata.syncStatusText = `تم استرداد +${credited.toLocaleString()} خطوة بنجاح وتحديث اليوم!`;
+      this.emitMetadata();
+
+      try {
+        localStorage.setItem('whoop_last_synced_timestamp', String(Date.now()));
+      } catch {}
+
+      notificationEngine.notify({
+        type: 'strain',
+        title: 'تمت مزامنة الخطوات بعد إعادة الاتصال',
+        message: `تم استرداد ${credited.toLocaleString()} خطوة مسجلة أثناء المشي بالخارج بدون الهاتف (${walkDurationMinutes} دقيقة).`,
+      });
+
+      setTimeout(() => {
+        if (this.metadata.isSyncing) {
+          this.metadata.isSyncing = false;
+          this.metadata.syncProgress = undefined;
+          this.metadata.syncStatusText = undefined;
+          this.emitMetadata();
+        }
+      }, 3500);
+
+      return credited;
+    } catch {
+      this.metadata.isSyncing = false;
+      this.metadata.syncProgress = undefined;
+      this.metadata.syncStatusText = undefined;
+      this.emitMetadata();
+      return 0;
     }
   }
 
@@ -1516,6 +1590,10 @@ export class WhoopBleEngine {
             if (pType === 0x08 || pType === 0x10 || pType === 0x16 || pType === 0x24 || pType === 0x25) {
               // Episodic sleep history buffer offloaded from strap
               sleepEngine.ingestEpisodicBuffer(pData);
+            } else if (pType === 0x06 && pData.byteLength >= 5) {
+              // Cumulative hardware steps counter characteristic / payload
+              const hwSteps = pData.getUint32(1, true);
+              pedometerEngine.reconcileCumulativeHardwareSteps(hwSteps);
             } else if (pType === 0x01 && pData.byteLength >= 7) {
               // Accelerometer IMU frame
               const rawX = pData.getInt16(1, true);

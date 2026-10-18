@@ -94,6 +94,21 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
     activityDetectionEngine.getPendingActivity()
   );
   const [editingSport, setEditingSport] = useState<string>('');
+  const [isSportPickerOpen, setIsSportPickerOpen] = useState(false);
+
+  const getSportLabel = (sport: string) => {
+    if (!isRtl) return sport;
+    switch (sport) {
+      case 'Running': return 'جري';
+      case 'Walking':
+      case 'Outdoor Walk': return 'مشي';
+      case 'Weightlifting': return 'تمارين قوة (أثقال)';
+      case 'Cycling': return 'ركوب دراجة';
+      case 'HIIT': return 'تدريب متواتر عالي الكثافة (HIIT)';
+      case 'Functional Fitness': return 'لياقة بدنية وظائفية';
+      default: return sport;
+    }
+  };
 
   useEffect(() => {
     return activityDetectionEngine.subscribe(() => {
@@ -203,84 +218,6 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
 
   return (
     <div className="space-y-4 pb-28 animate-in fade-in duration-300">
-      {/* Interactive Auto-Detected Activity Banner */}
-      {pendingActivity && (
-        <div className="p-4 rounded-[24px] bg-[#12151A] border-2 border-[#00F0FF]/50 shadow-xl shadow-[#00F0FF]/10 space-y-3 animate-in slide-in-from-top-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-[#00F0FF]/20 text-[#00F0FF] flex items-center justify-center border border-[#00F0FF]/30">
-                <Activity className="w-5 h-5 animate-pulse" />
-              </div>
-              <div>
-                <span className="text-[10px] font-black uppercase tracking-wider text-[#00F0FF] font-condensed">
-                  {isRtl ? 'تم رصد نشاط رياضي تلقائياً' : 'AUTO-DETECTED ACTIVITY'}
-                </span>
-                <h4 className="text-sm font-black uppercase text-white font-condensed">
-                  {editingSport || pendingActivity.sport}
-                </h4>
-              </div>
-            </div>
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#0093E9]/20 border border-[#0093E9]/40 text-[#0093E9] text-xs font-black font-condensed">
-              <Flame className="w-3.5 h-3.5" />
-              <span>{pendingActivity.strain.toFixed(1)} {isRtl ? 'جهد' : 'Strain'}</span>
-            </div>
-          </div>
-
-          {/* Metric details: Duration, Avg HR, Calories */}
-          <div className="grid grid-cols-3 gap-2 text-center">
-            <div className="p-2 rounded-xl bg-[#0B0D10] border border-white/5">
-              <div className="text-[10px] text-zinc-400 font-condensed uppercase">{isRtl ? 'المدة' : 'Duration'}</div>
-              <div className="text-sm font-black font-condensed text-white">{Math.round(pendingActivity.durationSec / 60)} min</div>
-            </div>
-            <div className="p-2 rounded-xl bg-[#0B0D10] border border-white/5">
-              <div className="text-[10px] text-zinc-400 font-condensed uppercase">{isRtl ? 'متوسط النبض' : 'Avg HR'}</div>
-              <div className="text-sm font-black font-condensed text-[#00F0FF]">{pendingActivity.avgHr} bpm</div>
-            </div>
-            <div className="p-2 rounded-xl bg-[#0B0D10] border border-white/5">
-              <div className="text-[10px] text-zinc-400 font-condensed uppercase">{isRtl ? 'السعرات' : 'Calories'}</div>
-              <div className="text-sm font-black font-condensed text-[#FF8A00]">{pendingActivity.calories} kcal</div>
-            </div>
-          </div>
-
-          {/* Sport tag selector */}
-          <div className="flex items-center gap-1.5 overflow-x-auto py-1 scrollbar-none text-[11px] font-condensed font-bold">
-            {['Running', 'Outdoor Walk', 'Functional Fitness', 'Cycling', 'Weightlifting'].map((sp) => (
-              <button
-                key={sp}
-                onClick={() => {
-                  hapticLight();
-                  setEditingSport(sp);
-                }}
-                className={`px-2.5 py-1 rounded-lg border transition-all ${
-                  (editingSport || pendingActivity.sport) === sp
-                    ? 'bg-white text-black border-white'
-                    : 'bg-[#16191E] text-zinc-400 border-white/5 hover:text-white'
-                }`}
-              >
-                {sp}
-              </button>
-            ))}
-          </div>
-
-          {/* Action buttons: Confirm & Save vs Discard */}
-          <div className="flex items-center gap-2 pt-1 font-condensed">
-            <button
-              onClick={handleConfirmActivity}
-              className="flex-1 py-2.5 rounded-xl bg-[#16EC06] text-black font-black text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 active:scale-98 transition-transform"
-            >
-              <CheckCircle2 className="w-4 h-4 stroke-[2.5]" />
-              <span>{isRtl ? 'تأكيد وحفظ النشاط' : 'Confirm & Save'}</span>
-            </button>
-            <button
-              onClick={handleDiscardActivity}
-              className="px-4 py-2.5 rounded-xl bg-[#1E232B] text-zinc-400 hover:text-white font-bold text-xs uppercase tracking-wider active:scale-98 transition-transform"
-            >
-              {isRtl ? 'تجاهل' : 'Discard'}
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* 1. Official WHOOP Concentric 3-Layer Ring Gauge around the "W" Logo (00:01) */}
       <div className="py-1">
         <WhoopConcentricTripleGauge
@@ -437,6 +374,132 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
       <div className="space-y-3">
         <h2 className="text-xl font-bold text-white tracking-tight px-1">{t('myDay')}</h2>
 
+        {/* Interactive Auto-Detected Activity Confirmation Banner - Positioned Above Today's Activities */}
+        {pendingActivity && (
+          <div className="p-4 rounded-[24px] bg-[#12151A] border-2 border-[#00F0FF]/50 shadow-xl shadow-[#00F0FF]/15 space-y-3 animate-in slide-in-from-top-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-[#00F0FF]/20 text-[#00F0FF] flex items-center justify-center border border-[#00F0FF]/30">
+                  <Activity className="w-5 h-5 animate-pulse" />
+                </div>
+                <div>
+                  <span className="text-[10px] font-black uppercase tracking-wider text-[#00F0FF] font-condensed">
+                    {isRtl ? 'رصد نشاط تلقائي' : 'AUTO-DETECTED WORKOUT'}
+                  </span>
+                  <h4 className="text-sm font-black uppercase text-white font-condensed">
+                    {getSportLabel(editingSport || pendingActivity.sport)}
+                  </h4>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#0093E9]/20 border border-[#0093E9]/40 text-[#0093E9] text-xs font-black font-condensed">
+                <Flame className="w-3.5 h-3.5" />
+                <span>{pendingActivity.strain.toFixed(1)} {isRtl ? 'جهد' : 'Strain'}</span>
+              </div>
+            </div>
+
+            {/* Prompt notification text */}
+            <div className="p-2.5 rounded-xl bg-[#0B0D10] border border-white/5 text-xs text-zinc-300 font-sans leading-relaxed">
+              {isRtl ? (
+                <>
+                  تم رصد نشاط رياضي تلقائياً:{' '}
+                  <span className="font-bold text-white">{getSportLabel(editingSport || pendingActivity.sport)}</span>{' '}
+                  من{' '}
+                  <span className="font-mono text-[#00F0FF]">
+                    {new Date(pendingActivity.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>{' '}
+                  إلى{' '}
+                  <span className="font-mono text-[#00F0FF]">
+                    {new Date(pendingActivity.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                  . هل تريد اعتماده؟
+                </>
+              ) : (
+                <>
+                  Workout auto-detected:{' '}
+                  <span className="font-bold text-white">{editingSport || pendingActivity.sport}</span>{' '}
+                  from{' '}
+                  <span className="font-mono text-[#00F0FF]">
+                    {new Date(pendingActivity.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>{' '}
+                  to{' '}
+                  <span className="font-mono text-[#00F0FF]">
+                    {new Date(pendingActivity.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                  . Would you like to confirm it?
+                </>
+              )}
+            </div>
+
+            {/* Metric details: Duration, Avg HR, Calories */}
+            <div className="grid grid-cols-3 gap-2 text-center font-mono">
+              <div className="p-2 rounded-xl bg-[#0B0D10] border border-white/5">
+                <div className="text-[10px] text-zinc-400 font-condensed uppercase">{isRtl ? 'المدة' : 'Duration'}</div>
+                <div className="text-sm font-black font-condensed text-white">{Math.round(pendingActivity.durationSec / 60)} min</div>
+              </div>
+              <div className="p-2 rounded-xl bg-[#0B0D10] border border-white/5">
+                <div className="text-[10px] text-zinc-400 font-condensed uppercase">{isRtl ? 'متوسط النبض' : 'Avg HR'}</div>
+                <div className="text-sm font-black font-condensed text-[#00F0FF]">{pendingActivity.avgHr} bpm</div>
+              </div>
+              <div className="p-2 rounded-xl bg-[#0B0D10] border border-white/5">
+                <div className="text-[10px] text-zinc-400 font-condensed uppercase">{isRtl ? 'السعرات' : 'Calories'}</div>
+                <div className="text-sm font-black font-condensed text-[#FF8A00]">{pendingActivity.calories} kcal</div>
+              </div>
+            </div>
+
+            {/* Sport tag selector */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-[11px] font-condensed">
+                <span className="text-zinc-400 uppercase font-bold">{isRtl ? 'نوع الرياضة:' : 'Sport Type:'}</span>
+                <button
+                  onClick={() => setIsSportPickerOpen(!isSportPickerOpen)}
+                  className="text-[#00F0FF] hover:underline flex items-center gap-1 font-bold"
+                >
+                  <Edit3 className="w-3 h-3" />
+                  <span>{isRtl ? 'تغيير نوع التمرين' : 'Change Sport'}</span>
+                </button>
+              </div>
+
+              {isSportPickerOpen && (
+                <div className="flex items-center gap-1.5 overflow-x-auto py-1.5 scrollbar-none text-[11px] font-condensed font-bold">
+                  {['Running', 'Walking', 'Weightlifting', 'Cycling', 'HIIT', 'Functional Fitness'].map((sp) => (
+                    <button
+                      key={sp}
+                      onClick={() => {
+                        hapticLight();
+                        setEditingSport(sp);
+                      }}
+                      className={`px-3 py-1.5 rounded-lg border shrink-0 transition-all ${
+                        (editingSport || pendingActivity.sport) === sp
+                          ? 'bg-white text-black border-white'
+                          : 'bg-[#16191E] text-zinc-400 border-white/5 hover:text-white'
+                      }`}
+                    >
+                      {getSportLabel(sp)}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Action buttons: Confirm (حفظ النشاط) & Discard (تجاهل) */}
+            <div className="flex items-center gap-2 pt-1 font-condensed">
+              <button
+                onClick={handleConfirmActivity}
+                className="flex-1 py-2.5 rounded-xl bg-[#16EC06] text-black font-black text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 active:scale-98 transition-transform shadow-[0_0_15px_rgba(22,236,6,0.2)]"
+              >
+                <CheckCircle2 className="w-4 h-4 stroke-[2.5]" />
+                <span>{isRtl ? 'حفظ النشاط' : 'Confirm & Save'}</span>
+              </button>
+              <button
+                onClick={handleDiscardActivity}
+                className="px-4 py-2.5 rounded-xl bg-[#1E232B] text-zinc-400 hover:text-white font-bold text-xs uppercase tracking-wider active:scale-98 transition-transform"
+              >
+                {isRtl ? 'تجاهل' : 'Discard'}
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* TODAY'S ACTIVITIES Card */}
         <div className="rounded-[24px] bg-[#12151A] border border-white/5 p-4 space-y-3">
           <div className="flex items-center justify-between border-b border-white/5 pb-2.5">
@@ -478,25 +541,30 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
 
             {/* Custom Session List (Real Workouts) */}
             {sessions.map((s) => (
-              <div key={s.id} className="py-2.5 flex items-center justify-between">
+              <div key={s.id} className="py-2.5 flex items-center justify-between gap-2">
                 <div className="flex items-center gap-3">
-                  <div className="px-2.5 py-1 rounded-full font-condensed font-black text-xs flex items-center gap-1.5 bg-[#0093E9]/20 text-[#0093E9] border border-[#0093E9]/40">
+                  <div className="px-2.5 py-1 rounded-full font-condensed font-black text-xs flex items-center gap-1.5 bg-[#0093E9]/20 text-[#0093E9] border border-[#0093E9]/40 shrink-0">
                     <Dumbbell className="w-3 h-3 stroke-[2.5]" />
                     <span>{s.strain.toFixed(1)}</span>
                   </div>
                   <div>
-                    <div className="text-xs font-bold text-white uppercase font-sans">
-                      {s.title}
+                    <div className="text-xs font-bold text-white uppercase font-sans flex items-center gap-1.5">
+                      <span>{getSportLabel(s.title || s.sport || 'Workout')}</span>
+                      <span className="text-[10px] text-zinc-400 font-mono">
+                        • {Math.round(s.durationSec / 60)} {isRtl ? 'دقيقة' : 'min'}
+                      </span>
                     </div>
-                    <div className="text-[10px] text-zinc-400 font-mono">
-                      {Math.floor(s.durationSec / 60)} {isRtl ? 'دقيقة' : 'min'} • {s.avgHr} {t('bpm')}
+                    <div className="text-[10px] text-zinc-400 font-mono flex items-center gap-1.5">
+                      <span>{s.avgHr} {t('bpm')}{s.maxHr ? ` (أقصى ${s.maxHr})` : ''}</span>
+                      <span>•</span>
+                      <span className="text-[#FF8A00]">{s.calories || Math.round((s.durationSec / 60) * 8)} {isRtl ? 'سعرة' : 'kcal'}</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="text-end text-[10px] font-mono text-zinc-400">
-                  <div>{new Date(s.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
-                  <div>{new Date(s.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                <div className="text-end text-[10px] font-mono text-zinc-400 shrink-0">
+                  <div className="text-zinc-300 font-semibold">{new Date(s.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                  <div className="text-zinc-500">{new Date(s.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
                 </div>
               </div>
             ))}

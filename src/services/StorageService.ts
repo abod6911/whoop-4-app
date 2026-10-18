@@ -279,13 +279,34 @@ class StorageService {
   // --- Sessions Store (Real Workouts, Sleep) ---
   async saveSession(session: SessionRecord): Promise<void> {
     const db = await this.initDB();
-    return new Promise((resolve, reject) => {
+    await new Promise<void>((resolve, reject) => {
       const tx = db.transaction('sessions', 'readwrite');
       const store = tx.objectStore('sessions');
       const req = store.put(session);
       req.onsuccess = () => resolve();
       req.onerror = () => reject(req.error);
     });
+
+    try {
+      const dateStr = localDateKey(session.startTime);
+      const realDay = this.getRealDayState(dateStr);
+      if (realDay) {
+        const workouts = Array.isArray(realDay.workouts)
+          ? realDay.workouts.filter((w) => w.id !== session.id)
+          : [];
+        workouts.unshift(session);
+        this.saveRealDayState(dateStr, { ...realDay, workouts });
+      }
+      const rawDay = localStorage.getItem(`whoop_day_${dateStr}`);
+      if (rawDay) {
+        const parsed = JSON.parse(rawDay);
+        const wList = Array.isArray(parsed.workouts)
+          ? parsed.workouts.filter((w: any) => w.id !== session.id)
+          : [];
+        wList.unshift(session);
+        localStorage.setItem(`whoop_day_${dateStr}`, JSON.stringify({ ...parsed, workouts: wList }));
+      }
+    } catch {}
   }
 
   async getAllSessions(): Promise<SessionRecord[]> {
