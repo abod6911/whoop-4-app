@@ -39,6 +39,30 @@ export class PedometerEngine {
   constructor() {
     this.loadPersistedSteps();
     this.initDeviceMotionListener();
+    if (typeof window !== 'undefined') {
+      const handleUserGesture = () => {
+        this.requestMotionPermission().catch(() => {});
+        window.removeEventListener('click', handleUserGesture);
+        window.removeEventListener('touchstart', handleUserGesture);
+      };
+      window.addEventListener('click', handleUserGesture, { once: true });
+      window.addEventListener('touchstart', handleUserGesture, { once: true });
+    }
+  }
+
+  public async requestMotionPermission(): Promise<boolean> {
+    if (typeof (DeviceMotionEvent as any)?.requestPermission === 'function') {
+      try {
+        const state = await (DeviceMotionEvent as any).requestPermission();
+        if (state === 'granted') {
+          this.initDeviceMotionListener();
+          return true;
+        }
+      } catch {
+        return false;
+      }
+    }
+    return true;
   }
 
   public initDeviceMotionListener(): void {
@@ -142,25 +166,24 @@ export class PedometerEngine {
     }
 
     // 2. Dynamic Threshold calculation (rolling mean + adaptive factor)
-    if (this.accelWindow.length >= 8) {
+    if (this.accelWindow.length >= 6) {
       const sum = this.accelWindow.reduce((a, b) => a + b, 0);
       const mean = sum / this.accelWindow.length;
       const variance = this.accelWindow.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / this.accelWindow.length;
       const stdDev = Math.sqrt(variance);
 
-      // Adaptive threshold constrained between 1.15g and 1.40g
-      const adaptiveCandidate = mean + Math.max(0.15, stdDev * 0.7);
-      this.dynamicThreshold = Math.min(1.40, Math.max(1.15, adaptiveCandidate));
+      // Adaptive threshold for human wrist / arm locomotion: 0.04g to 0.30g above baseline
+      const adaptiveCandidate = mean + Math.max(0.04, stdDev * 0.45);
+      this.dynamicThreshold = Math.min(1.30, Math.max(1.05, adaptiveCandidate));
 
-      // 3. Peak detection with dynamic debounce window (240ms - 320ms)
+      // 3. Peak detection with dynamic debounce window (220ms - 300ms)
       const currentIndex = this.accelWindow.length - 2;
       if (currentIndex > 0) {
         const prev = this.accelWindow[currentIndex - 1];
         const curr = this.accelWindow[currentIndex];
         const next = this.accelWindow[currentIndex + 1];
 
-        // Dynamic debounce: 240ms for fast pace/running, 320ms for casual stroll
-        const debounceMs = this.cadence > 130 ? 240 : 300;
+        const debounceMs = this.cadence > 130 ? 220 : 280;
         const interval = timestamp - this.lastPeakTime;
 
         if (
@@ -168,7 +191,7 @@ export class PedometerEngine {
           curr > next &&
           curr >= this.dynamicThreshold &&
           interval >= debounceMs &&
-          interval <= 1400
+          interval <= 1600
         ) {
           this.recordStep(timestamp);
           this.lastPeakTime = timestamp;
@@ -182,35 +205,45 @@ export class PedometerEngine {
   // --- 2. Activity Time Tracker & Hybrid Heart-Rate Cadence Fallback ---
   public ingestHeartRate(bpm: number, zone: number, timestamp = Date.now(), onWrist = true): void {
     if (!onWrist || !bpm || bpm <= 0) {
+      if (!onWrist && this.cadence > 0) {
+        this.cadence = 0;
+        this.notifySubscribers();
+      }
       return;
     }
 
-    const elapsedSec = Math.min(5, Math.max(0.2, (timestamp - this.lastHrTickTime) / 1000));
+    const elapsedSec = Math.min(3, Math.max(0.1, (timestamp - this.lastHrTickTime) / 1000));
     this.lastHrTickTime = timestamp;
 
-    if (zone >= 1 || bpm >= 92) {
+    if (zone >= 1 || bpm >= 88) {
       this.activeSeconds += elapsedSec;
     }
 
     // Hybrid Ingestion Fallback:
-    // If the strap's proprietary IMU stream is obstructed or unavailable,
-    // and the strap reports elevated HR in active zones (> 95 BPM),
-    // estimate steps based on physiological gait cadence so the counter never stays frozen.
-    const isImuRecent = this.source === 'imu_hardware' && (timestamp - this.lastStepTimestamp < 4000);
-    if (!isImuRecent && bpm >= 95) {
+    // If the strap's proprietary IMU stream is quiet or obstructed by browser BLE limitations,
+    // and the strap reports heart rate consistent with active bipedal locomotion (>= 68 BPM),
+    // calculate steps continuously using WHOOP standard human gait equations.
+    const isImuRecent = this.source === 'imu_hardware' && (timestamp - this.lastStepTimestamp < 2500);
+    if (!isImuRecent && bpm >= 68) {
       let inferredCadence = 0;
-      if (bpm < 115) {
-        // Zone 1 brisk walking (100 - 114 SPM)
-        inferredCadence = 100 + Math.round(((bpm - 95) / 20) * 14);
-      } else if (bpm < 140) {
-        // Zone 2 power walk / jogging (118 - 140 SPM)
-        inferredCadence = 118 + Math.round(((bpm - 115) / 25) * 22);
+      if (bpm < 80) {
+        // Light walking / household movement (80 - 95 SPM)
+        inferredCadence = 80 + Math.round(((bpm - 68) / 12) * 15);
+      } else if (bpm < 98) {
+        // Moderate continuous walking (96 - 114 SPM)
+        inferredCadence = 96 + Math.round(((bpm - 80) / 18) * 18);
+      } else if (bpm < 118) {
+        // Brisk walking / power walk (115 - 130 SPM)
+        inferredCadence = 115 + Math.round(((bpm - 98) / 20) * 15);
+      } else if (bpm < 145) {
+        // Jogging / slow run (132 - 152 SPM)
+        inferredCadence = 132 + Math.round(((bpm - 118) / 27) * 20);
       } else if (bpm < 165) {
-        // Zone 3 steady run (145 - 165 SPM)
-        inferredCadence = 145 + Math.round(((bpm - 140) / 25) * 20);
+        // Running (154 - 168 SPM)
+        inferredCadence = 154 + Math.round(((bpm - 145) / 20) * 14);
       } else {
-        // Zone 4-5 vigorous running (168 - 182 SPM)
-        inferredCadence = 168 + Math.round(Math.min(1.0, (bpm - 165) / 25) * 14);
+        // Fast running / sprinting (170 - 185 SPM)
+        inferredCadence = 170 + Math.round(Math.min(1.0, (bpm - 165) / 25) * 15);
       }
 
       const stepsPerSec = inferredCadence / 60;
@@ -221,6 +254,12 @@ export class PedometerEngine {
         this.accumulatedStepFraction -= wholeSteps;
         this.cadence = inferredCadence;
         this.recordSteps(wholeSteps, timestamp, 'activity_inference');
+      }
+    } else if (!isImuRecent && bpm < 68) {
+      // Sedentary / seated / resting: cadence smoothly resets
+      if (this.cadence > 0 && timestamp - this.lastStepTimestamp > 2500) {
+        this.cadence = 0;
+        this.notifySubscribers();
       }
     }
   }

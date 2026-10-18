@@ -45,6 +45,13 @@ export const StrapConnectSheet: React.FC<StrapConnectSheetProps> = ({
   const [copied, setCopied] = useState(false);
   const [actionFeedback, setActionFeedback] = useState<string | null>(null);
   const [isBusy, setIsBusy] = useState(false);
+  const [liveSteps, setLiveSteps] = useState(() => pedometerEngine.getState().steps);
+
+  useEffect(() => {
+    return pedometerEngine.subscribe((state) => {
+      setLiveSteps(state.steps);
+    });
+  }, []);
 
   const isBleSupported = whoopBleEngine.isSupported();
   const isConnected = metadata.connected;
@@ -302,7 +309,7 @@ export const StrapConnectSheet: React.FC<StrapConnectSheetProps> = ({
                     <div className="flex items-center gap-2">
                       <div className="text-end">
                         <span className="text-sm font-black font-condensed text-white tabular-nums">
-                          {pedometerEngine.getState().steps.toLocaleString()}
+                          {liveSteps.toLocaleString()}
                         </span>
                         <span className="text-[9px] text-zinc-400 block font-condensed -mt-1">
                           {isRtl ? 'خطوة' : 'STEPS'}

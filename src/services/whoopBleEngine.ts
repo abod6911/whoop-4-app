@@ -1644,9 +1644,17 @@ export class WhoopBleEngine {
               const rawX = pData.getInt16(1, true);
               const rawY = pData.getInt16(3, true);
               const rawZ = pData.getInt16(5, true);
-              const gX = rawX / 4096.0;
-              const gY = rawY / 4096.0;
-              const gZ = rawZ / 4096.0;
+              const rawMag = Math.sqrt(rawX * rawX + rawY * rawY + rawZ * rawZ);
+              let scale = 4096.0;
+              if (rawMag > 10000) scale = 16384.0;
+              else if (rawMag > 5000) scale = 8192.0;
+              else if (rawMag > 2000) scale = 4096.0;
+              else if (rawMag > 500) scale = 1000.0;
+              else if (rawMag > 0 && rawMag < 10) scale = 1.0;
+
+              const gX = rawX / scale;
+              const gY = rawY / scale;
+              const gZ = rawZ / scale;
               const motionDelta = Math.abs(Math.sqrt(gX * gX + gY * gY + gZ * gZ) - 1.0);
 
               pedometerEngine.ingestRawAccel(gX, gY, gZ, Date.now(), this.metadata.onWrist !== false);
@@ -1678,11 +1686,22 @@ export class WhoopBleEngine {
           const rawX = data.getInt16(0, true);
           const rawY = data.getInt16(2, true);
           const rawZ = data.getInt16(4, true);
-          const gMag = Math.sqrt(rawX * rawX + rawY * rawY + rawZ * rawZ) / 4096.0;
+          const rawMag = Math.sqrt(rawX * rawX + rawY * rawY + rawZ * rawZ);
+          let scale = 4096.0;
+          if (rawMag > 10000) scale = 16384.0;
+          else if (rawMag > 5000) scale = 8192.0;
+          else if (rawMag > 2000) scale = 4096.0;
+          else if (rawMag > 500) scale = 1000.0;
+          else if (rawMag > 0 && rawMag < 10) scale = 1.0;
+
+          const gX = rawX / scale;
+          const gY = rawY / scale;
+          const gZ = rawZ / scale;
+          const gMag = Math.sqrt(gX * gX + gY * gY + gZ * gZ);
           const motionDelta = Math.abs(gMag - 1.0);
 
-          if (gMag >= 0.2 && gMag <= 8.0) {
-            pedometerEngine.ingestRawAccel(rawX / 4096.0, rawY / 4096.0, rawZ / 4096.0, Date.now(), this.metadata.onWrist !== false);
+          if (gMag >= 0.1 && gMag <= 10.0) {
+            pedometerEngine.ingestRawAccel(gX, gY, gZ, Date.now(), this.metadata.onWrist !== false);
             sleepEngine.ingestMotion(motionDelta);
           }
 
@@ -1855,6 +1874,10 @@ export class WhoopBleEngine {
     const motion = pedometerEngine.getState().cadence > 0 ? 0.35 : 0.02;
     sleepEngine.ingestSample(bpm, liveHrv, onWrist, rhrBase, now, motion);
 
+    // Ingest into Pedometer Activity & Gait Locomotion Engine
+    const zone = biometricEngine.determineZone(bpm);
+    pedometerEngine.ingestHeartRate(bpm, zone, now, onWrist);
+
     // Record raw packet for sniffer & telemetry tracking
     this.recordRawPacket(UUID_HEART_RATE_SERVICE, UUID_HEART_RATE_MEASUREMENT, data);
 
@@ -1925,7 +1948,13 @@ export class WhoopBleEngine {
       await this.sendRawBuffer(new Uint8Array([0xaa, 0x04, 0x00, 0x23, 0x06, 0x01])).catch(() => {});
       await delay(250);
 
-      // 5. Also trigger legacy 0x11 Realtime Stream command
+      // 5. Enable IMU Accelerometer Motion Stream ([0x23, 0x07, 0x01])
+      const imuPayload = new Uint8Array([0x23, 0x07, 0x01]);
+      await this.sendRawBuffer(encodeWhoopFrame(imuPayload)).catch(() => {});
+      await this.sendRawBuffer(new Uint8Array([0xaa, 0x04, 0x00, 0x23, 0x07, 0x01])).catch(() => {});
+      await delay(250);
+
+      // 6. Also trigger legacy 0x11 Realtime Stream command
       await this.sendToggleRealtimeHr(true).catch(() => {});
 
       console.log('[WHOOP 4.0] ✓ Full sensor activation handshake dispatched successfully');

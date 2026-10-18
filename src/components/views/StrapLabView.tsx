@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { DeviceMetadata, GattServiceInfo, RawBlePacket } from '../../types/whoop';
 import { biometricEngine } from '../../utils/biometricEngine';
 import { whoopBleEngine } from '../../services/whoopBleEngine';
@@ -61,6 +61,14 @@ export const StrapLabView: React.FC<StrapLabViewProps> = ({
 }) => {
   const { t, isRtl } = useLanguage();
   const [commandFeedback, setCommandFeedback] = useState<string | null>(null);
+  const [labSteps, setLabSteps] = useState(() => pedometerEngine.getState().steps);
+
+  useEffect(() => {
+    return pedometerEngine.subscribe((state) => {
+      setLabSteps(state.steps);
+    });
+  }, []);
+
   const isBatteryLow = metadata.batteryLevel !== null && metadata.batteryLevel < 15;
   const poincarePoints = biometricEngine.getPoincarePoints();
   const { sd1, sd2 } = biometricEngine.calculateSD1AndSD2();
@@ -278,7 +286,7 @@ export const StrapLabView: React.FC<StrapLabViewProps> = ({
               </span>
             </div>
             <span className="text-[10px] font-mono text-[#00F0FF]">
-              {pedometerEngine.getState().steps.toLocaleString()} {isRtl ? 'خطوة' : 'steps'}
+              {labSteps.toLocaleString()} {isRtl ? 'خطوة' : 'steps'}
             </span>
           </div>
 
