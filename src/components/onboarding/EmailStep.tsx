@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, HelpCircle, X } from 'lucide-react';
-import { AnimatedEnvelopeIcon, WhoopCircularButton } from './OnboardingMedia';
+import { AnimatedEnvelopeIcon, WhoopCircularButton, HeroVideoBackground } from './OnboardingMedia';
 
 export interface EmailStepProps {
   initialEmail?: string;
@@ -41,9 +41,8 @@ export const EmailStep: React.FC<EmailStepProps> = ({
 
   return (
     <div className="relative w-full h-[100dvh] max-w-md mx-auto bg-[#0B0D10] text-white flex flex-col justify-between p-6 select-none overflow-hidden">
-      {/* Background ambient lighting */}
-      <div className="absolute top-10 right-10 w-64 h-64 rounded-full bg-[#0093E9]/10 blur-[100px] pointer-events-none" />
-      <div className="absolute bottom-20 left-10 w-64 h-64 rounded-full bg-[#00F0FF]/5 blur-[90px] pointer-events-none" />
+      {/* Ambient Hero Video Backdrop */}
+      <HeroVideoBackground overlayOpacity={0.78} />
 
       {/* 1. Header & Navigation */}
       <div className="relative z-10 pt-4 flex items-center justify-between">

@@ -13,13 +13,14 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({
   onNoDevice,
   onSignIn,
 }) => {
-  const [videoLoaded, setVideoLoaded] = useState(false);
   const [videoError, setVideoError] = useState(false);
   const [canInteract, setCanInteract] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
     if (videoRef.current) {
+      videoRef.current.muted = true;
+      videoRef.current.defaultMuted = true;
       videoRef.current.play().catch(() => {
         // Autoplay may be deferred until user interaction on mobile
       });
@@ -44,24 +45,20 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({
         {!videoError && (
           <video
             ref={videoRef}
-            src="/assets/hero-reel.mp4"
             autoPlay
             loop
             muted
             playsInline
-            onLoadedData={() => setVideoLoaded(true)}
+            preload="auto"
             onError={() => {
-              // Try fallback path if first path fails
-              if (videoRef.current && videoRef.current.src.endsWith('/assets/hero-reel.mp4')) {
-                videoRef.current.src = '/videos/hero-reel.mp4';
-              } else {
-                setVideoError(true);
-              }
+              setVideoError(true);
             }}
-            className={`w-full h-full object-cover object-center transition-opacity duration-1000 ${
-              videoLoaded ? 'opacity-80' : 'opacity-0'
-            }`}
-          />
+            className="w-full h-full object-cover object-center opacity-80 transition-opacity duration-700"
+          >
+            <source src="/assets/videos/hero-reel.mp4" type="video/mp4" />
+            <source src="/assets/hero-reel.mp4" type="video/mp4" />
+            <source src="/videos/hero-reel.mp4" type="video/mp4" />
+          </video>
         )}
 
         {/* Smooth dark gradient overlays matching official WHOOP design */}

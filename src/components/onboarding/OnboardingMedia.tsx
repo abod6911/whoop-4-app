@@ -10,12 +10,13 @@ export const HeroVideoBackground: React.FC<{
   className?: string;
   overlayOpacity?: number;
 }> = ({ className = '', overlayOpacity = 0.55 }) => {
-  const [videoLoaded, setVideoLoaded] = useState(false);
   const [videoFailed, setVideoFailed] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
     if (videoRef.current) {
+      videoRef.current.muted = true;
+      videoRef.current.defaultMuted = true;
       videoRef.current.play().catch(() => {
         // Autoplay may be deferred until user interaction on mobile
       });
@@ -32,17 +33,18 @@ export const HeroVideoBackground: React.FC<{
       {!videoFailed && (
         <video
           ref={videoRef}
-          src="/assets/videos/hero-reel.mp4"
           autoPlay
           loop
           muted
           playsInline
-          onLoadedData={() => setVideoLoaded(true)}
+          preload="auto"
           onError={() => setVideoFailed(true)}
-          className={`w-full h-full object-cover object-center transition-opacity duration-1000 ${
-            videoLoaded ? 'opacity-85' : 'opacity-0'
-          }`}
-        />
+          className="w-full h-full object-cover object-center opacity-85 transition-opacity duration-700"
+        >
+          <source src="/assets/videos/hero-reel.mp4" type="video/mp4" />
+          <source src="/assets/hero-reel.mp4" type="video/mp4" />
+          <source src="/videos/hero-reel.mp4" type="video/mp4" />
+        </video>
       )}
 
       {/* Dark vignette overlays matching official WHOOP aesthetics */}
