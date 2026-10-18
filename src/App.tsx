@@ -59,7 +59,7 @@ import { notificationEngine } from './services/notificationEngine';
 import { telemetryWorkerManager } from './services/telemetryWorkerManager';
 import { hapticMedium, hapticLight } from './utils/haptics';
 
-import { AlertCircle, X, Plus, AlertTriangle, Wind, Dumbbell, Moon, Clock, ShieldCheck } from 'lucide-react';
+import { AlertCircle, X, AlertTriangle, Wind, Dumbbell, Moon, Clock, ShieldCheck } from 'lucide-react';
 import { useLanguage } from './i18n/LanguageContext';
 
 export const App: React.FC = () => {
@@ -687,7 +687,7 @@ export const App: React.FC = () => {
   const zones = biometricEngine.getZones();
 
   return (
-    <div className="min-h-screen bg-[#07090C] text-white flex justify-center items-center font-sans antialiased selection:bg-[#0093E9] selection:text-black relative overflow-x-hidden md:py-6">
+    <div className="h-[100dvh] w-full bg-[#07090C] text-white flex justify-center items-center font-sans antialiased selection:bg-[#0093E9] selection:text-black relative overflow-hidden overscroll-none select-none md:p-6">
       {/* Studio Radial Atmospheric Ambient Glows on Desktop */}
       <div className="fixed inset-0 pointer-events-none hidden md:block overflow-hidden" aria-hidden="true">
         <div className="absolute top-[-10%] left-[20%] w-[600px] h-[600px] bg-[#00A3FF]/10 blur-[150px] rounded-full" />
@@ -749,7 +749,7 @@ export const App: React.FC = () => {
       </div>
 
       {/* Main Mobile Chassis Container */}
-      <div className="w-full max-w-[430px] min-h-dvh md:min-h-[860px] md:max-h-[880px] bg-gradient-to-b from-[#161B22] via-[#0B0D10] to-[#000000] flex flex-col relative md:border md:border-white/15 md:rounded-[44px] md:shadow-[0_25px_80px_rgba(0,0,0,0.9),0_0_50px_rgba(0,163,255,0.08)] overflow-hidden z-10">
+      <div className="h-[100dvh] w-full max-w-md md:max-w-[430px] md:h-[92vh] md:max-h-[880px] bg-gradient-to-b from-[#161B22] via-[#0B0D10] to-[#000000] flex flex-col relative overflow-hidden md:border md:border-white/15 md:rounded-[44px] md:shadow-2xl select-none z-10">
         {/* Dynamic Island Floating Athletic Banner */}
         <DynamicIslandBanner onAction={handleBannerAction} />
 
@@ -771,6 +771,10 @@ export const App: React.FC = () => {
           onNextDate={handleNextDate}
           onOpenCalendar={() => setIsCalendarSheetOpen(true)}
           onOpenStreakModal={() => setIsStreakModalOpen(true)}
+          onOpenQuickAction={() => {
+            hapticMedium();
+            setIsQuickActionOpen(true);
+          }}
         />
 
         {/* Historical Cycle Banner with Quick Return Button */}
@@ -820,7 +824,7 @@ export const App: React.FC = () => {
         )}
 
         {/* Main Content Area */}
-        <main className="flex-1 px-4 pt-3 overflow-y-auto">
+        <main className="flex-1 overflow-y-auto overscroll-contain px-4 pt-2 pb-[calc(env(safe-area-inset-bottom)+5.5rem)] no-scrollbar">
           {/* TAB 1: HOME (Sub-tabs: Overview | Sleep | Recovery | Strain) */}
           {mainTab === 'home' && (
             <>
@@ -846,6 +850,10 @@ export const App: React.FC = () => {
                   }}
                   onRefreshSessions={refreshSessions}
                   onOpenStreakModal={() => setIsStreakModalOpen(true)}
+                  onOpenQuickAction={() => {
+                    hapticMedium();
+                    setIsQuickActionOpen(true);
+                  }}
                 />
               )}
 
@@ -927,18 +935,6 @@ export const App: React.FC = () => {
             />
           )}
         </main>
-
-        {/* Floating Action Button (+) */}
-        <button
-          onClick={() => {
-            hapticMedium();
-            setIsQuickActionOpen(true);
-          }}
-          className={`w-14 h-14 rounded-full bg-white text-black shadow-2xl absolute bottom-20 ${isRtl ? 'left-5' : 'right-5'} z-30 flex items-center justify-center hover:scale-105 active:scale-95 transition-transform`}
-          title={isRtl ? 'بدء تمرين مباشر أو نوم' : 'Start Live Workout or Sleep'}
-        >
-          <Plus className="w-7 h-7 stroke-[2.5]" />
-        </button>
 
         {/* 4-Tab Bottom Navigation Bar */}
         <WhoopBottomNav

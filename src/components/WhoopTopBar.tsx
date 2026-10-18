@@ -1,6 +1,6 @@
 import React from 'react';
 import type { DeviceMetadata, LiveMetrics, HomeSubTab, MainTabType } from '../types/whoop';
-import { ChevronLeft, ChevronRight, Bell, Globe, Zap } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Bell, Globe, Zap, Plus } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 interface WhoopTopBarProps {
@@ -17,6 +17,7 @@ interface WhoopTopBarProps {
   onNextDate: () => void;
   onOpenCalendar?: () => void;
   onOpenStreakModal?: () => void;
+  onOpenQuickAction?: () => void;
 }
 
 export const SignalBarsIcon: React.FC<{ isConnected: boolean; className?: string }> = ({
@@ -77,6 +78,7 @@ export const WhoopTopBar: React.FC<WhoopTopBarProps> = ({
   onNextDate,
   onOpenCalendar,
   onOpenStreakModal,
+  onOpenQuickAction,
 }) => {
   const { t, isRtl } = useLanguage();
   const isBatteryLow = metadata.batteryLevel !== null && metadata.batteryLevel < 15;
@@ -134,8 +136,8 @@ export const WhoopTopBar: React.FC<WhoopTopBarProps> = ({
 
 
       {/* Row 1: Top Bar (00:00 in Video) */}
-      <div className="px-4 pt-3 pb-2 flex items-center justify-between gap-2 max-w-[430px] mx-auto">
-        {/* Left: Neutral User Avatar Circle (AB) + Notification Bell Badge + Streak Badge */}
+      <div className="px-4 pt-[max(env(safe-area-inset-top),0.75rem)] pb-2 flex items-center justify-between gap-2 max-w-[430px] mx-auto">
+        {/* Left: Athlete Avatar (AB) + Notification Bell Badge + Streak Badge + Quick Add (+) */}
         <div className="flex items-center gap-2">
           <button
             onClick={onOpenNotifications}
@@ -165,6 +167,17 @@ export const WhoopTopBar: React.FC<WhoopTopBarProps> = ({
           {/* Interactive WHOOP Wear Streak Badge */}
           {onOpenStreakModal && (
             <StreakBadge onClick={onOpenStreakModal} />
+          )}
+
+          {/* Relocated Quick Add Action Button (+) */}
+          {onOpenQuickAction && (
+            <button
+              onClick={onOpenQuickAction}
+              className="w-[34px] h-[34px] rounded-full bg-white/10 hover:bg-white/20 active:scale-95 border border-white/15 text-white flex items-center justify-center transition-all shadow-sm"
+              title={isRtl ? 'إضافة نشاط سريع أو تمرين' : 'Quick Add Activity'}
+            >
+              <Plus className="w-4 h-4 stroke-[2.5]" />
+            </button>
           )}
         </div>
 

@@ -41,8 +41,8 @@ export const WhoopBottomNav: React.FC<WhoopBottomNavProps> = ({
   };
 
   return (
-    <nav className="sticky bottom-0 z-40 w-full bg-[#0B0D10]/95 backdrop-blur-md border-t border-white/5 pb-[env(safe-area-inset-bottom)]">
-      <div className="w-full px-6 h-16 flex items-center justify-between">
+    <nav className="fixed md:absolute bottom-0 inset-x-0 max-w-md md:max-w-[430px] mx-auto z-40 bg-[#0E1116]/95 backdrop-blur-xl border-t border-white/5 pb-[max(env(safe-area-inset-bottom),0.5rem)] pt-2 px-6 flex justify-between items-center shadow-[0_-10px_30px_rgba(0,0,0,0.6)]">
+      <div className="w-full flex items-center justify-between">
         {/* Tab 1: Home (00:00) */}
         <button
           onClick={() => handleSelectTab('home')}

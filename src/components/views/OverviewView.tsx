@@ -61,6 +61,7 @@ interface OverviewViewProps {
   onOpenShareCard?: (type: 'recovery' | 'strain' | 'activity') => void;
   onRefreshSessions?: () => void;
   onOpenStreakModal?: () => void;
+  onOpenQuickAction?: () => void;
 }
 
 import { useLanguage } from '../../i18n/LanguageContext';
@@ -84,6 +85,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   onOpenShareCard,
   onRefreshSessions,
   onOpenStreakModal,
+  onOpenQuickAction,
 }) => {
   const { t, isRtl, dayNames, formatNumber } = useLanguage();
   const [isOutlookModalOpen, setIsOutlookModalOpen] = useState(false);
@@ -515,7 +517,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
           {/* Bottom Matte Buttons inside Today's Activities */}
           <div className="grid grid-cols-2 gap-2 pt-2 border-t border-white/5">
             <button
-              onClick={onStartActivity}
+              onClick={onOpenQuickAction || onStartActivity}
               className="py-2.5 px-3 rounded-xl bg-[#1A1F26] hover:bg-[#222832] text-white text-xs font-black uppercase tracking-wider font-condensed flex items-center justify-center gap-1.5 transition-all active:scale-98"
             >
               <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
