@@ -243,10 +243,10 @@ export const StrainView: React.FC<StrainViewProps> = ({
             </div>
             <div className="text-end">
               <span className="text-white font-mono font-black text-sm drop-shadow-[0_1px_8px_rgba(0,163,255,0.25)]" dir="ltr">
-                {(metrics.steps > 0 ? metrics.steps : 1245).toLocaleString()}
+                {(metrics.steps || 0).toLocaleString()}
               </span>
               <span className="text-[10px] text-zinc-400 font-mono block" dir="ltr">
-                {metrics.cadence > 0 ? `${metrics.cadence} spm` : (isRtl ? '112 spm • نشط' : '112 spm • Walking')}
+                {metrics.cadence > 0 ? `${metrics.cadence} spm` : (isRtl ? '0 spm • خامل' : '0 spm • Resting')}
               </span>
             </div>
           </div>

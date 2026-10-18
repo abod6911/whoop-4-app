@@ -284,6 +284,46 @@ class StorageService {
     }
   }
 
+  // --- Dedicated Steps Storage & Reconciliation (Partitioned by active user) ---
+  getRecordedSteps(dateStr: string): number {
+    try {
+      const userKey = this.activeUserId ? `user_${this.activeUserId}_steps_${dateStr}` : `whoop_steps_${dateStr}`;
+      const raw = localStorage.getItem(userKey) || localStorage.getItem(`whoop_steps_${dateStr}`);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (typeof parsed?.steps === 'number') return parsed.steps;
+      }
+      const day = this.getRealDayState(dateStr);
+      return day?.steps ?? 0;
+    } catch {
+      return 0;
+    }
+  }
+
+  saveRecordedSteps(dateStr: string, steps: number, source = 'imu_hardware'): void {
+    try {
+      const userKey = this.activeUserId ? `user_${this.activeUserId}_steps_${dateStr}` : `whoop_steps_${dateStr}`;
+      const payload = JSON.stringify({ steps, source, updatedAt: Date.now() });
+      localStorage.setItem(userKey, payload);
+      localStorage.setItem(`whoop_steps_${dateStr}`, payload);
+
+      const day = this.getRealDayState(dateStr);
+      if (day) {
+        this.saveRealDayState(dateStr, { ...day, steps });
+      }
+    } catch (e) {
+      console.warn('[StorageService] Error saving steps:', e);
+    }
+  }
+
+  reconcileOfflineStepsDelta(dateStr: string, delta: number): number {
+    if (delta <= 0) return 0;
+    const current = this.getRecordedSteps(dateStr);
+    const updated = current + delta;
+    this.saveRecordedSteps(dateStr, updated, 'imu_hardware');
+    return delta;
+  }
+
   // --- Full History from Real Stored Records (Up to 60 Days) ---
   getDaysHistory(numDays = 30): DayHistoryRecord[] {
     const records: DayHistoryRecord[] = [];

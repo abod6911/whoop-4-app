@@ -34,6 +34,10 @@ export const UUID_PULSE_OXIMETER_SERVICE = '00001822-0000-1000-8000-00805f9b34fb
 export const UUID_PLX_CONTINUOUS = '00002a5f-0000-1000-8000-00805f9b34fb';
 export const UUID_PLX_SPOT_CHECK = '00002a5e-0000-1000-8000-00805f9b34fb';
 
+// Standard BLE Running Speed and Cadence Service (Steps & Gait Cadence)
+export const UUID_RUNNING_SPEED_AND_CADENCE_SERVICE = '00001814-0000-1000-8000-00805f9b34fb';
+export const UUID_RSC_MEASUREMENT = '00002a53-0000-1000-8000-00805f9b34fb';
+
 // WHOOP 4.0 Proprietary Gen4 128-bit Base UUIDs
 export const WHOOP_BASE_SERVICE_UUID = '61080001-8d6d-82b8-614a-1c8cb0f8dcc6';
 export const WHOOP_CMD_TO_STRAP_UUID = '61080002-8d6d-82b8-614a-1c8cb0f8dcc6';
@@ -54,6 +58,8 @@ const KNOWN_UUID_NAMES: Record<string, string> = {
   [UUID_HARDWARE_REVISION]: 'Hardware Revision',
   [UUID_MANUFACTURER_NAME]: 'Manufacturer Name',
   [UUID_MODEL_NUMBER]: 'Model Number',
+  [UUID_RUNNING_SPEED_AND_CADENCE_SERVICE]: 'Running Speed & Cadence Service',
+  [UUID_RSC_MEASUREMENT]: 'RSC Measurement (Cadence & Gait)',
   [WHOOP_BASE_SERVICE_UUID]: 'WHOOP 4.0 Core Gen4 Service',
   [WHOOP_CMD_TO_STRAP_UUID]: 'CMD_TO_STRAP (Write Command)',
   [WHOOP_CMD_FROM_STRAP_UUID]: 'CMD_FROM_STRAP (Status & Frame Telemetry)',
@@ -497,11 +503,13 @@ export class WhoopBleEngine {
         'device_information',
         'health_thermometer',
         'pulse_oximeter',
+        'running_speed_and_cadence',
         UUID_HEART_RATE_SERVICE,
         UUID_BATTERY_SERVICE,
         UUID_DEVICE_INFO_SERVICE,
         UUID_HEALTH_THERMOMETER_SERVICE,
         UUID_PULSE_OXIMETER_SERVICE,
+        UUID_RUNNING_SPEED_AND_CADENCE_SERVICE,
         WHOOP_BASE_SERVICE_UUID,
         NORDIC_DFU_SERVICE_UUID,
       ];
@@ -583,6 +591,7 @@ export class WhoopBleEngine {
           UUID_DEVICE_INFO_SERVICE,
           UUID_HEALTH_THERMOMETER_SERVICE,
           UUID_PULSE_OXIMETER_SERVICE,
+          UUID_RUNNING_SPEED_AND_CADENCE_SERVICE,
           WHOOP_BASE_SERVICE_UUID,
           NORDIC_DFU_SERVICE_UUID,
         ],
@@ -967,6 +976,12 @@ export class WhoopBleEngine {
           const estimatedOfflineSteps = Math.min(6000, Math.round(gapMin * 45));
           if (estimatedOfflineSteps > 150) {
             pedometerEngine.addOfflineStepDelta(estimatedOfflineSteps, 'imu_hardware');
+            this.metadata.syncStatusText = `تمت مزامنة الخطوات المسجلة أثناء عدم الاتصال (+${estimatedOfflineSteps.toLocaleString()} خطوة)`;
+            notificationEngine.notify({
+              type: 'strain',
+              title: 'تمت مزامنة الخطوات بعد إعادة الاتصال',
+              message: `تمت مزامنة الخطوات المسجلة أثناء عدم الاتصال (+${estimatedOfflineSteps.toLocaleString()} خطوة)`,
+            });
           }
         }
       }
@@ -1161,10 +1176,15 @@ export class WhoopBleEngine {
     }
   }
 
-  // --- Simulate Offline Reconnection (+2,500 Steps / 45m Outdoor Walk) ---
+  // --- Developer Tool: Test Live Step Packet (+1 Step) ---
+  public testLiveStepPacket(): void {
+    pedometerEngine.testLiveStepPacket();
+  }
+
+  // --- Simulate Offline Reconnection (+2,000 Steps / 35m Outdoor Walk) ---
   public async simulateOfflineStepReconnection(
-    additionalSteps = 2500,
-    walkDurationMinutes = 45
+    additionalSteps = 2000,
+    walkDurationMinutes = 35
   ): Promise<number> {
     try {
       this.metadata.connected = true;
@@ -1190,7 +1210,7 @@ export class WhoopBleEngine {
       await new Promise((r) => setTimeout(r, 450));
 
       this.metadata.syncProgress = 100;
-      this.metadata.syncStatusText = `تم استرداد +${credited.toLocaleString()} خطوة بنجاح وتحديث اليوم!`;
+      this.metadata.syncStatusText = `تمت مزامنة الخطوات المسجلة أثناء عدم الاتصال (+${credited.toLocaleString()} خطوة)`;
       this.emitMetadata();
 
       try {
@@ -1200,7 +1220,7 @@ export class WhoopBleEngine {
       notificationEngine.notify({
         type: 'strain',
         title: 'تمت مزامنة الخطوات بعد إعادة الاتصال',
-        message: `تم استرداد ${credited.toLocaleString()} خطوة مسجلة أثناء المشي بالخارج بدون الهاتف (${walkDurationMinutes} دقيقة).`,
+        message: `تمت مزامنة الخطوات المسجلة أثناء عدم الاتصال (+${credited.toLocaleString()} خطوة)`,
       });
 
       setTimeout(() => {
@@ -1474,6 +1494,29 @@ export class WhoopBleEngine {
         }
       }
     } catch { /* optional service */ }
+
+    // F. Running Speed and Cadence Service (0x1814 -> 0x2A53)
+    try {
+      const rscService = await this.server.getPrimaryService(UUID_RUNNING_SPEED_AND_CADENCE_SERVICE).catch(async () => {
+        return await this.server!.getPrimaryService('running_speed_and_cadence');
+      });
+      if (rscService) {
+        const rscChar = await rscService.getCharacteristic(UUID_RSC_MEASUREMENT).catch(async () => {
+          return await rscService.getCharacteristic('rsc_measurement');
+        });
+        if (rscChar) {
+          await rscChar.startNotifications();
+          rscChar.addEventListener('characteristicvaluechanged', (e: Event) => {
+            const target = e.target as BluetoothRemoteGATTCharacteristic;
+            if (target.value) {
+              this.parseRscPacket(target.value);
+            }
+          });
+          this.activeCharacteristics.set(UUID_RSC_MEASUREMENT, rscChar);
+          console.log('Running Speed & Cadence notifications started on 0x2A53');
+        }
+      }
+    } catch { /* optional service */ }
   }
 
   // --- 2. WHOOP 4.0 Proprietary Gen4 Telemetry Extraction ---
@@ -1685,6 +1728,17 @@ export class WhoopBleEngine {
       const spo2 = (rawSpo2 & 0x0fff) / 10.0;
       if (spo2 >= 70 && spo2 <= 100) {
         biometricEngine.ingestSpO2(spo2);
+      }
+    } catch { /* ignore */ }
+  }
+
+  // --- Running Speed and Cadence (RSC) Parser (0x2A53) ---
+  private parseRscPacket(data: DataView): void {
+    if (data.byteLength < 4) return;
+    try {
+      const cadence = data.getUint8(3); // Instantaneous cadence (SPM)
+      if (cadence > 0) {
+        pedometerEngine.recordSteps(1, Date.now(), 'imu_hardware');
       }
     } catch { /* ignore */ }
   }

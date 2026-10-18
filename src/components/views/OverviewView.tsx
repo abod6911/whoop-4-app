@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import type { LiveMetrics, HomeSubTab, HealthMonitorMetric, SessionRecord, UserSettings, DeviceMetadata, DayHistoryRecord } from '../../types/whoop';
 import { WhoopConcentricTripleGauge } from '../WhoopConcentricTripleGauge';
 import { WhoopEmblemIcon } from '../WhoopLogo';
@@ -95,6 +95,19 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   );
   const [editingSport, setEditingSport] = useState<string>('');
   const [isSportPickerOpen, setIsSportPickerOpen] = useState(false);
+  const [isStepPulsing, setIsStepPulsing] = useState(false);
+  const prevStepsRef = useRef<number>(metrics.steps || 0);
+
+  useEffect(() => {
+    if (metrics.steps && metrics.steps > prevStepsRef.current) {
+      setIsStepPulsing(true);
+      const timer = setTimeout(() => setIsStepPulsing(false), 600);
+      prevStepsRef.current = metrics.steps;
+      return () => clearTimeout(timer);
+    } else if (metrics.steps !== undefined) {
+      prevStepsRef.current = metrics.steps;
+    }
+  }, [metrics.steps]);
 
   const getSportLabel = (sport: string) => {
     if (!isRtl) return sport;
@@ -226,6 +239,28 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
           activeSubTab="overview"
         />
       </div>
+
+      {/* Reconnection & Offline Steps Catch-Up Sync Banner */}
+      {metadata.isSyncing && metadata.syncStatusText && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          className="rounded-2xl border border-[#00F0FF]/30 bg-[#00F0FF]/10 px-4 py-3 text-xs text-white flex items-center justify-between gap-3 shadow-lg shadow-[#00F0FF]/10"
+        >
+          <div className="flex items-center gap-2.5 min-w-0">
+            <span className="w-2 h-2 rounded-full bg-[#00F0FF] animate-ping shrink-0" />
+            <span className="font-condensed font-bold truncate text-[#00F0FF]">
+              {metadata.syncStatusText}
+            </span>
+          </div>
+          {metadata.syncProgress !== undefined && (
+            <span className="text-[10px] font-mono font-bold text-[#00F0FF] shrink-0">
+              {metadata.syncProgress}%
+            </span>
+          )}
+        </motion.div>
+      )}
 
       {!settings.profileConfirmed && (
         <div className="rounded-2xl border border-[#FFDE00]/25 bg-[#FFDE00]/5 px-4 py-3 text-xs text-zinc-200 leading-relaxed">
@@ -865,26 +900,39 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
           </div>
         )}
 
-        {/* Metric Row 5: STEPS & CADENCE (Live Dynamic Sync with 1,245 Baseline) */}
+        {/* Metric Row 5: STEPS & CADENCE (Real-time Live IMU / RSC Steps & Offline Reconciliation) */}
         {dashboardPrefs.steps && (
-          <div className="p-4 rounded-[22px] bg-[#12151A] border border-white/10 hover:border-[#16EC06]/30 transition-all shadow-lg shadow-black/40 flex items-center justify-between relative overflow-hidden group">
+          <div className={`p-4 rounded-[22px] bg-[#12151A] border transition-all duration-300 shadow-lg shadow-black/40 flex items-center justify-between relative overflow-hidden group ${
+            isStepPulsing
+              ? 'border-[#16EC06] shadow-[0_0_25px_rgba(22,236,6,0.25)] scale-[1.01]'
+              : 'border-white/10 hover:border-[#16EC06]/30'
+          }`}>
             {/* Ambient neon green reactive aura */}
-            <div className="absolute -inset-0.5 bg-gradient-to-r from-[#16EC06]/10 to-transparent rounded-[22px] pointer-events-none opacity-40 group-hover:opacity-100 transition-opacity" />
+            <div className={`absolute -inset-0.5 bg-gradient-to-r from-[#16EC06]/10 to-transparent rounded-[22px] pointer-events-none transition-opacity duration-300 ${
+              isStepPulsing ? 'opacity-100' : 'opacity-40 group-hover:opacity-100'
+            }`} />
 
             <div className="flex items-center gap-3 relative z-10">
               {/* Bouncing Footprint Micro-Animation */}
               <motion.div
-                animate={{
+                animate={isStepPulsing ? {
+                  scale: [1, 1.25, 1],
+                  rotate: [0, -10, 10, 0],
+                } : {
                   y: [0, -3.5, 0],
                   scale: [1, 1.08, 1],
                   rotate: [0, -3, 3, 0],
                 }}
                 transition={{
-                  duration: 1.2,
-                  repeat: Infinity,
+                  duration: isStepPulsing ? 0.4 : 1.2,
+                  repeat: isStepPulsing ? 1 : Infinity,
                   ease: 'easeInOut',
                 }}
-                className="w-10 h-10 rounded-xl bg-[#16EC06]/15 border border-[#16EC06]/30 flex items-center justify-center text-[#16EC06] shadow-md shadow-[#16EC06]/20"
+                className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors shadow-md ${
+                  isStepPulsing
+                    ? 'bg-[#16EC06]/30 border-2 border-[#16EC06] text-white shadow-[#16EC06]/50'
+                    : 'bg-[#16EC06]/15 border border-[#16EC06]/30 text-[#16EC06] shadow-[#16EC06]/20'
+                }`}
               >
                 <Footprints className="w-5 h-5 stroke-[2.2]" />
               </motion.div>
@@ -913,9 +961,13 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
             <div className="flex items-center gap-2 relative z-10">
               <div className="text-end">
                 <div className="flex items-baseline justify-end gap-1">
-                  <span className="text-3xl font-black font-condensed text-white tabular-nums drop-shadow-[0_2px_10px_rgba(22,236,6,0.3)]">
+                  <motion.span
+                    animate={isStepPulsing ? { scale: [1, 1.15, 1], color: ['#ffffff', '#16EC06', '#ffffff'] } : {}}
+                    transition={{ duration: 0.4 }}
+                    className="text-3xl font-black font-condensed text-white tabular-nums drop-shadow-[0_2px_10px_rgba(22,236,6,0.3)] inline-block"
+                  >
                     {(metrics.steps || 0).toLocaleString()}
-                  </span>
+                  </motion.span>
                   <span className="text-xs text-[#16EC06] font-bold font-condensed uppercase tracking-wider">
                     {isRtl ? 'خطوة' : 'steps'}
                   </span>

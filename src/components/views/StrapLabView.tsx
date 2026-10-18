@@ -289,6 +289,20 @@ export const StrapLabView: React.FC<StrapLabViewProps> = ({
           </p>
 
           <div className="grid grid-cols-2 gap-2 pt-1 font-condensed text-xs font-bold">
+            {/* Test Live Step Packet (+1 Step) */}
+            <button
+              onClick={() => {
+                whoopBleEngine.testLiveStepPacket();
+                setCommandFeedback(isRtl ? '✓ فحص حزمة خطوة حية (+1 خطوة)' : '✓ Test Live Step Packet (+1 Step)');
+                setTimeout(() => setCommandFeedback(null), 2500);
+              }}
+              className="py-2.5 px-3 rounded-xl bg-[#16191E] border border-white/10 hover:border-[#00F0FF]/40 text-white flex items-center justify-center gap-1.5 active:scale-95 transition-all"
+            >
+              <Footprints className="w-3.5 h-3.5 text-[#00F0FF]" />
+              <span>{isRtl ? 'حزمة خطوة حية (+1)' : 'Live Step Packet (+1)'}</span>
+            </button>
+
+            {/* Step Burst +50 */}
             <button
               onClick={() => {
                 pedometerEngine.simulateStepBurst(50);
@@ -301,18 +315,7 @@ export const StrapLabView: React.FC<StrapLabViewProps> = ({
               <span>+50 {isRtl ? 'خطوة' : 'Steps'}</span>
             </button>
 
-            <button
-              onClick={() => {
-                pedometerEngine.simulateStepBurst(250);
-                setCommandFeedback(isRtl ? '✓ تمت إضافة 250 خطوة' : '✓ +250 Steps Added');
-                setTimeout(() => setCommandFeedback(null), 2500);
-              }}
-              className="py-2.5 px-3 rounded-xl bg-[#16191E] border border-white/10 hover:border-[#16EC06]/40 text-white flex items-center justify-center gap-1.5 active:scale-95 transition-all"
-            >
-              <Footprints className="w-3.5 h-3.5 text-[#16EC06]" />
-              <span>+250 {isRtl ? 'خطوة' : 'Steps'}</span>
-            </button>
-
+            {/* Continuous Walk Toggle */}
             <button
               onClick={() => {
                 const active = pedometerEngine.toggleContinuousWalk();
@@ -346,26 +349,27 @@ export const StrapLabView: React.FC<StrapLabViewProps> = ({
               )}
             </button>
 
+            {/* Zero-Mock Reset to 0 */}
             <button
               onClick={() => {
                 pedometerEngine.resetTodaySteps();
-                setCommandFeedback(isRtl ? '✓ تم ضبط الخطوات على 1,245' : '✓ Reset to 1,245 steps');
+                setCommandFeedback(isRtl ? '✓ تم تصفير الخطوات (0)' : '✓ Reset to 0 steps');
                 setTimeout(() => setCommandFeedback(null), 2500);
               }}
               className="py-2.5 px-3 rounded-xl bg-[#16191E] border border-white/10 hover:border-zinc-600 text-zinc-300 hover:text-white flex items-center justify-center gap-1.5 active:scale-95 transition-all"
             >
               <RotateCcw className="w-3.5 h-3.5 text-zinc-400" />
-              <span>{isRtl ? 'إعادة ضبط (1,245)' : 'Reset (1,245)'}</span>
+              <span>{isRtl ? 'إعادة ضبط (0)' : 'Reset (0)'}</span>
             </button>
 
             {/* Primary Offline Step Catch-up Reconnection Simulation */}
             <button
               onClick={async () => {
-                setCommandFeedback(isRtl ? 'جاري محاكاة إعادة الاتصال ومزامنة خطوات المشي...' : 'Simulating offline steps sync...');
-                const credited = await whoopBleEngine.simulateOfflineStepReconnection(2500, 45);
+                setCommandFeedback(isRtl ? 'جاري محاكاة إعادة الاتصال ومزامنة خطوات عدم الاتصال...' : 'Simulating offline steps catch-up sync...');
+                const credited = await whoopBleEngine.simulateOfflineStepReconnection(2000, 35);
                 setCommandFeedback(
                   isRtl
-                    ? `✓ تمت مزامنة +${credited.toLocaleString()} خطوة مسجلة بدون الهاتف`
+                    ? `✓ تمت مزامنة +${credited.toLocaleString()} خطوة مسجلة بدون اتصال`
                     : `✓ Offline synced: +${credited.toLocaleString()} steps`
                 );
                 setTimeout(() => setCommandFeedback(null), 3500);
@@ -373,7 +377,7 @@ export const StrapLabView: React.FC<StrapLabViewProps> = ({
               className="py-3 px-4 rounded-xl bg-gradient-to-r from-[#00F0FF]/20 via-[#16EC06]/15 to-[#00F0FF]/20 border border-[#00F0FF]/40 hover:border-[#16EC06] text-white flex items-center justify-center gap-2 active:scale-95 transition-all shadow-[0_0_20px_rgba(0,240,255,0.15)] font-black uppercase tracking-wider text-xs font-condensed col-span-2"
             >
               <RefreshCw className="w-4 h-4 text-[#00F0FF]" />
-              <span>{isRtl ? 'محاكاة إعادة الاتصال واسترداد خطوات المشي (+2,500 خطوة)' : 'Simulate Offline Reconnection (+2,500 Steps)'}</span>
+              <span>{isRtl ? 'محاكاة مزامنة خطوات عدم الاتصال (+2,000 خطوة)' : 'Simulate Offline Steps Catch-Up (+2,000 Steps)'}</span>
             </button>
           </div>
         </div>
