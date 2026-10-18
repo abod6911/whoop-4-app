@@ -4,7 +4,7 @@
  */
 
 export const STRAIN_TAU = 95;
-export const STRAIN_HRR_FLOOR = 0.3;
+export const STRAIN_HRR_FLOOR = 0.15; // Smooth accumulation starting from Zone 1 (>15% HR reserve)
 
 /**
  * Computes incremental TRIMP based on Banister's cardiac impulse-response model.
@@ -24,9 +24,9 @@ export function banisterTrimpIncrement(
   if (dtSec <= 0 || bpm <= 0) return 0;
 
   const reserve = Math.max(20, maxHr - rhr);
-  const y = Math.min(1, (bpm - rhr) / reserve);
+  const y = Math.min(1, Math.max(0, (bpm - rhr) / reserve));
 
-  // Filter out basal / resting heart rates below 30% of HR reserve
+  // Filter out basal / resting heart rates below 15% of HR reserve
   if (y < STRAIN_HRR_FLOOR) {
     return 0;
   }

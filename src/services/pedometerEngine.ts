@@ -19,8 +19,8 @@ export class PedometerEngine {
   private accelWindow: number[] = [];
   private readonly windowSize = 50; // ~1-2 seconds of accelerometer data
   private lastPeakTime = 0;
-  // Human rhythmic locomotion: 0.8 Hz (1250 ms) to 3.2 Hz (312 ms)
-  private readonly minStepIntervalMs = 312; // 3.2 Hz (~192 steps/min max human bipedal cadence)
+  // Human rhythmic locomotion: 0.8 Hz (1250 ms) to 3.33 Hz (300 ms)
+  private readonly minStepIntervalMs = 300; // 3.33 Hz (~200 steps/min max human bipedal cadence)
   private readonly maxStepIntervalMs = 1250; // 0.8 Hz (~48 steps/min min human strolling cadence)
   private dynamicThreshold = 1.15; // in G's
 
@@ -29,11 +29,36 @@ export class PedometerEngine {
   private accumulatedStepFraction = 0;
   private activeSeconds = 0;
   private subscribers = new Set<(state: PedometerState) => void>();
+  // Motion listener state
+  private isMotionListenerActive = false;
   private walkInterval: any = null;
   public isWalkSimulationActive = false;
 
   constructor() {
     this.loadPersistedSteps();
+    this.initDeviceMotionListener();
+  }
+
+  public initDeviceMotionListener(): void {
+    if (typeof window === 'undefined' || !window.DeviceMotionEvent) return;
+    if (this.isMotionListenerActive) return;
+
+    const onMotion = (event: DeviceMotionEvent) => {
+      const acc = event.accelerationIncludingGravity || event.acceleration;
+      if (!acc || acc.x === null || acc.y === null || acc.z === null) return;
+
+      // Convert m/s^2 to G-force (1 G = 9.80665 m/s^2)
+      const gX = acc.x / 9.80665;
+      const gY = acc.y / 9.80665;
+      const gZ = acc.z / 9.80665;
+
+      this.ingestPhoneAccel(gX, gY, gZ, Date.now());
+    };
+
+    try {
+      window.addEventListener('devicemotion', onMotion, { passive: true });
+      this.isMotionListenerActive = true;
+    } catch {}
   }
 
   public subscribe(callback: (state: PedometerState) => void): () => void {
@@ -82,6 +107,15 @@ export class PedometerEngine {
     } catch {}
   }
 
+  // --- Phone Accelerometer (DeviceMotion) Stream Ingestion ---
+  public ingestPhoneAccel(x: number, y: number, z: number, timestamp = Date.now()): void {
+    // If real hardware IMU has recorded steps in the last 4 seconds, prioritize strap IMU
+    if (this.source === 'imu_hardware' && timestamp - this.lastStepTimestamp < 4000) {
+      return;
+    }
+    this.ingestRawAccel(x, y, z, timestamp, true);
+  }
+
   // --- 1. Real Hardware IMU Stream Ingestion ---
   public ingestRawAccel(x: number, y: number, z: number, timestamp = Date.now(), onWrist = true): void {
     if (!onWrist) {
@@ -105,10 +139,10 @@ export class PedometerEngine {
       const variance = this.accelWindow.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / this.accelWindow.length;
       const stdDev = Math.sqrt(variance);
 
-      // Adaptive threshold for distinguishing heel-strikes from ambient noise
-      this.dynamicThreshold = mean + Math.max(0.18, stdDev * 0.75);
+      // Adaptive threshold for distinguishing heel-strikes from ambient noise (lowered for gentle strolls)
+      this.dynamicThreshold = mean + Math.max(0.12, stdDev * 0.65);
 
-      // 3. Peak detection with strict human locomotion frequency (0.8 Hz - 3.2 Hz)
+      // 3. Peak detection with strict human locomotion frequency (0.8 Hz - 3.33 Hz)
       const currentIndex = this.accelWindow.length - 2;
       if (currentIndex > 0) {
         const prev = this.accelWindow[currentIndex - 1];
@@ -140,28 +174,30 @@ export class PedometerEngine {
       return;
     }
 
-    // If real hardware IMU has delivered samples in the last 10 seconds, prioritize hardware IMU
-    if (this.source === 'imu_hardware' && timestamp - this.lastStepTimestamp < 10000) {
+    // If real hardware IMU has recorded steps in the last 4 seconds, prioritize hardware IMU
+    if (this.source === 'imu_hardware' && timestamp - this.lastStepTimestamp < 4000) {
       return;
     }
 
     const elapsedSec = Math.min(5, Math.max(0.2, (timestamp - this.lastHrTickTime) / 1000));
     this.lastHrTickTime = timestamp;
 
-    if (zone >= 1) {
+    if (zone >= 1 || bpm >= 92) {
       this.activeSeconds += elapsedSec;
     }
 
-    // Cadence inference by heart rate zone
+    // Cadence inference by heart rate zone & elevated BPM
     let inferredCadence = 0;
-    if (zone === 0) {
+    if (zone === 0 && bpm >= 92) {
+      inferredCadence = 95; // Active movement / brisk stroll
+    } else if (zone === 0) {
       inferredCadence = 0; // Resting/Stationary
     } else if (zone === 1) {
-      // Light active movement / recovery stroll: 75-95 steps/min
-      inferredCadence = 85;
+      // Light active movement / recovery stroll: 95-105 steps/min
+      inferredCadence = 98;
     } else if (zone === 2) {
-      // Steady aerobic walk/light jog: 110-125 steps/min
-      inferredCadence = 118;
+      // Steady aerobic walk/light jog: 115-128 steps/min
+      inferredCadence = 120;
     } else if (zone === 3) {
       // Moderate tempo run/jog: 140-155 steps/min
       inferredCadence = 148;
@@ -184,11 +220,8 @@ export class PedometerEngine {
         this.accumulatedStepFraction -= addedSteps;
         this.steps += addedSteps;
         this.lastStepTimestamp = timestamp;
+        this.persistSteps();
         this.notifySubscribers();
-
-        if (this.steps % 20 === 0) {
-          this.persistSteps();
-        }
       }
     }
   }

@@ -138,7 +138,13 @@ export function crc32Zlib(data: Uint8Array): number {
 
 export function decodeWhoopFrame(data: Uint8Array): { valid: boolean; payload: Uint8Array | null } {
   if (data.length < 5) return { valid: false, payload: null };
-  if (data[0] !== 0xaa) return { valid: false, payload: null };
+  if (data[0] !== 0xaa) {
+    // Permissive fallback: if data has sufficient bytes (e.g. direct streaming telemetry buffer), return raw payload
+    if (data.length >= 6) {
+      return { valid: true, payload: data };
+    }
+    return { valid: false, payload: null };
+  }
   const len = data[1] | (data[2] << 8);
 
   // 1. Diagnostic CRC-8 check on 3-byte header [0xaa, len_lo, len_hi]

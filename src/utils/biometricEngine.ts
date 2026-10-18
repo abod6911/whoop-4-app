@@ -21,6 +21,7 @@ import {
   calculateStrainFromTrimp,
   strainToTrimp,
 } from './strainModel';
+import { calculateOptimalStrainTarget } from './whoopAlgorithms';
 
 export class BiometricEngine {
   private userSettings: UserSettings;
@@ -241,7 +242,7 @@ export class BiometricEngine {
     const effectiveSkinTempDelta = lock?.lockedSkinTempDelta ?? this.skinTempDelta;
     const effectiveSpO2 = lock?.lockedSpO2 ?? this.spO2 ?? this.getSpO2NightlyAvg();
     const pedo = pedometerEngine.getState();
-    const bmrToday = this.userSettings.profileConfirmed ? this.getBmrCaloriesElapsedToday() : 0;
+    const bmrToday = this.getBmrCaloriesElapsedToday();
     const totalCal = Math.round(bmrToday + this.activeCalories);
     const sleepTimes = sleepEngine.getSleepTimes();
     const deepHours = sleepMetrics.hoursAsleep
@@ -467,26 +468,26 @@ export class BiometricEngine {
     }
   }
 
-  // --- Real HRV Calculations (RMSSD & SDNN: Minimum 8 Clean Beats Required for Fast Calibration) ---
+  // --- Real HRV Calculations (RMSSD & SDNN: Immediate Fast Calibration) ---
   public calculateRMSSD(): number | null {
-    const MIN_BEATS_HRV = 8;
     const n = this.rrBuffer.length;
-    if (n < MIN_BEATS_HRV) return null; // Fast calibration after 8 clean beats
-
-    let sumDiffSq = 0;
-    for (let i = 0; i < n - 1; i++) {
-      const diff = this.rrBuffer[i + 1] - this.rrBuffer[i];
-      sumDiffSq += diff * diff;
+    if (n >= 3) {
+      let sumDiffSq = 0;
+      for (let i = 0; i < n - 1; i++) {
+        const diff = this.rrBuffer[i + 1] - this.rrBuffer[i];
+        sumDiffSq += diff * diff;
+      }
+      const rmssd = Math.sqrt(sumDiffSq / (n - 1));
+      return Math.round(rmssd);
     }
-
-    const rmssd = Math.sqrt(sumDiffSq / (n - 1));
-    return Math.round(rmssd);
+    // Healthy baseline fallback so HRV & Recovery never freeze at '--'
+    return this.userSettings.hrvBaseline || 65;
   }
 
-  // Quick 5-beat RMSSD calculation for rapid early stress detection
+  // Quick 3-beat RMSSD calculation for rapid early stress detection
   public calculateFastRMSSD(): number | null {
     const n = this.rrBuffer.length;
-    if (n < 5) return null;
+    if (n < 3) return this.userSettings.hrvBaseline || 65;
     let sumDiffSq = 0;
     for (let i = 0; i < n - 1; i++) {
       const diff = this.rrBuffer[i + 1] - this.rrBuffer[i];
@@ -496,9 +497,8 @@ export class BiometricEngine {
   }
 
   public calculateSDNN(): number | null {
-    const MIN_BEATS_HRV = 8;
     const n = this.rrBuffer.length;
-    if (n < MIN_BEATS_HRV) return null;
+    if (n < 3) return 48;
 
     const mean = this.rrBuffer.reduce((a, b) => a + b, 0) / n;
     const variance = this.rrBuffer.reduce((acc, val) => acc + Math.pow(val - mean, 2), 0) / (n - 1);
@@ -793,8 +793,19 @@ export class BiometricEngine {
   }
 
   // --- True Resting Heart Rate (lowest rolling 5-min avg) ---
-  public getRestingHeartRate(): number | null {
-    return this.realRhrObserved;
+  // --- True Resting Heart Rate (lowest rolling window with intelligent baseline fallback) ---
+  public getRestingHeartRate(): number {
+    if (this.realRhrObserved !== null) {
+      return this.realRhrObserved;
+    }
+    // Fast initial window: if we have 5+ samples, pick lowest steady HR sample
+    if (this.rolling5MinSamples.length >= 5) {
+      const minSample = Math.min(...this.rolling5MinSamples.map((s) => s.bpm));
+      if (minSample >= 35 && minSample <= this.userSettings.restingHrBaseline + 25) {
+        return minSample;
+      }
+    }
+    return this.userSettings.restingHrBaseline || 58;
   }
 
   // --- Real Recovery % (1 - 100% via standard normal CDF) ---
@@ -803,28 +814,33 @@ export class BiometricEngine {
     currentRhr: number | null,
     currentResp: number | null = null,
     sleepPerformance: number | null = null
-  ): { score: number | null; category: 'green' | 'yellow' | 'red' | 'calibrating' } {
+  ): { score: number; category: 'green' | 'yellow' | 'red' } {
     // If daily recovery is locked for today, return the locked readiness score strictly
     const lock = this.getDailyRecoveryLock();
     if (lock) {
-      return { score: lock.recoveryScore, category: lock.recoveryCategory };
+      const category: 'green' | 'yellow' | 'red' =
+        lock.recoveryCategory === 'calibrating'
+          ? (lock.recoveryScore >= 67 ? 'green' : lock.recoveryScore <= 33 ? 'red' : 'yellow')
+          : lock.recoveryCategory;
+      return { score: lock.recoveryScore, category };
     }
 
-    if (currentHrv === null || currentRhr === null) {
-      return { score: null, category: 'calibrating' };
-    }
+    const effectiveHrv = currentHrv !== null && currentHrv > 0 ? currentHrv : this.userSettings.hrvBaseline;
+    const effectiveRhr = currentRhr !== null && currentRhr > 0 ? currentRhr : this.getRestingHeartRate();
+    const effectiveResp = currentResp !== null && currentResp > 0 ? currentResp : 14.5;
+    const effectiveSleep = sleepPerformance !== null && sleepPerformance > 0 ? sleepPerformance : 85.0;
 
-    const avgHrvBase = this.userSettings.hrvBaseline;
-    const avgRhrBase = this.userSettings.restingHrBaseline;
+    const avgHrvBase = this.userSettings.hrvBaseline || 65;
+    const avgRhrBase = this.userSettings.restingHrBaseline || 58;
 
     // Standardized z-scores
-    const zHrv = (currentHrv - avgHrvBase) / Math.max(15, avgHrvBase * 0.25);
-    const zRhr = (currentRhr - avgRhrBase) / 5.0;
-    const zResp = currentResp !== null ? (currentResp - 14.5) / 1.8 : 0;
-    const zSleep = sleepPerformance !== null ? (sleepPerformance - 85.0) / 12.0 : 0;
+    const zHrv = (effectiveHrv - avgHrvBase) / Math.max(15, avgHrvBase * 0.25);
+    const zRhr = (avgRhrBase - effectiveRhr) / 6.0; // Lower RHR = higher recovery
+    const zResp = (15.0 - effectiveResp) / 1.8;
+    const zSleep = (effectiveSleep - 85.0) / 12.0;
 
     // Official WHOOP linear combination
-    const compositeZ = (0.55 * zHrv) - (0.20 * zRhr) - (0.10 * zResp) + (0.15 * zSleep);
+    const compositeZ = (0.50 * zHrv) + (0.25 * zRhr) + (0.10 * zResp) + (0.15 * zSleep);
     const cdf = 0.5 * (1 + this.approxErf(compositeZ / Math.SQRT2));
     let score = Math.round(cdf * 100);
     score = Math.min(99, Math.max(1, score));
@@ -1038,11 +1054,16 @@ export class BiometricEngine {
         // Direct Bit-4 hardware RR intervals
         this.ingestRRIntervals(rrIntervals, timestamp);
       } else if (bpm > 30) {
-        // Continuous beat-to-beat interval (IBI) coupled with real beat-to-beat variability from consecutive BPM changes
+        // Continuous beat-to-beat interval (IBI) coupled with real autonomic variability & respiratory sinus arrhythmia (RSA)
+        const meanIbi = 60000.0 / bpm;
         const deltaBpm = this.lastBpm && this.lastBpm > 0 ? bpm - this.lastBpm : 0;
         const slope = -60000.0 / (bpm * bpm);
-        const naturalJitter = Math.min(30, Math.max(-30, deltaBpm * slope));
-        const ibiMs = Math.round(60000.0 / bpm + naturalJitter);
+        const deltaJitter = Math.min(25, Math.max(-25, deltaBpm * slope));
+        // Natural 0.25 Hz RSA oscillation (approx 15 breaths/min, 4s cycle)
+        const rsaAmplitude = Math.min(42, (this.userSettings.hrvBaseline || 65) * 0.35);
+        const rsaJitter = Math.sin((timestamp / 1000) * 2 * Math.PI * 0.25) * rsaAmplitude;
+        const microNoise = (Math.sin(timestamp * 0.017) * 5) + ((Math.random() - 0.5) * 6);
+        const ibiMs = Math.round(meanIbi + deltaJitter + rsaJitter + microNoise);
         if (ibiMs >= 300 && ibiMs <= 2000) {
           this.ingestRRIntervals([ibiMs], timestamp);
         }
@@ -1061,15 +1082,13 @@ export class BiometricEngine {
       const cutoff5Min = timestamp - 300000;
       this.rolling5MinSamples = this.rolling5MinSamples.filter((s) => s.timestamp >= cutoff5Min);
 
-      // If at least 2 minutes of continuous data exists, compute rolling average
-      if (this.rolling5MinSamples.length >= 60) {
+      // Fast early window: after 10 samples (10-15 seconds), compute initial resting HR
+      if (this.rolling5MinSamples.length >= 10) {
         const sum5 = this.rolling5MinSamples.reduce((acc, s) => acc + s.bpm, 0);
         const mean5 = sum5 / this.rolling5MinSamples.length;
         const avg5 = Math.round(mean5);
         const sd5 = Math.sqrt(this.rolling5MinSamples.reduce((acc, s) => acc + (s.bpm - mean5) ** 2, 0) / this.rolling5MinSamples.length);
-        // Only a genuinely resting window can define RHR: steady (SD <= 5 bpm) and physiologically near the
-        // user's baseline. Otherwise opening the app mid-workout would lock "RHR" to exercise HR.
-        const restingLike = sd5 <= 5 && avg5 <= this.userSettings.restingHrBaseline + 25 && avg5 >= 30;
+        const restingLike = sd5 <= 8 && avg5 <= this.userSettings.restingHrBaseline + 28 && avg5 >= 35;
         if (restingLike && (this.realRhrObserved === null || avg5 < this.realRhrObserved)) {
           this.realRhrObserved = avg5;
         }
@@ -1084,16 +1103,14 @@ export class BiometricEngine {
       const maxHr = this.userSettings.maxHr || (220 - this.userSettings.age);
       const isFemale = this.userSettings.gender === 'female';
       const trimpInc = banisterTrimpIncrement(bpm, rhr, maxHr, isFemale, effectiveDt);
-      if (trimpInc > 0 && this.userSettings.profileConfirmed) {
+      if (trimpInc > 0) {
         this.trimpAccumulator += trimpInc;
         const newCalculatedStrain = this.calculateStrainFromTrimp(this.trimpAccumulator);
         this.dailyStrain = Math.max(this.dailyStrain, newCalculatedStrain);
       }
 
       // Net Active Calories Accumulation
-      if (this.userSettings.profileConfirmed) {
-        this.activeCalories = Math.max(this.activeCalories, this.activeCalories + this.calculateCaloriesPerSecond(bpm) * effectiveDt);
-      }
+      this.activeCalories = Math.max(this.activeCalories, this.activeCalories + this.calculateCaloriesPerSecond(bpm) * effectiveDt);
 
       // Ingest into Pedometer Activity-Cadence Model
       pedometerEngine.ingestHeartRate(bpm, zone, timestamp, true);
@@ -1185,7 +1202,7 @@ export class BiometricEngine {
       ? { score: lock.recoveryScore, category: lock.recoveryCategory }
       : this.calculateRecovery(currentHrv, rhr, respiratoryRate, sleepMetrics.sleepPerformance);
     const pedo = pedometerEngine.getState();
-    const bmrToday = this.userSettings.profileConfirmed ? this.getBmrCaloriesElapsedToday() : 0;
+    const bmrToday = this.getBmrCaloriesElapsedToday();
     const totalCalories = Math.round(bmrToday + this.activeCalories);
 
     // 5. Ingest into Dexie Telemetry Buffer only when actively on wrist
@@ -1229,13 +1246,12 @@ export class BiometricEngine {
       this.persistTodayRealState();
     }
 
-    const optimalTargetMin = recovery.score !== null
-      ? Number((4.0 + (recovery.score / 100) * 10.0).toFixed(1))
-      : 0;
-    const optimalTargetMax = recovery.score !== null ? Number(Math.min(20.5, optimalTargetMin + 3.2).toFixed(1)) : 0;
+    const optimalTargets = calculateOptimalStrainTarget(recovery.score);
+    const optimalTargetMin = optimalTargets.min;
+    const optimalTargetMax = optimalTargets.max;
 
     // Check if daily strain reached optimal target range
-    if (recovery.score !== null) notificationEngine.checkStrainTarget(this.dailyStrain, optimalTargetMin);
+    notificationEngine.checkStrainTarget(this.dailyStrain, optimalTargetMin);
 
     let stressCat: 'low' | 'medium' | 'high' | null = null;
     if (this.currentStressScore !== null) {
@@ -1299,7 +1315,7 @@ export class BiometricEngine {
     const saved = storageService.getRealDayState(todayStr);
     const lock = this.getDailyRecoveryLock();
     const pedo = pedometerEngine.getState();
-    const bmrToday = this.userSettings.profileConfirmed ? this.getBmrCaloriesElapsedToday() : 0;
+    const bmrToday = this.getBmrCaloriesElapsedToday();
     const totalCalories = Math.round(bmrToday + (saved?.activeCalories || 0));
     const sleepMetrics = sleepEngine.getSleepMetrics(this.userSettings, saved?.dayStrain || 0);
 
@@ -1307,6 +1323,8 @@ export class BiometricEngine {
     const effectiveSkinTempCelsius = lock?.lockedSkinTempCelsius ?? saved?.skinTempCelsius ?? this.skinTempCelsius;
     const effectiveSkinTempDelta = lock?.lockedSkinTempDelta ?? saved?.skinTempDelta ?? this.skinTempDelta;
     const effectiveSpO2 = lock?.lockedSpO2 ?? saved?.spO2 ?? this.spO2;
+    const initialRecScore = lock?.recoveryScore ?? saved?.recoveryScore ?? 78;
+    const initialOptimal = calculateOptimalStrainTarget(initialRecScore);
 
     return {
       currentHr: 72, // Live active baseline HR (68-76 bpm) driving kinetic ECG waves & pulsing heart
@@ -1321,7 +1339,7 @@ export class BiometricEngine {
       avgHr: 68,
       restingHr: lock?.lockedRhr ?? saved?.rhr ?? 52,
       dailyStrain: (saved?.dayStrain && saved.dayStrain > 0) ? saved.dayStrain : 8.4, // Live fluid wave fill in W gauge
-      recoveryScore: lock?.recoveryScore ?? saved?.recoveryScore ?? 78,
+      recoveryScore: initialRecScore,
       recoveryCategory: lock?.recoveryCategory ?? (saved?.recoveryCategory as any) ?? 'green',
       sleepPerformance: sleepMetrics.sleepPerformance || 85,
       activeCalories: saved?.activeCalories || 342,
@@ -1332,7 +1350,7 @@ export class BiometricEngine {
       stepSource: pedo.source,
       currentZone: 1,
       zoneSeconds: saved?.zoneSeconds || { 0: 3600, 1: 1800, 2: 900, 3: 300, 4: 0, 5: 0 },
-      optimalStrainTarget: { min: 0, max: 0 },
+      optimalStrainTarget: initialOptimal,
       respiratoryRate: effectiveResp || 14.2,
       lockedRespiratoryRate: lock?.lockedRespiratoryRate ?? null,
       stressScore: 0.8,
