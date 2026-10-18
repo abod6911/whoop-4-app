@@ -183,8 +183,8 @@ export const StrainView: React.FC<StrainViewProps> = ({
               </span>
               <span className="text-[11px] font-black uppercase tracking-widest text-zinc-400 font-condensed mt-1">
                 {isRtl
-                  ? `المستهدف: ${metrics.optimalStrainTarget.min.toFixed(1)} - ${metrics.optimalStrainTarget.max.toFixed(1)}`
-                  : `Target: ${metrics.optimalStrainTarget.min.toFixed(1)} - ${metrics.optimalStrainTarget.max.toFixed(1)}`}
+                  ? `المستهدف: ${metrics.optimalStrainTarget.max > 0 ? `${metrics.optimalStrainTarget.min.toFixed(1)} - ${metrics.optimalStrainTarget.max.toFixed(1)}` : '--'}`
+                  : `Target: ${metrics.optimalStrainTarget.max > 0 ? `${metrics.optimalStrainTarget.min.toFixed(1)} - ${metrics.optimalStrainTarget.max.toFixed(1)}` : '--'}`}
               </span>
             </div>
           </AnimatedRing>
@@ -194,7 +194,11 @@ export const StrainView: React.FC<StrainViewProps> = ({
         <div className="mt-5 w-full p-3.5 rounded-2xl bg-[#0D1520] border border-[#00A3FF]/20 text-xs text-zinc-300 leading-relaxed text-start flex items-start gap-2.5">
           <Info className="w-4 h-4 text-[#00A3FF] flex-shrink-0 mt-0.5" />
           <p>
-            {strainScore >= metrics.optimalStrainTarget.min
+            {metrics.optimalStrainTarget.max === 0
+              ? isRtl
+                ? 'يتم تحديد نطاق الجهد المستهدف بعد حساب نسبة الاستشفاء الصباحية.'
+                : 'Your target strain range is set once today\'s Recovery is available.'
+              : strainScore >= metrics.optimalStrainTarget.min
               ? isRtl
                 ? 'تم تحقيق التحفيز البدني المثالي. لقد بنيت لياقتك ضمن سعتك القلبية الوعائية.'
                 : 'Optimal stimulus achieved. You have built fitness while staying within your cardiovascular capacity.'

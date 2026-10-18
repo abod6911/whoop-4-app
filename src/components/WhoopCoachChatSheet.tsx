@@ -57,13 +57,17 @@ export const WhoopCoachChatSheet: React.FC<WhoopCoachChatSheetProps> = ({
     const recovery = metrics.recoveryScore;
     const strain = metrics.dailyStrain;
     const hrv = metrics.currentHrv;
-    const rhr = metrics.restingHr ?? settings.restingHrBaseline;
+    const rhr = metrics.restingHr;
+    const calibratingMsg = isRtl
+      ? 'نسبة الاستشفاء قيد المعايرة. تُحسب من HRV ونبض الراحة بعد جمع بيانات كافية من السوار، لذلك لا أستطيع إعطاء توصية تدريب دقيقة الآن.'
+      : 'Recovery is still calibrating. It needs enough HRV and resting-HR data from the strap, so I can\'t give a reliable training recommendation yet.';
 
     if (q.includes('train') || q.includes('workout') || q.includes('exercise') || q.includes('تدرب') || q.includes('تمرين')) {
-      if (recovery !== null && recovery >= 67) {
+      if (recovery === null) return calibratingMsg;
+      if (recovery >= 67) {
         return isRtl
-          ? `نسبة استشفائك في المنطقة الخضراء (${recovery}%). جهازك العصبي اللاودي في أعلى جاهزية مع HRV عند ${hrv ?? settings.hrvBaseline} مللي ثانية. جسمك مهيأ لتحمل أعلى مستويات الإجهاد البدني والقلبي. استهدف جهداً يومياً بين ${metrics.optimalStrainTarget.min.toFixed(1)} و ${metrics.optimalStrainTarget.max.toFixed(1)}.`
-          : `Your Recovery is in the GREEN (${recovery}%). Your parasympathetic nervous system is well-calibrated with an HRV of ${hrv ?? settings.hrvBaseline} ms. Your body is primed to take on high cardiac and muscular strain today. Aim for a Day Strain target between ${metrics.optimalStrainTarget.min.toFixed(1)} and ${metrics.optimalStrainTarget.max.toFixed(1)}.`;
+          ? `نسبة استشفائك في المنطقة الخضراء (${recovery}%). جهازك العصبي اللاودي في أعلى جاهزية مع HRV عند ${hrv ?? '--'} مللي ثانية. جسمك مهيأ لتحمل أعلى مستويات الإجهاد البدني والقلبي. استهدف جهداً يومياً بين ${metrics.optimalStrainTarget.min.toFixed(1)} و ${metrics.optimalStrainTarget.max.toFixed(1)}.`
+          : `Your Recovery is in the GREEN (${recovery}%). Your parasympathetic nervous system is well-calibrated with an HRV of ${hrv ?? '--'} ms. Your body is primed to take on high cardiac and muscular strain today. Aim for a Day Strain target between ${metrics.optimalStrainTarget.min.toFixed(1)} and ${metrics.optimalStrainTarget.max.toFixed(1)}.`;
       } else if (recovery !== null && recovery >= 34) {
         return isRtl
           ? `نسبة استشفائك في المنطقة الصفراء (${recovery}%). لديك سعة بدنية معتدلة اليوم. حافظ على نشاطك في النطاق المستهدف (${metrics.optimalStrainTarget.min.toFixed(1)} - ${metrics.optimalStrainTarget.max.toFixed(1)}). ركز على الجودة وتجنب استنزاف طاقتك.`
@@ -71,19 +75,19 @@ export const WhoopCoachChatSheet: React.FC<WhoopCoachChatSheetProps> = ({
       } else {
         return isRtl
           ? `نسبة استشفائك في المنطقة الحمراء (${recovery ?? '--'}%). سعتك القلبية الوعائية منخفضة اليوم (نبض الراحة ${rhr} ن/د). امنح الأولوية للاستشفاء الفعال، شرب السوائل، والتمارين الخفيفة لإعادة التوازن لجسمك.`
-          : `Your Recovery is in the RED (${recovery ?? '--'}%). Your cardiovascular capacity is reduced today (RHR is ${rhr} bpm). Focus on active recovery, hydration, gentle mobility or stretching, and keep your exertion low to allow systemic restoration.`;
+          : `Your Recovery is in the RED (${recovery ?? '--'}%). Your cardiovascular capacity is reduced today (RHR is ${rhr ?? '--'} bpm). Focus on active recovery, hydration, gentle mobility or stretching, and keep your exertion low to allow systemic restoration.`;
       }
     }
 
     if (q.includes('hrv') || q.includes('readiness') || q.includes('autonomic') || q.includes('تقلب') || q.includes('جاهزية')) {
       return isRtl
-        ? `معدل تقلب نبضات قلبك الحالي (HRV) هو ${hrv !== null ? `${hrv} مللي ثانية` : `قيد المعايرة (الأساس ${settings.hrvBaseline} مللي ثانية)`}. ارتفاع HRV يعكس نشاط العصب المبهم ومرونة القلب في التكيف مع الضغوط.`
-        : `Your current HRV is ${hrv !== null ? `${hrv} ms` : `calibrating (baseline ${settings.hrvBaseline} ms)`}. Higher HRV reflects higher vagal nerve tone and cardiovascular adaptability. When your HRV exceeds your baseline, your body is resilient to stress; when depressed, it indicates fatigue, dehydration, or immune challenge.`;
+        ? `معدل تقلب نبضات قلبك الحالي (HRV) هو ${hrv !== null ? `${hrv} مللي ثانية` : 'قيد المعايرة'}. ارتفاع HRV يعكس نشاط العصب المبهم ومرونة القلب في التكيف مع الضغوط.`
+        : `Your current HRV is ${hrv !== null ? `${hrv} ms` : 'calibrating'}. Higher HRV reflects higher vagal nerve tone and cardiovascular adaptability. When your HRV exceeds your baseline, your body is resilient to stress; when depressed, it indicates fatigue, dehydration, or immune challenge.`;
     }
 
     if (q.includes('sleep') || q.includes('bed') || q.includes('night') || q.includes('نوم') || q.includes('ساعات')) {
       const base = settings.sleepNeedHours;
-      const strainDebt = Math.round((strain / 21.0) * 1.2 * 10) / 10;
+      const strainDebt = Math.round((strain / 21.0) * 1.4 * 10) / 10;
       const totalNeed = (base + strainDebt).toFixed(1);
       return isRtl
         ? `بناءً على الجهد التراكمي اليوم (${strain.toFixed(1)})، تم تعديل احتياج نومك الأساسي (${base}س) بإضافة دين إجهاد +${strainDebt}س، ليصبح إجمالي احتياجك للنوم الليلة حوالي ${totalNeed} ساعة للوصول إلى استشفاء 100%.`
@@ -92,8 +96,8 @@ export const WhoopCoachChatSheet: React.FC<WhoopCoachChatSheetProps> = ({
 
     if (q.includes('strain') || q.includes('target') || q.includes('جهد') || q.includes('مستهدف')) {
       return isRtl
-        ? `جهدك اليومي الحالي هو ${strain.toFixed(1)} / 21.0. نظراً لنسبة استشفاء اليوم (${recovery !== null ? `${recovery}%` : 'قيد المعايرة'})، فإن نطاق الإجهاد الأمثل لك هو ${metrics.optimalStrainTarget.min.toFixed(1)} - ${metrics.optimalStrainTarget.max.toFixed(1)}.`
-        : `Your Day Strain is currently ${strain.toFixed(1)} / 21.0. Given today's ${recovery !== null ? `${recovery}% Recovery` : 'calibration state'}, your optimal stimulus target is ${metrics.optimalStrainTarget.min.toFixed(1)} - ${metrics.optimalStrainTarget.max.toFixed(1)}. This builds cardiovascular fitness without causing chronic overreaching.`;
+        ? `جهدك اليومي الحالي هو ${strain.toFixed(1)} / 21.0. نظراً لنسبة استشفاء اليوم (${recovery !== null ? `${recovery}%` : 'قيد المعايرة'})، ${metrics.optimalStrainTarget.max > 0 ? `فإن نطاق الإجهاد الأمثل لك هو ${metrics.optimalStrainTarget.min.toFixed(1)} - ${metrics.optimalStrainTarget.max.toFixed(1)}.` : 'ولم يُحسب نطاق مستهدف بعد.'}`
+        : `Your Day Strain is currently ${strain.toFixed(1)} / 21.0. Given today's ${recovery !== null ? `${recovery}% Recovery` : 'calibration state'}, ${metrics.optimalStrainTarget.max > 0 ? `your optimal stimulus target is ${metrics.optimalStrainTarget.min.toFixed(1)} - ${metrics.optimalStrainTarget.max.toFixed(1)}.` : 'no target range has been computed yet.'}`;
     }
 
     return isRtl

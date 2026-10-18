@@ -1,17 +1,8 @@
 import React, { useState } from 'react';
 import {
-  Users,
   Trophy,
-  Flame,
-  Activity,
-  Moon,
-  ChevronRight,
   BookOpen,
   Share2,
-  UserPlus,
-  Shield,
-  Heart,
-  CheckCircle2,
 } from 'lucide-react';
 import type { LiveMetrics, UserSettings } from '../../types/whoop';
 import { useLanguage } from '../../i18n/LanguageContext';
@@ -30,10 +21,7 @@ export const CommunityView: React.FC<CommunityViewProps> = ({
   onOpenBreathePacer,
 }) => {
   const { t, isRtl } = useLanguage();
-  const [metricTab, setMetricTab] = useState<'strain' | 'recovery' | 'sleep'>('strain');
   const [selectedArticleId, setSelectedArticleId] = useState<string | null>(null);
-  const [teamCodeInput, setTeamCodeInput] = useState('');
-  const [teamStatusMsg, setTeamStatusMsg] = useState<string | null>(null);
   const [shared, setShared] = useState(false);
 
   const learnArticles = [
@@ -85,24 +73,6 @@ export const CommunityView: React.FC<CommunityViewProps> = ({
     }
   };
 
-  const handleJoinTeam = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!teamCodeInput.trim()) return;
-    setTeamStatusMsg(
-      isRtl
-        ? `رمز الفريق (${teamCodeInput.toUpperCase()}) قيد المصادقة. يتطلب المزامنة مع خادم سحابي نشط.`
-        : `Team code (${teamCodeInput.toUpperCase()}) validated. Cloud sync server required for multi-strap leaderboards.`
-    );
-    setTeamCodeInput('');
-    setTimeout(() => setTeamStatusMsg(null), 5000);
-  };
-
-  const currentScore =
-    metricTab === 'strain'
-      ? (metrics.dailyStrain > 0 ? metrics.dailyStrain.toFixed(1) : '--')
-      : metricTab === 'recovery'
-      ? (metrics.recoveryScore !== null ? `${metrics.recoveryScore}%` : '--')
-      : (metrics.sleepPerformance !== null ? `${metrics.sleepPerformance}%` : '--');
 
   return (
     <div className="space-y-5 pb-28 animate-in fade-in duration-300">
@@ -194,104 +164,17 @@ export const CommunityView: React.FC<CommunityViewProps> = ({
         </p>
       </div>
 
-      {/* 3. Real Teams & Community Circles (Zero Mock Data) */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between px-1">
-          <div className="flex items-center gap-2">
-            <Trophy className="w-4 h-4 text-[#FFDE00]" />
-            <h3 className="text-xs font-black uppercase tracking-wider text-white font-condensed">
-              {isRtl ? 'الفرق ومجموعات التدريب' : 'Teams & Training Groups'}
-            </h3>
-          </div>
+      {/* Leaderboards / teams need an online service; this build is fully local, so nothing is invented. */}
+      <div className="p-5 rounded-[24px] bg-[#12151A] border border-white/5 text-center space-y-2">
+        <Trophy className="w-6 h-6 text-zinc-600 mx-auto" />
+        <div className="text-xs font-black uppercase tracking-wider text-white font-condensed">
+          {isRtl ? 'الفرق ولوائح الصدارة' : 'Teams & Leaderboards'}
         </div>
-
-        {/* Metric Selector Tabs: STRAIN | RECOVERY | SLEEP */}
-        <div className="grid grid-cols-3 gap-1 bg-[#16191E] p-1 rounded-2xl border border-white/5 text-center">
-          {(['strain', 'recovery', 'sleep'] as const).map((m) => {
-            const isActive = metricTab === m;
-            const labels = {
-              strain: t('dayStrain'),
-              recovery: t('recoveryScore'),
-              sleep: t('sleep'),
-            };
-            return (
-              <button
-                key={m}
-                onClick={() => setMetricTab(m)}
-                className={`py-1.5 text-xs font-black uppercase tracking-wider font-condensed rounded-xl transition-all ${
-                  isActive ? 'bg-[#222730] text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'
-                }`}
-              >
-                {labels[m]}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Real Athlete Identity Card */}
-        <div className="p-4 rounded-2xl bg-gradient-to-r from-[#161C24] via-[#12151A] to-[#16191E] border border-white/10 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#1E2530] to-[#2B3545] border border-white/10 flex items-center justify-center font-black font-condensed text-xs text-white">
-              {settings.name ? settings.name.slice(0, 2).toUpperCase() : 'AB'}
-            </div>
-            <div>
-              <div className="text-xs font-bold text-white font-sans flex items-center gap-1.5">
-                <span>{settings.name || (isRtl ? 'أنت' : 'YOU')}</span>
-                <span className="text-[9px] bg-[#16EC06]/20 text-[#16EC06] px-1.5 py-0.2 rounded font-mono font-bold">
-                  {isRtl ? 'محلي' : 'LOCAL ATHLETE'}
-                </span>
-              </div>
-              <div className="text-[10px] text-zinc-400 font-mono mt-0.5">
-                {isRtl ? 'سوار WHOOP 4.0 المتصل' : 'Connected WHOOP 4.0 Strap'}
-              </div>
-            </div>
-          </div>
-
-          <div className={isRtl ? 'text-left' : 'text-right'}>
-            <div className="text-2xl font-black font-condensed text-white tabular-nums" dir="ltr">
-              {currentScore}
-            </div>
-            <div className="text-[10px] text-zinc-500 font-condensed uppercase tracking-wider">
-              {metricTab === 'strain' ? t('dayStrain') : metricTab === 'recovery' ? t('recoveryScore') : t('sleep')}
-            </div>
-          </div>
-        </div>
-
-        {/* Join Team with Code Form */}
-        <form onSubmit={handleJoinTeam} className="p-4 rounded-2xl bg-[#16191E] border border-white/5 space-y-3">
-          <div className="flex items-center gap-2 text-xs font-black uppercase text-white font-condensed">
-            <UserPlus className="w-4 h-4 text-[#0093E9]" />
-            <span>{isRtl ? 'الانضمام إلى فريق برمز الدعوة' : 'Join a Team via Invite Code'}</span>
-          </div>
-
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={teamCodeInput}
-              onChange={(e) => setTeamCodeInput(e.target.value)}
-              placeholder={isRtl ? 'أدخل رمز الفريق...' : 'Enter team code...'}
-              className="flex-1 bg-[#0B0D10] border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-zinc-500 font-mono focus:outline-none focus:border-[#0093E9]"
-            />
-            <button
-              type="submit"
-              className="px-4 py-2 bg-[#0093E9] text-black font-condensed font-black text-xs uppercase tracking-wider rounded-xl active:scale-95 transition-transform"
-            >
-              {isRtl ? 'انضمام' : 'Join'}
-            </button>
-          </div>
-
-          {teamStatusMsg && (
-            <p className="text-[11px] font-mono text-[#00F0FF] animate-in fade-in">
-              {teamStatusMsg}
-            </p>
-          )}
-
-          <div className="p-3 rounded-xl bg-[#0B0D10] border border-white/5 text-[11px] text-zinc-400 leading-relaxed font-sans">
-            {isRtl
-              ? 'تتم معالجة جميع قياساتك الحيوية محلياً على جهازك لضمان الخصوصية والسرعة. لا توجد فرق وهمية أو مستخدمون تجريبيون.'
-              : 'All your telemetry is processed 100% locally on your device for absolute privacy and low latency. No simulated leaderboards or fake members.'}
-          </div>
-        </form>
+        <p className="text-xs text-zinc-400 leading-relaxed">
+          {isRtl
+            ? 'تحتاج هذه الميزة إلى خدمة متصلة بالإنترنت. هذا الإصدار يعمل محلياً بالكامل ولا يعرض ترتيباً أو أعضاءً غير حقيقيين.'
+            : 'This feature needs an online service. This build runs fully on-device, so no rankings or member counts are shown.'}
+        </p>
       </div>
 
       {/* Interactive Science & Physiology Article Modal */}

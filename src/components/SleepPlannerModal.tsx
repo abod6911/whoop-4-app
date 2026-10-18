@@ -11,6 +11,7 @@ interface SleepPlannerModalProps {
   metrics: LiveMetrics;
   onLaunchOledNightLock: () => void;
   settings?: UserSettings;
+  onSaveWakeTime?: (wake: string) => void;
 }
 
 export const SleepPlannerModal: React.FC<SleepPlannerModalProps> = ({
@@ -19,16 +20,17 @@ export const SleepPlannerModal: React.FC<SleepPlannerModalProps> = ({
   metrics,
   onLaunchOledNightLock,
   settings,
+  onSaveWakeTime,
 }) => {
   const { t, isRtl } = useLanguage();
   const [goal, setGoal] = useState<'peak' | 'perform' | 'get_by'>('peak');
-  const [wakeTime, setWakeTime] = useState('07:00');
-  const [smartAlarmEnabled, setSmartAlarmEnabled] = useState(true);
+  const [wakeTime, setWakeTime] = useState(settings?.wakeTime || '07:00');
 
   // Real Sleep Need Math based on WHOOP Physiology
-  const baselineHours = settings?.sleepNeedHours || 7.9; // User's personal baseline requirement
-  const strainDebtHours = Math.round((metrics.dailyStrain / 21.0) * 1.2 * 10) / 10; // Extra strain debt
-  const sleepDebtHours = 0; // Recent accumulated debt (starts at 0, no fake debt)
+  // Same rule as the sleep engine: baseline (user setting) + strain need; no invented debt.
+  const baselineHours = settings?.sleepNeedHours ?? 7.9;
+  const strainDebtHours = Math.round((metrics.dailyStrain / 21.0) * 1.4 * 10) / 10;
+  const sleepDebtHours = 0;
 
   const totalNeedHours = baselineHours + strainDebtHours + sleepDebtHours;
 
@@ -49,13 +51,16 @@ export const SleepPlannerModal: React.FC<SleepPlannerModalProps> = ({
   const bedM = bedTotalMin % 60;
   const targetBedtimeStr = `${bedH.toString().padStart(2, '0')}:${bedM.toString().padStart(2, '0')}`;
 
+  // A web page cannot ring an alarm or wake you in light sleep, so this only stores your wake target
+  // (used to compute the recommended bedtime on the Home screen).
   const handleSetAlarm = () => {
+    onSaveWakeTime?.(wakeTime);
     notificationEngine.dispatch({
       type: 'sleep',
-      title: smartAlarmEnabled ? (isRtl ? '⏰ تم ضبط منبه الاستيقاظ الذكي' : '⏰ Smart Wake Alarm Set') : (isRtl ? '⏰ تم ضبط المنبه' : '⏰ Alarm Set'),
+      title: isRtl ? 'تم حفظ وقت الاستيقاظ المستهدف' : 'Wake target saved',
       message: isRtl
-        ? `تم ضبط المنبه على ${wakeTime} (${smartAlarmEnabled ? 'نافذة الاستيقاظ الذكي: 20 دقيقة قبل' : 'الوقت المحدد'}). موعد النوم المقترح: ${targetBedtimeStr}.`
-        : `Alarm set for ${wakeTime} (${smartAlarmEnabled ? 'Smart Wake window: 20 mins prior' : 'Exact time'}). Target bedtime: ${targetBedtimeStr}.`,
+        ? `وقت الاستيقاظ ${wakeTime}. موعد النوم المقترح: ${targetBedtimeStr}. (التطبيق لا يشغّل منبهاً فعلياً؛ استخدم منبه هاتفك.)`
+        : `Wake target ${wakeTime}. Recommended bedtime: ${targetBedtimeStr}. (This app does not ring an alarm — use your phone's alarm.)`,
     });
     onClose();
   };
@@ -74,7 +79,7 @@ export const SleepPlannerModal: React.FC<SleepPlannerModalProps> = ({
                 {isRtl ? 'مخطط النوم WHOOP' : 'WHOOP Sleep Planner'}
               </h3>
               <p className="text-[11px] text-zinc-400 font-condensed">
-                {isRtl ? 'الاحتياج اليومي ومنبه الاستيقاظ الذكي' : 'Circadian Need & Smart Wake Alarm'}
+                {isRtl ? 'احتياج النوم وموعد النوم' : 'Sleep Need & Bedtime'}
               </p>
             </div>
           </div>
@@ -185,28 +190,6 @@ export const SleepPlannerModal: React.FC<SleepPlannerModalProps> = ({
               />
             </div>
 
-            <div className="flex items-center justify-between pt-2 border-t border-white/5">
-              <div>
-                <span className="text-xs font-bold font-sans text-white block">
-                  {isRtl ? 'منبه الاستيقاظ الذكي' : 'Smart Wake Alarm'}
-                </span>
-                <span className="text-[10px] text-zinc-400 font-condensed block">
-                  {isRtl ? `يوقظك في مرحلة النوم الخفيف حتى 20 دقيقة قبل ${wakeTime}` : `Wakes you in light sleep up to 20m before ${wakeTime}`}
-                </span>
-              </div>
-              <button
-                onClick={() => setSmartAlarmEnabled(!smartAlarmEnabled)}
-                className={`w-11 h-6 rounded-full transition-colors relative p-0.5 ${
-                  smartAlarmEnabled ? 'bg-[#16EC06]' : 'bg-zinc-700'
-                }`}
-              >
-                <div
-                  className={`w-5 h-5 rounded-full bg-black transition-transform ${
-                    smartAlarmEnabled ? 'translate-x-5' : 'translate-x-0'
-                  }`}
-                />
-              </button>
-            </div>
           </div>
 
           {/* Night Lock Quick Launcher */}
@@ -243,7 +226,7 @@ export const SleepPlannerModal: React.FC<SleepPlannerModalProps> = ({
             onClick={handleSetAlarm}
             className="px-6 py-2 rounded-full bg-white text-black font-condensed font-black text-xs uppercase tracking-wider active:scale-95 transition-transform shadow-lg"
           >
-            {isRtl ? 'تفعيل المنبه ووقت النوم' : 'Set Alarm & Bedtime'}
+            {isRtl ? 'حفظ وقت الاستيقاظ' : 'Save Wake Target'}
           </button>
         </div>
       </SheetPanel>

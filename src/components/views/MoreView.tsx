@@ -82,7 +82,7 @@ export const MoreView: React.FC<MoreViewProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSaveSettings(form);
+    onSaveSettings({ ...form, profileConfirmed: true });
     setSaveStatus(t('savedSuccessfully'));
     setTimeout(() => setSaveStatus(null), 2500);
   };
@@ -435,10 +435,10 @@ export const MoreView: React.FC<MoreViewProps> = ({
           {/* Official App Version Footer */}
           <div className="text-center py-4 space-y-1">
             <div className="text-xs font-mono font-bold text-zinc-500">
-              APP VERSION: 4.6.312 (BUILD 340289)
+              LOCAL WEB BUILD · UNOFFICIAL
             </div>
             <div className="text-[10px] text-zinc-600 font-mono">
-              WHOOP // REVERSE-ENGINEERED BLE ENGINE
+              Independent project · not affiliated with WHOOP
             </div>
           </div>
         </div>
@@ -835,7 +835,7 @@ export const MoreView: React.FC<MoreViewProps> = ({
             {t('aboutDesc')}
           </p>
           <div className="pt-2 text-[10px] text-zinc-500 font-mono">
-            APP VERSION: 4.6.312 (BUILD 340289)
+            LOCAL WEB BUILD · UNOFFICIAL
           </div>
         </div>
       )}

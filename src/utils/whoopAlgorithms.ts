@@ -16,7 +16,7 @@ export function calculateWhoopStrain(trimp: number): number {
  */
 export function calculateOptimalStrainTarget(recoveryScore: number | null): { min: number; max: number } {
   if (recoveryScore === null) {
-    return { min: 8.0, max: 12.0 };
+    return { min: 0, max: 0 }; // unknown until Recovery exists (UI shows --)
   }
   const min = Number((4.0 + (recoveryScore / 100) * 10.0).toFixed(1));
   const max = Number(Math.min(20.5, min + 3.2).toFixed(1));

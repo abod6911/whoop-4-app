@@ -25,13 +25,11 @@ import {
   Heart,
   TrendingUp,
   Footprints,
-  Scale,
   Share2,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { TAP } from '../motion/springs';
 import { HeartbeatBadge, EcgWave } from '../motion/LiveHeartbeat';
-import { alarmEngine } from '../../services/alarmEngine';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -290,6 +288,17 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
         />
       </div>
 
+      {!settings.profileConfirmed && (
+        <div className="rounded-2xl border border-[#FFDE00]/25 bg-[#FFDE00]/5 px-4 py-3 text-xs text-zinc-200 leading-relaxed">
+          <span className="font-black text-[#FFDE00]">
+            {isRtl ? 'أكمل ملفك الشخصي: ' : 'Complete your profile: '}
+          </span>
+          {isRtl
+            ? 'الجهد والسعرات ومناطق النبض تعتمد على عمرك ووزنك وطولك وجنسك. لن تُحسب حتى تحفظها من المزيد ← الملف الشخصي.'
+            : 'Strain, calories and HR zones depend on your age, weight, height and sex. They are not computed until you save them in More → Profile.'}
+        </div>
+      )}
+
       {/* WHOOP Wear Streak Milestone Hero Card */}
       {onOpenStreakModal && (
         <StreakBadge variant="card" onClick={onOpenStreakModal} />
@@ -523,32 +532,18 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
           </div>
         </div>
 
-        {/* TONIGHT'S SLEEP Card (Bound dynamically to Alarm Engine) */}
+        {/* TONIGHT'S SLEEP Card */}
         {(() => {
-          const alarmSettings = alarmEngine.getSettings();
-          const isAlarmArmed = alarmSettings.enabled;
-          const alarmDisplayTime = alarmSettings.exactTime || '07:30';
-
-          let targetWakeMin = 7 * 60 + 30;
-          if (alarmSettings.exactTime) {
-            const [h, m] = alarmSettings.exactTime.split(':').map(Number);
-            if (!isNaN(h) && !isNaN(m)) targetWakeMin = h * 60 + m;
+          // Bedtime = user's wake target − real sleep need (baseline + strain need + recent debt). No wake target -> no guess.
+          const wake = settings.wakeTime;
+          const need = settings.sleepNeedHours + (metrics.dailyStrain / 21.0) * 1.4; // same strain-need rule as the sleep engine
+          let recommendedBedtime = '--:--';
+          if (wake && /^\d{2}:\d{2}$/.test(wake)) {
+            const [wh, wm] = wake.split(':').map(Number);
+            let bedMin = wh * 60 + wm - Math.round(need * 60);
+            while (bedMin < 0) bedMin += 24 * 60;
+            recommendedBedtime = `${Math.floor(bedMin / 60).toString().padStart(2, '0')}:${(bedMin % 60).toString().padStart(2, '0')}`;
           }
-
-          const needMin = Math.round((settings.sleepNeedHours || 7.9) * 60) + 15;
-          let bedMin = targetWakeMin - needMin;
-          while (bedMin < 0) bedMin += 24 * 60;
-          const bedH = Math.floor(bedMin / 60);
-          const bedM = bedMin % 60;
-          const recommendedBedtime = `${bedH.toString().padStart(2, '0')}:${bedM.toString().padStart(2, '0')}`;
-
-          const statusLabel = isAlarmArmed
-            ? alarmSettings.mode === 'sleep_goal'
-              ? (isRtl ? 'منبه هدف النوم' : 'ALARM (SLEEP GOAL)')
-              : alarmSettings.mode === 'recovery'
-              ? (isRtl ? 'منبه التعافي الأخضر' : 'ALARM (RECOVERY)')
-              : (isRtl ? 'المنبه مفعّل (وقت محدد)' : 'ALARM ON (EXACT)')
-            : (isRtl ? 'المنبه غير مفعّل' : 'NO ALARM SET');
 
           return (
             <button
@@ -571,11 +566,11 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
 
               <div className="text-end">
                 <div className="flex items-center justify-end gap-1.5 text-xs font-mono font-bold text-white">
-                  <span className={`w-2 h-2 rounded-full ${isAlarmArmed ? 'bg-[#16EC06]' : 'bg-zinc-600'}`} />
-                  <span>{alarmDisplayTime}</span>
+                  <span className={`w-2 h-2 rounded-full ${wake ? 'bg-[#7293B2]' : 'bg-zinc-600'}`} />
+                  <span>{wake || '--:--'}</span>
                 </div>
-                <div className={`text-[10px] font-black uppercase tracking-wider font-condensed ${isAlarmArmed ? 'text-[#16EC06]' : 'text-zinc-500'}`}>
-                  {statusLabel}
+                <div className="text-[10px] font-black uppercase tracking-wider text-zinc-400 font-condensed">
+                  {wake ? (isRtl ? 'وقت الاستيقاظ المستهدف' : 'WAKE TARGET') : (isRtl ? 'حدد وقت الاستيقاظ' : 'SET WAKE TARGET')}
                 </div>
               </div>
             </button>
@@ -884,7 +879,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                   {t('respiratoryRate')}
                 </div>
                 <div className="text-[10px] text-zinc-500 font-mono mt-0.5">
-                  {isRtl ? '14.0 د/د النطاق المعتاد' : '14.0 rpm Typical Range'}
+                  {isRtl ? 'النطاق المعتاد للبالغين: 12–20 د/د' : 'Adult typical range: 12–20 rpm'}
                 </div>
               </div>
             </div>

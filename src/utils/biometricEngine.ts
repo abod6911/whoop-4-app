@@ -241,7 +241,7 @@ export class BiometricEngine {
     const effectiveSkinTempDelta = lock?.lockedSkinTempDelta ?? this.skinTempDelta;
     const effectiveSpO2 = lock?.lockedSpO2 ?? this.spO2 ?? this.getSpO2NightlyAvg();
     const pedo = pedometerEngine.getState();
-    const bmrToday = this.getBmrCaloriesElapsedToday();
+    const bmrToday = this.userSettings.profileConfirmed ? this.getBmrCaloriesElapsedToday() : 0;
     const totalCal = Math.round(bmrToday + this.activeCalories);
     const sleepTimes = sleepEngine.getSleepTimes();
     const deepHours = sleepMetrics.hoursAsleep
@@ -413,8 +413,8 @@ export class BiometricEngine {
   }
 
   // --- Real RR-Interval Ingestion & Artifact Filtering ---
-  public ingestRRIntervals(intervalsMs: number[]): void {
-    const now = Date.now();
+  public ingestRRIntervals(intervalsMs: number[], timestamp: number = Date.now()): void {
+    const now = timestamp;
 
     intervalsMs.forEach((rr) => {
       // 1. Strict physiological range filter: 300ms (200 bpm) to 2000ms (30 bpm)
@@ -1036,7 +1036,7 @@ export class BiometricEngine {
     if (isBandOnWrist) {
       if (rrIntervals && rrIntervals.length > 0 && !measurement.isDerivedRR) {
         // Direct Bit-4 hardware RR intervals
-        this.ingestRRIntervals(rrIntervals);
+        this.ingestRRIntervals(rrIntervals, timestamp);
       } else if (bpm > 30) {
         // Continuous beat-to-beat interval (IBI) coupled with real beat-to-beat variability from consecutive BPM changes
         const deltaBpm = this.lastBpm && this.lastBpm > 0 ? bpm - this.lastBpm : 0;
@@ -1044,7 +1044,7 @@ export class BiometricEngine {
         const naturalJitter = Math.min(30, Math.max(-30, deltaBpm * slope));
         const ibiMs = Math.round(60000.0 / bpm + naturalJitter);
         if (ibiMs >= 300 && ibiMs <= 2000) {
-          this.ingestRRIntervals([ibiMs]);
+          this.ingestRRIntervals([ibiMs], timestamp);
         }
       }
     }
@@ -1064,8 +1064,13 @@ export class BiometricEngine {
       // If at least 2 minutes of continuous data exists, compute rolling average
       if (this.rolling5MinSamples.length >= 60) {
         const sum5 = this.rolling5MinSamples.reduce((acc, s) => acc + s.bpm, 0);
-        const avg5 = Math.round(sum5 / this.rolling5MinSamples.length);
-        if (this.realRhrObserved === null || avg5 < this.realRhrObserved) {
+        const mean5 = sum5 / this.rolling5MinSamples.length;
+        const avg5 = Math.round(mean5);
+        const sd5 = Math.sqrt(this.rolling5MinSamples.reduce((acc, s) => acc + (s.bpm - mean5) ** 2, 0) / this.rolling5MinSamples.length);
+        // Only a genuinely resting window can define RHR: steady (SD <= 5 bpm) and physiologically near the
+        // user's baseline. Otherwise opening the app mid-workout would lock "RHR" to exercise HR.
+        const restingLike = sd5 <= 5 && avg5 <= this.userSettings.restingHrBaseline + 25 && avg5 >= 30;
+        if (restingLike && (this.realRhrObserved === null || avg5 < this.realRhrObserved)) {
           this.realRhrObserved = avg5;
         }
       }
@@ -1079,12 +1084,16 @@ export class BiometricEngine {
       const maxHr = this.userSettings.maxHr || (220 - this.userSettings.age);
       const isFemale = this.userSettings.gender === 'female';
       const trimpInc = banisterTrimpIncrement(bpm, rhr, maxHr, isFemale, effectiveDt);
-      this.trimpAccumulator += trimpInc;
-      const newCalculatedStrain = this.calculateStrainFromTrimp(this.trimpAccumulator);
-      this.dailyStrain = Math.max(this.dailyStrain, newCalculatedStrain);
+      if (trimpInc > 0 && this.userSettings.profileConfirmed) {
+        this.trimpAccumulator += trimpInc;
+        const newCalculatedStrain = this.calculateStrainFromTrimp(this.trimpAccumulator);
+        this.dailyStrain = Math.max(this.dailyStrain, newCalculatedStrain);
+      }
 
       // Net Active Calories Accumulation
-      this.activeCalories = Math.max(this.activeCalories, this.activeCalories + this.calculateCaloriesPerSecond(bpm) * effectiveDt);
+      if (this.userSettings.profileConfirmed) {
+        this.activeCalories = Math.max(this.activeCalories, this.activeCalories + this.calculateCaloriesPerSecond(bpm) * effectiveDt);
+      }
 
       // Ingest into Pedometer Activity-Cadence Model
       pedometerEngine.ingestHeartRate(bpm, zone, timestamp, true);
@@ -1176,7 +1185,7 @@ export class BiometricEngine {
       ? { score: lock.recoveryScore, category: lock.recoveryCategory }
       : this.calculateRecovery(currentHrv, rhr, respiratoryRate, sleepMetrics.sleepPerformance);
     const pedo = pedometerEngine.getState();
-    const bmrToday = this.getBmrCaloriesElapsedToday();
+    const bmrToday = this.userSettings.profileConfirmed ? this.getBmrCaloriesElapsedToday() : 0;
     const totalCalories = Math.round(bmrToday + this.activeCalories);
 
     // 5. Ingest into Dexie Telemetry Buffer only when actively on wrist
@@ -1220,13 +1229,13 @@ export class BiometricEngine {
       this.persistTodayRealState();
     }
 
-    const optimalTargetMin = recovery.score
+    const optimalTargetMin = recovery.score !== null
       ? Number((4.0 + (recovery.score / 100) * 10.0).toFixed(1))
-      : 8.0;
-    const optimalTargetMax = Number(Math.min(20.5, optimalTargetMin + 3.2).toFixed(1));
+      : 0;
+    const optimalTargetMax = recovery.score !== null ? Number(Math.min(20.5, optimalTargetMin + 3.2).toFixed(1)) : 0;
 
     // Check if daily strain reached optimal target range
-    notificationEngine.checkStrainTarget(this.dailyStrain, optimalTargetMin);
+    if (recovery.score !== null) notificationEngine.checkStrainTarget(this.dailyStrain, optimalTargetMin);
 
     let stressCat: 'low' | 'medium' | 'high' | null = null;
     if (this.currentStressScore !== null) {
@@ -1290,7 +1299,7 @@ export class BiometricEngine {
     const saved = storageService.getRealDayState(todayStr);
     const lock = this.getDailyRecoveryLock();
     const pedo = pedometerEngine.getState();
-    const bmrToday = this.getBmrCaloriesElapsedToday();
+    const bmrToday = this.userSettings.profileConfirmed ? this.getBmrCaloriesElapsedToday() : 0;
     const totalCalories = Math.round(bmrToday + (saved?.activeCalories || 0));
     const sleepMetrics = sleepEngine.getSleepMetrics(this.userSettings, saved?.dayStrain || 0);
 
@@ -1323,7 +1332,7 @@ export class BiometricEngine {
       stepSource: pedo.source,
       currentZone: 1,
       zoneSeconds: saved?.zoneSeconds || { 0: 3600, 1: 1800, 2: 900, 3: 300, 4: 0, 5: 0 },
-      optimalStrainTarget: { min: 8.0, max: 12.0 },
+      optimalStrainTarget: { min: 0, max: 0 },
       respiratoryRate: effectiveResp || 14.2,
       lockedRespiratoryRate: lock?.lockedRespiratoryRate ?? null,
       stressScore: 0.8,

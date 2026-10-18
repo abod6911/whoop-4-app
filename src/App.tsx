@@ -983,6 +983,7 @@ export const App: React.FC = () => {
           metrics={effectiveMetrics}
           settings={settings}
           onLaunchOledNightLock={() => setIsOledNightLockOpen(true)}
+          onSaveWakeTime={(wake) => handleSaveSettings({ ...settings, wakeTime: wake })}
         />
 
         {/* WHOOP Strength Trainer Modal */}

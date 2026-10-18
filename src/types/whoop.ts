@@ -23,6 +23,10 @@ export interface UserSettings {
   sleepNeedHours: number;
   gender: 'male' | 'female';
   language?: 'en' | 'ar';
+  /** true once the user has saved their real profile (age/weight/height/sex). Until then personalised metrics are not computed. */
+  profileConfirmed?: boolean;
+  /** Target wake time 'HH:MM' for the sleep planner. */
+  wakeTime?: string;
 }
 
 export interface HrZoneInfo {

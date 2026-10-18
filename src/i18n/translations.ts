@@ -748,7 +748,7 @@ export const translations: Record<Language, Translations> = {
     exhale: 'زفير',
 
     // Sleep Architecture & Sleep Coach
-    sleepPerformance: 'كفاءة النوم',
+    sleepPerformance: 'أداء النوم',
     sleepNeed: 'الاحتياج الفعلي للنوم',
     actualSleep: 'النوم المحقق',
     hoursVsNeed: 'الاحتياج الفعلي للنوم مقابل النوم المحقق',

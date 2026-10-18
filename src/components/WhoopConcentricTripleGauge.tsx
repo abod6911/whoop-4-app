@@ -115,7 +115,7 @@ export const WhoopConcentricTripleGauge: React.FC<WhoopConcentricTripleGaugeProp
             cx={center}
             cy={center}
             r={rOuter}
-            stroke="#181D26"
+            stroke="#252B36"
             strokeWidth={strokeOuter}
             fill="transparent"
           />
@@ -138,7 +138,7 @@ export const WhoopConcentricTripleGauge: React.FC<WhoopConcentricTripleGaugeProp
             cx={center}
             cy={center}
             r={rMiddle}
-            stroke="#1A221C"
+            stroke="#232B27"
             strokeWidth={strokeMiddle}
             fill="transparent"
           />
@@ -162,7 +162,7 @@ export const WhoopConcentricTripleGauge: React.FC<WhoopConcentricTripleGaugeProp
             cx={center}
             cy={center}
             r={rInner}
-            stroke="#192028"
+            stroke="#222A33"
             strokeWidth={strokeInner}
             fill="transparent"
           />
