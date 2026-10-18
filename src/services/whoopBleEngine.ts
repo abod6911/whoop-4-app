@@ -438,6 +438,7 @@ export class WhoopBleEngine {
       this.metadata.connecting = false;
       this.reconnectAttempts = 0;
       this.lastConnectedTimestamp = Date.now();
+      this.emitError('');
       this.emitMetadata();
 
       // 1. Initialize Standard Services (Heart Rate 0x180D, Battery 0x180F, Device Info 0x180A)
@@ -643,6 +644,7 @@ export class WhoopBleEngine {
       this.metadata.connected = true;
       this.metadata.connecting = false;
       this.reconnectAttempts = 0;
+      this.emitError('');
       this.emitMetadata();
 
       // 1. Subscribe to Heart Rate Measurement (0x180D -> 0x2A37)
@@ -1785,15 +1787,19 @@ export class WhoopBleEngine {
     this.metadata.contactSupported = contactSupported;
     this.metadata.contactDetected = contactDetected;
 
-    // Determine on-wrist status
-    const onWrist = contactSupported ? contactDetected : (rawBpm >= 30 && rawBpm <= 240);
+    // Determine on-wrist status:
+    // If optical PPG measures a physiological human pulse (>= 35 and <= 230 bpm),
+    // or if the hardware contact bit is explicitly detected, the strap is definitively on-wrist.
+    // Standard Bluetooth SIG flags & 0x04 / 0x02 can report false-negative contact status on WHOOP straps.
+    const isHumanPulse = rawBpm >= 35 && rawBpm <= 230;
+    const onWrist = isHumanPulse || (contactSupported && contactDetected);
     if (this.metadata.onWrist !== onWrist) {
       this.metadata.onWrist = onWrist;
       this.emitMetadata();
     }
 
     // Strict physiological human HR range: 30 bpm to 240 bpm. Discard off-wrist artifacts.
-    let bpm = (onWrist && rawBpm >= 30 && rawBpm <= 240) ? rawBpm : 0;
+    let bpm = (isHumanPulse || (onWrist && rawBpm >= 30 && rawBpm <= 240)) ? rawBpm : 0;
 
     const now = Date.now();
     if (bpm > 0 && onWrist) {
@@ -1876,7 +1882,7 @@ export class WhoopBleEngine {
 
     // Ingest into Pedometer Activity & Gait Locomotion Engine
     const zone = biometricEngine.determineZone(bpm);
-    pedometerEngine.ingestHeartRate(bpm, zone, now, onWrist);
+    pedometerEngine.ingestHeartRate(bpm, zone, now, onWrist, rhrBase);
 
     // Record raw packet for sniffer & telemetry tracking
     this.recordRawPacket(UUID_HEART_RATE_SERVICE, UUID_HEART_RATE_MEASUREMENT, data);

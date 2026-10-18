@@ -185,13 +185,13 @@ export class PedometerEngine {
 
         const debounceMs = this.cadence > 130 ? 220 : 280;
         const interval = timestamp - this.lastPeakTime;
+        const isNewStreak = this.lastPeakTime === 0 || interval > 2500;
 
         if (
           curr > prev &&
           curr > next &&
           curr >= this.dynamicThreshold &&
-          interval >= debounceMs &&
-          interval <= 1600
+          (isNewStreak || interval >= debounceMs)
         ) {
           this.recordStep(timestamp);
           this.lastPeakTime = timestamp;
@@ -203,7 +203,7 @@ export class PedometerEngine {
   }
 
   // --- 2. Activity Time Tracker & Hybrid Heart-Rate Cadence Fallback ---
-  public ingestHeartRate(bpm: number, zone: number, timestamp = Date.now(), onWrist = true): void {
+  public ingestHeartRate(bpm: number, zone: number, timestamp = Date.now(), onWrist = true, rhrBase = 60): void {
     if (!onWrist || !bpm || bpm <= 0) {
       if (!onWrist && this.cadence > 0) {
         this.cadence = 0;
@@ -221,20 +221,21 @@ export class PedometerEngine {
 
     // Hybrid Ingestion Fallback:
     // If the strap's proprietary IMU stream is quiet or obstructed by browser BLE limitations,
-    // and the strap reports heart rate consistent with active bipedal locomotion (>= 68 BPM),
+    // and the strap reports heart rate consistent with active bipedal locomotion,
     // calculate steps continuously using WHOOP standard human gait equations.
+    const walkThreshold = Math.min(68, Math.max(55, rhrBase + 6));
     const isImuRecent = this.source === 'imu_hardware' && (timestamp - this.lastStepTimestamp < 2500);
-    if (!isImuRecent && bpm >= 68) {
+    if (!isImuRecent && bpm >= walkThreshold) {
       let inferredCadence = 0;
-      if (bpm < 80) {
-        // Light walking / household movement (80 - 95 SPM)
-        inferredCadence = 80 + Math.round(((bpm - 68) / 12) * 15);
-      } else if (bpm < 98) {
-        // Moderate continuous walking (96 - 114 SPM)
-        inferredCadence = 96 + Math.round(((bpm - 80) / 18) * 18);
+      if (bpm < 78) {
+        // Light stroll / domestic movement (75 - 92 SPM)
+        inferredCadence = 75 + Math.round(((bpm - walkThreshold) / Math.max(1, 78 - walkThreshold)) * 17);
+      } else if (bpm < 95) {
+        // Moderate continuous walking (93 - 112 SPM)
+        inferredCadence = 93 + Math.round(((bpm - 78) / 17) * 19);
       } else if (bpm < 118) {
-        // Brisk walking / power walk (115 - 130 SPM)
-        inferredCadence = 115 + Math.round(((bpm - 98) / 20) * 15);
+        // Brisk walking / power walk (113 - 130 SPM)
+        inferredCadence = 113 + Math.round(((bpm - 95) / 23) * 17);
       } else if (bpm < 145) {
         // Jogging / slow run (132 - 152 SPM)
         inferredCadence = 132 + Math.round(((bpm - 118) / 27) * 20);
@@ -255,7 +256,7 @@ export class PedometerEngine {
         this.cadence = inferredCadence;
         this.recordSteps(wholeSteps, timestamp, 'activity_inference');
       }
-    } else if (!isImuRecent && bpm < 68) {
+    } else if (!isImuRecent && bpm < walkThreshold) {
       // Sedentary / seated / resting: cadence smoothly resets
       if (this.cadence > 0 && timestamp - this.lastStepTimestamp > 2500) {
         this.cadence = 0;

@@ -1218,7 +1218,7 @@ export class BiometricEngine {
       this.activeCalories = Math.max(this.activeCalories, this.activeCalories + this.calculateCaloriesPerSecond(bpm) * effectiveDt);
 
       // Ingest into Pedometer Activity-Cadence Model
-      pedometerEngine.ingestHeartRate(bpm, zone, timestamp, true);
+      pedometerEngine.ingestHeartRate(bpm, zone, timestamp, true, rhr);
     } else {
       // Freeze pedometer accrual when off-wrist
       pedometerEngine.ingestHeartRate(0, 0, timestamp, false);
