@@ -29,6 +29,25 @@ export interface UserSettings {
   wakeTime?: string;
 }
 
+export interface UserProfile {
+  id: string; // unique user identifier, e.g. usr_1792348572
+  email: string;
+  fullName: string;
+  avatarColor?: string;
+  pairedDeviceId?: string | null;
+  pairedDeviceName?: string | null;
+  createdAt: number;
+  lastLoginAt: number;
+  settings: UserSettings;
+}
+
+export interface AuthState {
+  currentUser: UserProfile | null;
+  profiles: UserProfile[];
+  isAuthenticated: boolean;
+  isLoading: boolean;
+}
+
 export interface HrZoneInfo {
   zone: 0 | 1 | 2 | 3 | 4 | 5;
   name: string;
@@ -100,8 +119,8 @@ export interface DailyRecoveryLock {
   date: string;              // YYYY-MM-DD (localDateKey)
   recoveryScore: number;     // 1 - 100% (LOCKED for the day)
   recoveryCategory: 'green' | 'yellow' | 'red' | 'calibrating';
-  lockedHrv: number;         // Morning / Sleep baseline RMSSD (ms)
-  lockedRhr: number;         // Morning / Sleep Resting HR (bpm)
+  lockedHrv: number | null;         // Morning / Sleep baseline RMSSD (ms)
+  lockedRhr: number | null;         // Morning / Sleep Resting HR (bpm)
   lockedRespiratoryRate: number | null;
   lockedSkinTempCelsius?: number | null;
   lockedSkinTempDelta?: number | null;

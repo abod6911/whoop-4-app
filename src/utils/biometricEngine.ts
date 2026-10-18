@@ -179,8 +179,8 @@ export class BiometricEngine {
               date: todayStr,
               recoveryScore: parsedLegacy.lockedRecoveryScore,
               recoveryCategory: parsedLegacy.recoveryCategory || 'yellow',
-              lockedHrv: parsedLegacy.morningHrv ?? this.userSettings.hrvBaseline,
-              lockedRhr: parsedLegacy.morningRhr ?? this.userSettings.restingHrBaseline,
+              lockedHrv: parsedLegacy.morningHrv ?? null,
+              lockedRhr: parsedLegacy.morningRhr ?? null,
               lockedRespiratoryRate: null,
               lockedSkinTempCelsius: null,
               lockedSkinTempDelta: null,
@@ -237,13 +237,13 @@ export class BiometricEngine {
       }
 
       // If today has a persisted recovery score but memory lock was not loaded, lock it to prevent fluctuation
-      if (!this.dailyRecoveryLock && typeof saved.recoveryScore === 'number' && saved.recoveryScore > 0) {
+      if (!this.dailyRecoveryLock && typeof saved.recoveryScore === 'number' && saved.recoveryScore > 0 && saved.recoveryScore !== 51 && saved.recoveryScore !== 78 && (saved.rhr !== null || saved.hrv !== null)) {
         this.dailyRecoveryLock = {
           date: todayStr,
           recoveryScore: saved.recoveryScore,
           recoveryCategory: (saved.recoveryCategory as 'green' | 'yellow' | 'red') || 'yellow',
-          lockedHrv: saved.hrv || this.userSettings.hrvBaseline,
-          lockedRhr: saved.rhr || this.userSettings.restingHrBaseline,
+          lockedHrv: saved.hrv ?? null,
+          lockedRhr: saved.rhr ?? null,
           lockedRespiratoryRate: saved.respiratoryRate ?? null,
           lockedSkinTempCelsius: saved.skinTempCelsius ?? null,
           lockedSkinTempDelta: saved.skinTempDelta ?? null,
@@ -261,17 +261,17 @@ export class BiometricEngine {
   // Persist real progress for today
   private persistTodayRealState(): void {
     const todayStr = localDateKey();
-    const currentHrv = this.calculateRMSSD();
-    const rhr = this.getRestingHeartRate();
+    const currentHrv = this.hrCount > 0 ? this.calculateRMSSD() : null;
+    const rhr = this.hrCount > 0 ? this.getRestingHeartRate() : null;
     const sleepMetrics = sleepEngine.getSleepMetrics(this.userSettings, this.dailyStrain);
-    const recovery = this.calculateRecovery(currentHrv, rhr, this.calculateRespiratoryRate(), sleepMetrics.sleepPerformance);
+    const recovery = this.calculateRecovery(currentHrv, rhr, this.hrCount > 0 ? this.calculateRespiratoryRate() : null, sleepMetrics.sleepPerformance);
     const lock = this.getDailyRecoveryLock();
     const effectiveHrv = lock?.lockedHrv ?? currentHrv;
     const effectiveRhr = lock?.lockedRhr ?? rhr;
-    const effectiveResp = lock?.lockedRespiratoryRate ?? this.calculateRespiratoryRate();
-    const effectiveSkinTempCelsius = lock?.lockedSkinTempCelsius ?? this.skinTempCelsius;
-    const effectiveSkinTempDelta = lock?.lockedSkinTempDelta ?? this.skinTempDelta;
-    const effectiveSpO2 = lock?.lockedSpO2 ?? this.spO2 ?? this.getSpO2NightlyAvg();
+    const effectiveResp = lock?.lockedRespiratoryRate ?? (this.hrCount > 0 ? this.calculateRespiratoryRate() : null);
+    const effectiveSkinTempCelsius = lock?.lockedSkinTempCelsius ?? (this.hrCount > 0 ? this.skinTempCelsius : null);
+    const effectiveSkinTempDelta = lock?.lockedSkinTempDelta ?? (this.hrCount > 0 ? this.skinTempDelta : null);
+    const effectiveSpO2 = lock?.lockedSpO2 ?? (this.hrCount > 0 ? (this.spO2 ?? this.getSpO2NightlyAvg()) : null);
     const pedo = pedometerEngine.getState();
     const bmrToday = this.getBmrCaloriesElapsedToday();
     const totalCal = Math.round(bmrToday + this.activeCalories);
@@ -845,19 +845,24 @@ export class BiometricEngine {
     currentRhr: number | null,
     currentResp: number | null = null,
     sleepPerformance: number | null = null
-  ): { score: number; category: 'green' | 'yellow' | 'red' } {
+  ): { score: number | null; category: 'green' | 'yellow' | 'red' | 'calibrating' } {
     // If daily recovery is locked for today, return the locked readiness score strictly
     const lock = this.getDailyRecoveryLock();
     if (lock) {
-      const category: 'green' | 'yellow' | 'red' =
+      const category: 'green' | 'yellow' | 'red' | 'calibrating' =
         lock.recoveryCategory === 'calibrating'
           ? (lock.recoveryScore >= 67 ? 'green' : lock.recoveryScore <= 33 ? 'red' : 'yellow')
           : lock.recoveryCategory;
       return { score: lock.recoveryScore, category };
     }
 
-    const effectiveHrv = currentHrv !== null && currentHrv > 0 ? currentHrv : this.userSettings.hrvBaseline;
-    const effectiveRhr = currentRhr !== null && currentRhr > 0 ? currentRhr : this.getRestingHeartRate();
+    // Zero-Mock Rule: Real HRV AND real RHR are strictly required to calculate recovery
+    if (currentHrv === null || currentHrv <= 0 || currentRhr === null || currentRhr <= 0) {
+      return { score: null, category: 'calibrating' };
+    }
+
+    const effectiveHrv = currentHrv;
+    const effectiveRhr = currentRhr;
     const effectiveResp = currentResp !== null && currentResp > 0 ? currentResp : 14.5;
     const effectiveSleep = sleepPerformance !== null && sleepPerformance > 0 ? sleepPerformance : 85.0;
 
@@ -1420,54 +1425,54 @@ export class BiometricEngine {
     const sleepMetrics = sleepEngine.getSleepMetrics(this.userSettings, saved?.dayStrain || 0);
 
     const effectiveResp = lock?.lockedRespiratoryRate ?? saved?.respiratoryRate ?? null;
-    const effectiveSkinTempCelsius = lock?.lockedSkinTempCelsius ?? saved?.skinTempCelsius ?? this.skinTempCelsius;
-    const effectiveSkinTempDelta = lock?.lockedSkinTempDelta ?? saved?.skinTempDelta ?? this.skinTempDelta;
-    const effectiveSpO2 = lock?.lockedSpO2 ?? saved?.spO2 ?? this.spO2;
-    const initialRecScore = lock?.recoveryScore ?? saved?.recoveryScore ?? 78;
+    const effectiveSkinTempCelsius = lock?.lockedSkinTempCelsius ?? saved?.skinTempCelsius ?? null;
+    const effectiveSkinTempDelta = lock?.lockedSkinTempDelta ?? saved?.skinTempDelta ?? null;
+    const effectiveSpO2 = lock?.lockedSpO2 ?? saved?.spO2 ?? null;
+    const initialRecScore = lock?.recoveryScore ?? saved?.recoveryScore ?? null;
     const initialOptimal = calculateOptimalStrainTarget(initialRecScore);
 
     return {
-      currentHr: 72, // Live active baseline HR (68-76 bpm) driving kinetic ECG waves & pulsing heart
-      currentHrv: lock?.lockedHrv ?? saved?.hrv ?? 68,
-      lockedHrv: lock?.lockedHrv ?? saved?.hrv ?? 68,
+      currentHr: null, // Disconnected: clean null, no synthetic pulse
+      currentHrv: lock?.lockedHrv ?? saved?.hrv ?? null,
+      lockedHrv: lock?.lockedHrv ?? saved?.hrv ?? null,
       dailyRecoveryLock: lock,
-      sdnn: 48,
-      meanRR: 833,
-      lastRR: 830,
-      minHr: 54,
-      maxHr: 142,
-      avgHr: 68,
-      restingHr: lock?.lockedRhr ?? saved?.rhr ?? 52,
-      dailyStrain: (saved?.dayStrain && saved.dayStrain > 0) ? saved.dayStrain : 8.4, // Live fluid wave fill in W gauge
+      sdnn: null,
+      meanRR: null,
+      lastRR: null,
+      minHr: this.minHrObserved,
+      maxHr: this.maxHrObserved,
+      avgHr: this.hrCount > 0 ? Math.round(this.hrSum / this.hrCount) : null,
+      restingHr: lock?.lockedRhr ?? saved?.rhr ?? null,
+      dailyStrain: saved?.dayStrain || 0,
       recoveryScore: initialRecScore,
-      recoveryCategory: lock?.recoveryCategory ?? (saved?.recoveryCategory as any) ?? 'green',
-      sleepPerformance: sleepMetrics.sleepPerformance || 85,
-      activeCalories: saved?.activeCalories || 342,
+      recoveryCategory: lock?.recoveryCategory ?? (saved?.recoveryCategory as any) ?? 'calibrating',
+      sleepPerformance: sleepMetrics.sleepPerformance ?? null,
+      activeCalories: saved?.activeCalories || 0,
       bmrCalories: bmrToday,
-      totalCalories: totalCalories > 0 ? totalCalories : Math.round(bmrToday + 342),
-      steps: pedo.steps > 0 ? pedo.steps : 1245,
-      cadence: pedo.cadence > 0 ? pedo.cadence : 112,
+      totalCalories: totalCalories,
+      steps: pedo.steps || 0,
+      cadence: 0,
       stepSource: pedo.source,
-      currentZone: 1,
-      zoneSeconds: saved?.zoneSeconds || { 0: 3600, 1: 1800, 2: 900, 3: 300, 4: 0, 5: 0 },
+      currentZone: 0,
+      zoneSeconds: saved?.zoneSeconds || { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
       optimalStrainTarget: initialOptimal,
-      respiratoryRate: effectiveResp || 14.2,
+      respiratoryRate: effectiveResp,
       lockedRespiratoryRate: lock?.lockedRespiratoryRate ?? null,
-      stressScore: 0.8,
-      stressCategory: 'low',
-      skinTempCelsius: effectiveSkinTempCelsius || 33.4,
-      skinTempDelta: effectiveSkinTempDelta || 0.1,
+      stressScore: null,
+      stressCategory: null,
+      skinTempCelsius: effectiveSkinTempCelsius,
+      skinTempDelta: effectiveSkinTempDelta,
       lockedSkinTempCelsius: lock?.lockedSkinTempCelsius ?? null,
       lockedSkinTempDelta: lock?.lockedSkinTempDelta ?? null,
-      spO2: effectiveSpO2 || 98,
+      spO2: effectiveSpO2,
       lockedSpO2: lock?.lockedSpO2 ?? null,
-      spO2NightlyAvg: this.getSpO2NightlyAvg() || 98,
+      spO2NightlyAvg: this.getSpO2NightlyAvg(),
       spO2DipsCount: this.spO2DipsCount,
-      vo2Max: this.calculateVo2Max() || 46.5,
-      sd1: 28,
-      sd2: 65,
-      baevskyIndex: 72,
-      onWrist: true,
+      vo2Max: this.calculateVo2Max() || null,
+      sd1: null,
+      sd2: null,
+      baevskyIndex: null,
+      onWrist: null,
       timestamp: Date.now(),
     };
   }

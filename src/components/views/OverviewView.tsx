@@ -818,35 +818,49 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
             </div>
 
             <div className="h-44 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={dualAxisData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="chartStrainGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#00A3FF" stopOpacity={0.9} />
-                      <stop offset="100%" stopColor="#0055FF" stopOpacity={0.25} />
-                    </linearGradient>
-                  </defs>
-                  <XAxis dataKey="day" stroke="#52525B" tick={{ fontSize: 9 }} tickLine={false} />
-                  <YAxis yAxisId="left" domain={[0, 21]} stroke="#00A3FF" tick={{ fontSize: 9 }} tickLine={false} />
-                  <YAxis yAxisId="right" orientation="right" domain={[0, 100]} stroke="#16EC06" tick={{ fontSize: 9 }} tickLine={false} />
-                  <Tooltip
-                    content={({ active, payload, label }) => {
-                      if (active && payload && payload.length) {
-                        return (
-                          <div className="rounded-xl bg-[#0B0D10]/95 border border-white/10 p-2.5 text-xs shadow-2xl font-condensed">
-                            <div className="font-bold text-zinc-400 mb-1">{label}</div>
-                            <div className="text-[#00A3FF] font-black">{t('dayStrain')}: {payload[0]?.value ?? '--'}</div>
-                            <div className="text-[#16EC06] font-black">{t('recoveryScore')}: {payload[1]?.value ?? '--'}%</div>
-                          </div>
-                        );
-                      }
-                      return null;
-                    }}
-                  />
-                  <Bar yAxisId="left" dataKey="strain" fill="url(#chartStrainGrad)" radius={[4, 4, 0, 0]} maxBarSize={28} />
-                  <Line yAxisId="right" type="monotone" dataKey="recovery" stroke="#16EC06" strokeWidth={2.5} dot={{ r: 3.5, fill: '#16EC06' }} />
-                </ComposedChart>
-              </ResponsiveContainer>
+              {dualAxisData.some((d) => (d.strain && d.strain > 0) || (d.recovery !== null && d.recovery > 0)) ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart data={dualAxisData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="chartStrainGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#00A3FF" stopOpacity={0.9} />
+                        <stop offset="100%" stopColor="#0055FF" stopOpacity={0.25} />
+                      </linearGradient>
+                    </defs>
+                    <XAxis dataKey="day" stroke="#52525B" tick={{ fontSize: 9 }} tickLine={false} />
+                    <YAxis yAxisId="left" domain={[0, 21]} stroke="#00A3FF" tick={{ fontSize: 9 }} tickLine={false} />
+                    <YAxis yAxisId="right" orientation="right" domain={[0, 100]} stroke="#16EC06" tick={{ fontSize: 9 }} tickLine={false} />
+                    <Tooltip
+                      content={({ active, payload, label }) => {
+                        if (active && payload && payload.length) {
+                          return (
+                            <div className="rounded-xl bg-[#0B0D10]/95 border border-white/10 p-2.5 text-xs shadow-2xl font-condensed">
+                              <div className="font-bold text-zinc-400 mb-1">{label}</div>
+                              <div className="text-[#00A3FF] font-black">{t('dayStrain')}: {payload[0]?.value ?? '--'}</div>
+                              <div className="text-[#16EC06] font-black">{t('recoveryScore')}: {payload[1]?.value ?? '--'}%</div>
+                            </div>
+                          );
+                        }
+                        return null;
+                      }}
+                    />
+                    <Bar yAxisId="left" dataKey="strain" fill="url(#chartStrainGrad)" radius={[4, 4, 0, 0]} maxBarSize={28} />
+                    <Line yAxisId="right" type="monotone" dataKey="recovery" stroke="#16EC06" strokeWidth={2.5} dot={{ r: 3.5, fill: '#16EC06' }} />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full w-full flex flex-col items-center justify-center text-center p-4 rounded-xl bg-[#0B0D10]/50 border border-white/5 space-y-2">
+                  <Activity className="w-5 h-5 text-zinc-600" />
+                  <div className="text-xs font-bold text-zinc-300 font-condensed">
+                    {isRtl ? 'في انتظار تسجيل أول دورة فسيولوجية' : 'Awaiting first physiological cycle'}
+                  </div>
+                  <p className="text-[11px] text-zinc-500 font-condensed max-w-xs leading-relaxed">
+                    {isRtl
+                      ? 'اربط سوار WHOOP لبدء مقارنة الجهد والاستشفاء اليومي على مدار الأسبوع تلقائياً.'
+                      : 'Connect your WHOOP strap to automatically track daily strain and recovery throughout the week.'}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -879,13 +893,19 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                   <span className="text-xs font-black uppercase tracking-wider text-white font-condensed">
                     {t('steps')}
                   </span>
-                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-[#16EC06]/15 border border-[#16EC06]/30 text-[9px] font-mono font-bold text-[#16EC06]">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#16EC06] animate-ping" />
-                    {isRtl ? 'مزامنة حية' : 'LIVE'}
-                  </span>
+                  {metadata.connected ? (
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-[#16EC06]/15 border border-[#16EC06]/30 text-[9px] font-mono font-bold text-[#16EC06]">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#16EC06] animate-ping" />
+                      {isRtl ? 'مزامنة حية' : 'LIVE'}
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-zinc-800 border border-white/5 text-[9px] font-mono font-bold text-zinc-500">
+                      {isRtl ? 'غير متصل' : 'OFFLINE'}
+                    </span>
+                  )}
                 </div>
                 <div className="text-[10px] text-zinc-400 font-mono mt-0.5">
-                  {t('target')}: 10,000 • {metrics.cadence > 0 ? `${metrics.cadence} spm` : (isRtl ? 'حساس IMU متصل' : 'IMU Active')}
+                  {t('target')}: 10,000 • {metrics.cadence > 0 ? `${metrics.cadence} spm` : (metadata.connected ? (isRtl ? 'حساس IMU متصل' : 'IMU Active') : (isRtl ? 'غير متصل' : 'Disconnected'))}
                 </div>
               </div>
             </div>
@@ -894,7 +914,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
               <div className="text-end">
                 <div className="flex items-baseline justify-end gap-1">
                   <span className="text-3xl font-black font-condensed text-white tabular-nums drop-shadow-[0_2px_10px_rgba(22,236,6,0.3)]">
-                    {(metrics.steps > 0 ? metrics.steps : 1245).toLocaleString()}
+                    {(metrics.steps || 0).toLocaleString()}
                   </span>
                   <span className="text-xs text-[#16EC06] font-bold font-condensed uppercase tracking-wider">
                     {isRtl ? 'خطوة' : 'steps'}

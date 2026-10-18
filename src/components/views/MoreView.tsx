@@ -18,9 +18,17 @@ import {
   Bell,
   CheckCircle2,
   Globe,
+  Users,
+  LogOut,
+  Plus,
+  X,
+  Shield,
+  Bluetooth,
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { whoopBleEngine } from '../../services/whoopBleEngine';
 import { useLanguage } from '../../i18n/LanguageContext';
+import { useAuth } from '../../context/AuthContext';
 import { whoopDb } from '../../services/whoopDatabase';
 import { localDateKey } from '../../utils/dateKey';
 
@@ -37,6 +45,7 @@ interface MoreViewProps {
   onResetDayCounters: () => void;
   onRefreshSessions: () => void;
   onOpenNotifications?: () => void;
+  onAddAccount?: () => void;
 }
 
 type SubScreen = 'menu' | 'device' | 'account' | 'app_settings' | 'privacy' | 'tutorials' | 'about';
@@ -54,12 +63,16 @@ export const MoreView: React.FC<MoreViewProps> = ({
   onResetDayCounters,
   onRefreshSessions,
   onOpenNotifications,
+  onAddAccount,
 }) => {
   const { language, setLanguage, t, isRtl } = useLanguage();
+  const { currentUser, profiles, switchUser, logout } = useAuth();
   const [subScreen, setSubScreen] = useState<SubScreen>('menu');
   const [form, setForm] = useState<UserSettings>({ ...settings });
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
   const [importStatus, setImportStatus] = useState<string | null>(null);
+  const [isSwitchAccountOpen, setIsSwitchAccountOpen] = useState(false);
+  const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
   const [archivedCycleCount, setArchivedCycleCount] = useState<number>(() => {
     return storageService.getAllArchivedDates().length;
   });
@@ -270,6 +283,66 @@ export const MoreView: React.FC<MoreViewProps> = ({
       {/* 1. MAIN MENU SCREEN (02:43 in Video) */}
       {subScreen === 'menu' && (
         <div className="space-y-4">
+          {/* USER PROFILE & MULTI-TENANT CARD */}
+          <div className="p-4 rounded-[24px] bg-gradient-to-br from-[#161B23] via-[#12151A] to-[#0D1015] border border-white/10 shadow-xl space-y-3.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div
+                  className="w-12 h-12 rounded-2xl flex items-center justify-center text-white font-extrabold text-base shadow-lg border border-white/20 select-none"
+                  style={{ backgroundColor: currentUser?.avatarColor || '#0093E9' }}
+                >
+                  {(currentUser?.fullName || settings.name || 'W').charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <div className="text-sm font-black text-white font-condensed tracking-wide flex items-center gap-2">
+                    <span>{currentUser?.fullName || settings.name || 'WHOOP Athlete'}</span>
+                    <span className="text-[9px] font-mono font-bold uppercase px-2 py-0.5 rounded-full bg-[#16EC06]/15 text-[#16EC06] border border-[#16EC06]/30">
+                      {isRtl ? 'حساب نشط' : 'ACTIVE'}
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-zinc-400 font-mono">
+                    {currentUser?.email || 'local@whoop.pulse'}
+                  </div>
+                </div>
+              </div>
+
+              {/* Paired Strap Badge */}
+              <div className="flex flex-col items-end">
+                <span className="text-[9px] font-mono text-zinc-500 uppercase tracking-wider font-bold">
+                  {isRtl ? 'السوار المقترن' : 'PAIRED STRAP'}
+                </span>
+                <span className="text-[11px] font-mono font-bold text-[#00F0FF] flex items-center gap-1">
+                  <Bluetooth className="w-3 h-3 text-[#00F0FF]" />
+                  {currentUser?.pairedDeviceName || metadata.name || (isRtl ? 'غير مقترن' : 'No Strap')}
+                </span>
+              </div>
+            </div>
+
+            {/* Quick Actions: Switch User & Logout */}
+            <div className="grid grid-cols-2 gap-2 pt-1 border-t border-white/5">
+              <button
+                type="button"
+                onClick={() => setIsSwitchAccountOpen(true)}
+                className="py-2.5 px-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-white uppercase font-condensed tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer"
+              >
+                <Users className="w-3.5 h-3.5 text-[#0093E9]" />
+                <span>{isRtl ? 'تبديل الحساب' : 'Switch Account'}</span>
+                <span className="text-[9px] font-mono bg-[#0093E9]/20 text-[#0093E9] px-1.5 py-0.5 rounded-full font-bold">
+                  {profiles.length}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setIsLogoutConfirmOpen(true)}
+                className="py-2.5 px-3 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-xs font-bold text-red-400 uppercase font-condensed tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer"
+              >
+                <LogOut className="w-3.5 h-3.5 text-red-400" />
+                <span>{isRtl ? 'تسجيل الخروج' : 'Log Out'}</span>
+              </button>
+            </div>
+          </div>
+
           <div className="p-4 rounded-[24px] bg-[#12151A] border border-white/5 space-y-1">
             <h2 className="text-xl font-bold text-white tracking-tight">{t('more')}</h2>
             <p className="text-xs text-zinc-400 font-sans">
@@ -839,6 +912,165 @@ export const MoreView: React.FC<MoreViewProps> = ({
           </div>
         </div>
       )}
+
+      {/* SWITCH ACCOUNT MODAL */}
+      <AnimatePresence>
+        {isSwitchAccountOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-6"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="w-full max-w-sm bg-[#161A22] border border-white/10 rounded-3xl p-6 shadow-2xl relative"
+            >
+              <button
+                type="button"
+                onClick={() => setIsSwitchAccountOpen(false)}
+                className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-zinc-400 hover:text-white cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+
+              <div className="w-10 h-10 rounded-2xl bg-[#0093E9]/20 border border-[#0093E9]/40 flex items-center justify-center mb-3 text-[#00F0FF]">
+                <Users className="w-5 h-5" />
+              </div>
+
+              <h3 className="text-lg font-bold text-white font-sans">
+                {isRtl ? 'تبديل الحساب' : 'Switch Account'}
+              </h3>
+              <p className="mt-1 text-xs text-zinc-400 leading-relaxed font-sans">
+                {isRtl
+                  ? 'اختر أحد الملفات الشخصية المسجلة على هذا الجهاز أو أضف حساباً لصديق.'
+                  : 'Select a profile registered on this device or add an account for a friend.'}
+              </p>
+
+              {/* Profiles List */}
+              <div className="mt-4 space-y-2 max-h-60 overflow-y-auto no-scrollbar">
+                {profiles.map((p) => {
+                  const isActive = p.id === currentUser?.id;
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={async () => {
+                        if (!isActive) {
+                          await switchUser(p.id);
+                          setForm(storageService.getUserSettings());
+                          onRefreshSessions();
+                        }
+                        setIsSwitchAccountOpen(false);
+                      }}
+                      className={`w-full p-3 rounded-2xl border text-start flex items-center justify-between transition-all cursor-pointer ${
+                        isActive
+                          ? 'bg-[#0093E9]/15 border-[#0093E9]/50 shadow-md ring-1 ring-[#0093E9]/40'
+                          : 'bg-[#12151B] border-white/5 hover:bg-[#1A202A] hover:border-white/10'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div
+                          className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-extrabold text-sm flex-shrink-0"
+                          style={{ backgroundColor: p.avatarColor || '#0093E9' }}
+                        >
+                          {(p.fullName || 'W').charAt(0).toUpperCase()}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-xs font-bold text-white font-sans truncate">
+                            {p.fullName || 'Athlete'}
+                          </div>
+                          <div className="text-[10px] text-zinc-400 font-mono truncate">
+                            {p.email}
+                          </div>
+                        </div>
+                      </div>
+
+                      {isActive ? (
+                        <span className="text-[10px] font-mono font-bold text-[#16EC06] bg-[#16EC06]/15 border border-[#16EC06]/30 px-2 py-0.5 rounded-full flex-shrink-0">
+                          {isRtl ? 'الحالي' : 'ACTIVE'}
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-mono text-zinc-500 flex-shrink-0">
+                          {p.pairedDeviceName || (isRtl ? 'سوار آخر' : 'Other Strap')}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Add New User / Friend Button */}
+              <button
+                type="button"
+                onClick={() => {
+                  setIsSwitchAccountOpen(false);
+                  if (onAddAccount) onAddAccount();
+                }}
+                className="mt-4 w-full py-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-dashed border-white/20 text-xs font-bold text-white uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer"
+              >
+                <Plus className="w-4 h-4 text-[#00F0FF]" />
+                <span>{isRtl ? '+ إضافة حساب جديد / صديق' : '+ Add New Profile / Friend'}</span>
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* LOGOUT CONFIRMATION MODAL */}
+      <AnimatePresence>
+        {isLogoutConfirmOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-6"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="w-full max-w-sm bg-[#161A22] border border-white/10 rounded-3xl p-6 shadow-2xl relative"
+            >
+              <div className="w-10 h-10 rounded-2xl bg-red-500/20 border border-red-500/40 flex items-center justify-center mb-3 text-red-400">
+                <LogOut className="w-5 h-5" />
+              </div>
+
+              <h3 className="text-lg font-bold text-white font-sans">
+                {isRtl ? 'تسجيل الخروج من الحساب؟' : 'Log Out of Profile?'}
+              </h3>
+              <p className="mt-1.5 text-xs text-zinc-300 leading-relaxed font-sans">
+                {isRtl
+                  ? 'بياناتك الحيوية وأرشيفك الفسيولوجي سيبقيان محفوظين بأمان في ذاكرة جهازك. يمكنك تسجيل الدخول مجدداً ببريدك وكلمة السر.'
+                  : 'Your physiological archives remain securely saved in your local device vault. You can log back in at any time with your credentials.'}
+              </p>
+
+              <div className="grid grid-cols-2 gap-2 mt-5">
+                <button
+                  type="button"
+                  onClick={() => setIsLogoutConfirmOpen(false)}
+                  className="py-3 rounded-xl bg-white/10 hover:bg-white/15 text-xs font-bold text-white uppercase tracking-wider font-sans cursor-pointer"
+                >
+                  {isRtl ? 'إلغاء' : 'Cancel'}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setIsLogoutConfirmOpen(false);
+                    await logout();
+                  }}
+                  className="py-3 rounded-xl bg-red-600 hover:bg-red-500 text-xs font-bold text-white uppercase tracking-wider font-sans cursor-pointer"
+                >
+                  {isRtl ? 'تأكيد الخروج' : 'Log Out'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

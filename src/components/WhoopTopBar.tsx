@@ -212,14 +212,14 @@ export const WhoopTopBar: React.FC<WhoopTopBarProps> = ({
           className="flex items-center gap-1.5 bg-[#16191E] border border-white/5 hover:border-zinc-700 px-2.5 py-1 rounded-full transition-all active:scale-95"
           title="WHOOP 4.0 Strap & Battery Status"
         >
-          {metadata.isCharging ? (
+          {metadata.connected && metadata.isCharging ? (
             <span className="flex items-center gap-0.5 text-[#16EC06] text-xs font-black font-condensed animate-pulse">
               <Zap className="w-3 h-3 fill-[#16EC06] text-[#16EC06]" />
               <span className="tabular-nums">{metadata.batteryLevel !== null ? `${metadata.batteryLevel}%` : ''}</span>
             </span>
           ) : (
-            <span className={`text-xs font-bold font-condensed tabular-nums tracking-wide ${batteryColor}`}>
-              {metadata.batteryLevel !== null ? `${metadata.batteryLevel}%` : '--'}
+            <span className={`text-xs font-bold font-condensed tabular-nums tracking-wide ${metadata.connected ? batteryColor : 'text-zinc-500'}`}>
+              {metadata.connected && metadata.batteryLevel !== null ? `${metadata.batteryLevel}%` : '--'}
             </span>
           )}
           <VerticalWhoopStrapIcon isConnected={metadata.connected} />

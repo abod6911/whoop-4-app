@@ -223,23 +223,23 @@ class StreakEngine {
       }
     }
 
-    if (currentStreak === 0) {
-      currentStreak = 1;
+    if (dates.size === 0) {
+      currentStreak = 0;
       streakStartDateStr = todayStr;
     }
 
     let longestStreak = 0;
     try {
       const savedLongest = parseInt(localStorage.getItem(STORAGE_LONGEST_STREAK_KEY) || '0', 10);
-      longestStreak = Math.max(savedLongest, currentStreak, dates.size > 0 ? 1 : 0);
-      if (currentStreak > savedLongest) {
+      longestStreak = dates.size > 0 ? Math.max(savedLongest, currentStreak) : 0;
+      if (currentStreak > savedLongest && currentStreak > 0) {
         localStorage.setItem(STORAGE_LONGEST_STREAK_KEY, String(currentStreak));
       }
     } catch {
       longestStreak = currentStreak;
     }
 
-    const totalDays = Math.max(dates.size, currentStreak > 0 ? currentStreak : 0);
+    const totalDays = dates.size;
 
     const last30Days: DayStreakItem[] = [];
     const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];

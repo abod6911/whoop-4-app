@@ -29,3 +29,8 @@ ios/App/DerivedData/
 *.sw?
 
 .vercel
+
+# Local media / Screen recordings
+*.mov
+/@r07qxo*
+public/videos/*.mov

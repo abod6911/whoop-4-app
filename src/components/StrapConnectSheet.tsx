@@ -49,25 +49,7 @@ export const StrapConnectSheet: React.FC<StrapConnectSheetProps> = ({
   const isBleSupported = whoopBleEngine.isSupported();
   const isConnected = metadata.connected;
 
-  const [cachedBattery, setCachedBattery] = useState<number>(() => {
-    if (typeof localStorage !== 'undefined') {
-      const saved = localStorage.getItem('whoop_last_battery_level');
-      if (saved) {
-        const parsed = parseInt(saved, 10);
-        if (!isNaN(parsed) && parsed > 0 && parsed <= 100) return parsed;
-      }
-    }
-    return 92;
-  });
-
-  useEffect(() => {
-    if (metadata.batteryLevel !== null && metadata.batteryLevel !== undefined) {
-      localStorage.setItem('whoop_last_battery_level', String(metadata.batteryLevel));
-      setCachedBattery(metadata.batteryLevel);
-    }
-  }, [metadata.batteryLevel]);
-
-  const displayBattery = metadata.batteryLevel ?? cachedBattery;
+  const displayBattery = isConnected && metadata.batteryLevel !== null ? metadata.batteryLevel : null;
   const hasPermitted = permittedDevices.length > 0;
 
   const handleCopyUrl = () => {
@@ -250,12 +232,14 @@ export const StrapConnectSheet: React.FC<StrapConnectSheetProps> = ({
                 <div className="text-right flex flex-col items-end mr-3">
                   <div className="flex items-baseline font-normal leading-none tracking-tight text-white tabular-nums">
                     <span className="text-[52px] font-normal leading-none tracking-tight text-white tabular-nums">
-                      {displayBattery}
+                      {displayBattery !== null ? displayBattery : '--'}
                     </span>
-                    <span className="text-[20px] font-bold text-white ml-0.5">%</span>
+                    {displayBattery !== null && (
+                      <span className="text-[20px] font-bold text-white ml-0.5">%</span>
+                    )}
                   </div>
                   <div className="text-[12px] font-medium tracking-[0.06em] text-[#5C6470] uppercase mt-1">
-                    WHOOP 4.0
+                    {isConnected ? 'WHOOP 4.0' : (isRtl ? 'غير متصل' : 'DISCONNECTED')}
                   </div>
                 </div>
 
@@ -266,11 +250,11 @@ export const StrapConnectSheet: React.FC<StrapConnectSheetProps> = ({
                       className="w-full rounded-full transition-all duration-700"
                       style={{
                         backgroundColor: '#22E600',
-                        height: `${Math.min(100, Math.max(4, displayBattery))}%`,
+                        height: displayBattery !== null ? `${Math.min(100, Math.max(4, displayBattery))}%` : '0%',
                       }}
                       initial={false}
                       animate={{
-                        height: `${Math.min(100, Math.max(4, displayBattery))}%`,
+                        height: displayBattery !== null ? `${Math.min(100, Math.max(4, displayBattery))}%` : '0%',
                       }}
                       transition={{ duration: 0.7, ease: 'easeOut' }}
                     />

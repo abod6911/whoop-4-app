@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { Moon } from 'lucide-react';
 import type { SleepStagePoint } from '../types/whoop';
 import { useLanguage } from '../i18n/LanguageContext';
 
@@ -178,11 +179,18 @@ export const HypnogramChart: React.FC<HypnogramChartProps> = ({ timeline, height
 
   if (!timeline || timeline.length === 0) {
     return (
-      <div className="w-full py-12 flex flex-col items-center justify-center rounded-2xl bg-[#0B0D10] border border-white/5 text-center px-4">
-        <div className="w-8 h-8 rounded-full border-2 border-[#38BDF8]/40 border-t-[#38BDF8] animate-spin mb-3" />
-        <span className="text-xs font-bold text-zinc-400 font-condensed uppercase tracking-wider">
-          {isRtl ? 'في انتظار تسجيل جلسة نوم مكتملة من الساعة...' : 'Awaiting complete overnight sleep session from strap...'}
-        </span>
+      <div className="w-full py-10 flex flex-col items-center justify-center rounded-2xl bg-[#0B0D10] border border-white/5 text-center px-6 space-y-2.5">
+        <div className="w-12 h-12 rounded-full bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+          <Moon className="w-6 h-6 stroke-[1.8]" />
+        </div>
+        <div className="text-sm font-bold text-white font-condensed tracking-wide">
+          {isRtl ? 'لم يتم تسجيل جلسة نوم بعد' : 'No Sleep Session Recorded Yet'}
+        </div>
+        <p className="text-xs text-zinc-400 font-condensed max-w-xs leading-relaxed">
+          {isRtl
+            ? 'ارتدِ السوار الليلة لرصد مراحل النوم (العميق، REM، الخفيف) وتحليل كفاءة النوم تلقائياً.'
+            : 'Wear your WHOOP strap tonight to automatically track deep sleep, REM, light sleep, and sleep efficiency.'}
+        </p>
       </div>
     );
   }

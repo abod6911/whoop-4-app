@@ -223,29 +223,29 @@ export class WhoopBleEngine {
   private onGattTreeCallbacks: Set<GattTreeCallback> = new Set();
   private onErrorCallbacks: Set<ErrorCallback> = new Set();
 
-  // Real Hardware Metadata (initial: Live Connected Baseline)
+  // Real Hardware Metadata (initial: Disconnected State)
   private metadata: DeviceMetadata = {
-    name: 'WHOOP 4.0 (58291)',
-    id: 'WHOOP-DEMO-58291',
-    batteryLevel: 88,
+    name: 'WHOOP 4.0',
+    id: '',
+    batteryLevel: null,
     isCharging: false,
     chargingStatusText: '',
-    firmwareRevision: '41.14.3.0',
+    firmwareRevision: '',
     hardwareRevision: 'Gen 4.0',
-    serialNumber: 'SN-40-9281736',
+    serialNumber: '',
     manufacturerName: 'WHOOP, Inc.',
     modelNumber: 'WS40',
-    connected: true,
+    connected: false,
     connecting: false,
-    onWrist: true,
-    contactSupported: true,
-    contactDetected: true,
-    rssi: -58,
-    packetsPerMinute: 60,
-    lastPacketTimestamp: Date.now(),
+    onWrist: null,
+    contactSupported: false,
+    contactDetected: false,
+    rssi: null,
+    packetsPerMinute: 0,
+    lastPacketTimestamp: null,
     isSyncing: false,
-    syncProgress: 100,
-    syncStatusText: 'مزامنة ونشاط مستمر من الساعة',
+    syncProgress: 0,
+    syncStatusText: '',
   };
 
   private gattTree: GattServiceInfo[] = [];
@@ -871,6 +871,8 @@ export class WhoopBleEngine {
     this.server = null;
     this.activeCharacteristics.clear();
     this.metadata.connected = false;
+    this.metadata.batteryLevel = null;
+    this.metadata.rssi = null;
     this.metadata.onWrist = null;
     this.metadata.isCharging = false;
     this.metadata.chargingStatusText = '';

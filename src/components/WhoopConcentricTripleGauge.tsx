@@ -119,19 +119,21 @@ export const WhoopConcentricTripleGauge: React.FC<WhoopConcentricTripleGaugeProp
             strokeWidth={strokeOuter}
             fill="transparent"
           />
-          <motion.circle
-            cx={center}
-            cy={center}
-            r={rOuter}
-            stroke="url(#whoopStrainGradient)"
-            strokeWidth={strokeOuter}
-            fill="transparent"
-            strokeDasharray={circOuter}
-            initial={{ strokeDashoffset: circOuter }}
-            animate={{ strokeDashoffset: strainOffset }}
-            transition={RING_SPRING}
-            strokeLinecap="round"
-          />
+          {metrics.dailyStrain > 0 && (
+            <motion.circle
+              cx={center}
+              cy={center}
+              r={rOuter}
+              stroke="url(#whoopStrainGradient)"
+              strokeWidth={strokeOuter}
+              fill="transparent"
+              strokeDasharray={circOuter}
+              initial={{ strokeDashoffset: circOuter }}
+              animate={{ strokeDashoffset: strainOffset }}
+              transition={RING_SPRING}
+              strokeLinecap="round"
+            />
+          )}
 
           {/* Ring 2: Middle Recovery Track & Fill */}
           <circle
@@ -142,20 +144,22 @@ export const WhoopConcentricTripleGauge: React.FC<WhoopConcentricTripleGaugeProp
             strokeWidth={strokeMiddle}
             fill="transparent"
           />
-          <motion.circle
-            cx={center}
-            cy={center}
-            r={rMiddle}
-            stroke={recoveryColor}
-            strokeWidth={strokeMiddle}
-            fill="transparent"
-            strokeDasharray={circMiddle}
-            initial={{ strokeDashoffset: circMiddle }}
-            animate={{ strokeDashoffset: recoveryOffset }}
-            transition={RING_SPRING}
-            strokeLinecap="round"
-            filter={metrics.recoveryScore !== null ? 'url(#recoveryRingGlow)' : undefined}
-          />
+          {metrics.recoveryScore !== null && (
+            <motion.circle
+              cx={center}
+              cy={center}
+              r={rMiddle}
+              stroke={recoveryColor}
+              strokeWidth={strokeMiddle}
+              fill="transparent"
+              strokeDasharray={circMiddle}
+              initial={{ strokeDashoffset: circMiddle }}
+              animate={{ strokeDashoffset: recoveryOffset }}
+              transition={RING_SPRING}
+              strokeLinecap="round"
+              filter="url(#recoveryRingGlow)"
+            />
+          )}
 
           {/* Ring 3: Inner Sleep Performance Track & Fill */}
           <circle
@@ -166,19 +170,21 @@ export const WhoopConcentricTripleGauge: React.FC<WhoopConcentricTripleGaugeProp
             strokeWidth={strokeInner}
             fill="transparent"
           />
-          <motion.circle
-            cx={center}
-            cy={center}
-            r={rInner}
-            stroke="#7395B7"
-            strokeWidth={strokeInner}
-            fill="transparent"
-            strokeDasharray={circInner}
-            initial={{ strokeDashoffset: circInner }}
-            animate={{ strokeDashoffset: sleepOffset }}
-            transition={RING_SPRING}
-            strokeLinecap="round"
-          />
+          {metrics.sleepPerformance !== null && (
+            <motion.circle
+              cx={center}
+              cy={center}
+              r={rInner}
+              stroke="#7395B7"
+              strokeWidth={strokeInner}
+              fill="transparent"
+              strokeDasharray={circInner}
+              initial={{ strokeDashoffset: circInner }}
+              animate={{ strokeDashoffset: sleepOffset }}
+              transition={RING_SPRING}
+              strokeLinecap="round"
+            />
+          )}
         </svg>
 
         {/* Heartbeat Pulse Halo behind Center "W" Emblem */}

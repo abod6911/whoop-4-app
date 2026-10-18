@@ -15,9 +15,11 @@ export function calculateWhoopStrain(trimp: number): number {
  * Computes optimal strain target range based on today's Recovery Score
  */
 export function calculateOptimalStrainTarget(recoveryScore: number | null): { min: number; max: number } {
-  // If recovery score is still calibrating, use healthy adult baseline recovery (65%) to provide a valid target
-  const effectiveScore = recoveryScore !== null && recoveryScore > 0 ? recoveryScore : 65;
-  const min = Number((4.0 + (effectiveScore / 100) * 10.0).toFixed(1));
+  // If recovery score is still calibrating, return { 0, 0 } so UI renders '--'
+  if (recoveryScore === null || recoveryScore <= 0) {
+    return { min: 0, max: 0 };
+  }
+  const min = Number((4.0 + (recoveryScore / 100) * 10.0).toFixed(1));
   const max = Number(Math.min(20.5, min + 3.2).toFixed(1));
   return { min, max };
 }

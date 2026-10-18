@@ -16,13 +16,16 @@ import { whoopBleEngine } from './services/whoopBleEngine';
 import { biometricEngine } from './utils/biometricEngine';
 import { pedometerEngine } from './services/pedometerEngine';
 import { sleepEngine } from './services/sleepEngine';
-import { storageService } from './services/StorageService';
+import { storageService, purgeLegacyMockStorage } from './services/StorageService';
 import {
   generateHealthMonitorMetrics,
   generateSleepMetrics,
   calculateOptimalStrainTarget,
 } from './utils/whoopAlgorithms';
 import { localDateKey } from './utils/dateKey';
+
+// Execute zero-mock purge immediately upon module evaluation
+purgeLegacyMockStorage();
 
 import { WhoopTopBar } from './components/WhoopTopBar';
 import { WhoopBottomNav } from './components/WhoopBottomNav';
@@ -61,9 +64,14 @@ import { hapticMedium, hapticLight } from './utils/haptics';
 
 import { AlertCircle, X, AlertTriangle, Wind, Dumbbell, Moon, Clock, ShieldCheck } from 'lucide-react';
 import { useLanguage } from './i18n/LanguageContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { OnboardingFlow } from './components/onboarding/OnboardingFlow';
+import { WhoopEmblemIcon } from './components/WhoopLogo';
 
 export const App: React.FC = () => {
   const { t, isRtl } = useLanguage();
+  const { currentUser, isAuthenticated, isLoading } = useAuth();
+  const [showAddAccount, setShowAddAccount] = useState(false);
 
   // --- User Settings & Biometrics ---
   const [settings, setSettings] = useState<UserSettings>(() => {
@@ -246,25 +254,6 @@ export const App: React.FC = () => {
     };
   }, [metadata.connected]);
 
-  // Continuous Live Baseline Heartbeat & Kinetic Stream (Option 1: Live Dynamic Baseline)
-  useEffect(() => {
-    const timer = setInterval(() => {
-      const isPhysicalLive = metadata.lastPacketTimestamp && (Date.now() - metadata.lastPacketTimestamp < 4000);
-      if (metadata.connected && !isPhysicalLive) {
-        setLiveMetrics((prev) => {
-          const base = prev.currentHr || 72;
-          const delta = (Math.random() - 0.48) * 1.8;
-          const nextBpm = Math.round(Math.min(78, Math.max(68, base + delta)));
-          return {
-            ...prev,
-            currentHr: nextBpm,
-            onWrist: true,
-          };
-        });
-      }
-    }, 2000);
-    return () => clearInterval(timer);
-  }, [metadata.connected, metadata.lastPacketTimestamp]);
 
   // Ingest 100% real sample from physical strap
   const handleMeasurement = useCallback((measurement: Parameters<typeof biometricEngine.ingestSample>[0]) => {
@@ -616,8 +605,8 @@ export const App: React.FC = () => {
             date: selectedDateStr,
             recoveryScore: currentDayRecord.recoveryScore,
             recoveryCategory: currentDayRecord.recoveryCategory,
-            lockedHrv: currentDayRecord.hrv || settings.hrvBaseline,
-            lockedRhr: currentDayRecord.rhr || settings.restingHrBaseline,
+            lockedHrv: currentDayRecord.hrv ?? null,
+            lockedRhr: currentDayRecord.rhr ?? null,
             lockedRespiratoryRate: currentDayRecord.respiratoryRate ?? null,
             lockedSkinTempCelsius: currentDayRecord.skinTempCelsius ?? null,
             lockedSkinTempDelta: currentDayRecord.skinTempDelta ?? null,
@@ -695,6 +684,46 @@ export const App: React.FC = () => {
     effectiveMetrics.skinTempDelta,
     settings,
   ]);
+
+  // Synchronize state when active user profile switches
+  useEffect(() => {
+    if (currentUser) {
+      setSettings(storageService.getUserSettings());
+      setDaysHistory(storageService.getDaysHistory());
+    }
+  }, [currentUser?.id]);
+
+  // 1. Initializing State: Ambient Glowing WHOOP Splash
+  if (isLoading) {
+    return (
+      <div className="w-full h-[100dvh] bg-[#0B0D10] flex flex-col items-center justify-center select-none font-sans">
+        <div className="relative flex items-center justify-center">
+          <div className="absolute w-28 h-28 rounded-full bg-[#0093E9]/20 blur-2xl animate-pulse" />
+          <div className="w-20 h-20 rounded-3xl bg-black/60 border border-white/20 flex items-center justify-center shadow-[0_0_35px_rgba(0,147,233,0.35)]">
+            <WhoopEmblemIcon size={52} variant="squircle" />
+          </div>
+        </div>
+        <div className="mt-6 text-xs font-mono tracking-[0.25em] text-zinc-400 uppercase font-semibold animate-pulse">
+          INITIALIZING WHOOP PULSE...
+        </div>
+      </div>
+    );
+  }
+
+  // 2. Unauthenticated or Add Account Flow: 1:1 Cinematic WHOOP Onboarding
+  if (!isAuthenticated || showAddAccount) {
+    return (
+      <OnboardingFlow
+        onComplete={() => {
+          setShowAddAccount(false);
+          setSettings(storageService.getUserSettings());
+          setDaysHistory(storageService.getDaysHistory());
+        }}
+        allowCancel={showAddAccount}
+        onCancel={() => setShowAddAccount(false)}
+      />
+    );
+  }
 
   const zones = biometricEngine.getZones();
 
@@ -944,6 +973,7 @@ export const App: React.FC = () => {
               onResetDayCounters={handleResetDayCounters}
               onRefreshSessions={refreshSessions}
               onOpenNotifications={() => setIsNotificationDrawerOpen(true)}
+              onAddAccount={() => setShowAddAccount(true)}
             />
           )}
         </main>
@@ -1191,4 +1221,12 @@ export const App: React.FC = () => {
   );
 };
 
-export default App;
+const WhoopAppRoot: React.FC = () => {
+  return (
+    <AuthProvider>
+      <App />
+    </AuthProvider>
+  );
+};
+
+export default WhoopAppRoot;

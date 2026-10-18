@@ -31,9 +31,9 @@ export const HeartbeatBadge: React.FC<HeartbeatBadgeProps> = ({
               }
             : undefined
         }
-        className="flex items-center justify-center text-[#FF3344]"
+        className={`flex items-center justify-center ${validBpm ? 'text-[#FF3344]' : 'text-zinc-600'}`}
       >
-        <Heart className="w-3.5 h-3.5 fill-current" />
+        <Heart className={`w-3.5 h-3.5 ${validBpm ? 'fill-current' : 'fill-none'}`} />
       </motion.div>
 
       <span className="text-xs font-black font-condensed tracking-wider text-white" dir="ltr">
@@ -147,15 +147,13 @@ export const EcgWave: React.FC<EcgWaveProps> = ({
       // Advance phase by elapsed time
       if (currentBpm) {
         currentPhase = (currentPhase + dt / cycleDuration) % 1;
-      } else {
-        currentPhase = (currentPhase + dt / 2.0) % 1;
       }
 
       // Add new samples according to speedPxPerSec
       const pxToAdvance = Math.max(1, Math.round(speedPxPerSec * dt));
       for (let i = 0; i < pxToAdvance; i++) {
         const subPhase = (currentPhase + (i / pxToAdvance) * (dt / cycleDuration)) % 1;
-        const val = currentBpm ? computePQRST(subPhase) : 0.04 * Math.sin(now * 0.002);
+        const val = currentBpm ? computePQRST(subPhase) : 0;
         buffer.shift();
         buffer.push(val);
       }
@@ -185,12 +183,17 @@ export const EcgWave: React.FC<EcgWaveProps> = ({
       const scaleY = height * 0.42;
 
       ctx.save();
-      ctx.strokeStyle = '#FF3344';
-      ctx.lineWidth = 2.4;
+      ctx.strokeStyle = currentBpm ? '#FF3344' : 'rgba(255, 255, 255, 0.18)';
+      ctx.lineWidth = currentBpm ? 2.4 : 1.5;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
-      ctx.shadowColor = 'rgba(255, 51, 68, 0.65)';
-      ctx.shadowBlur = 8;
+      if (currentBpm) {
+        ctx.shadowColor = 'rgba(255, 51, 68, 0.65)';
+        ctx.shadowBlur = 8;
+      } else {
+        ctx.shadowColor = 'transparent';
+        ctx.shadowBlur = 0;
+      }
 
       ctx.beginPath();
       for (let x = 0; x < buffer.length; x++) {
@@ -201,11 +204,13 @@ export const EcgWave: React.FC<EcgWaveProps> = ({
       ctx.stroke();
 
       // Lead cursor point at right edge
-      const lastY = midY - buffer[buffer.length - 1] * scaleY;
-      ctx.fillStyle = '#FFFFFF';
-      ctx.beginPath();
-      ctx.arc(buffer.length - 1, lastY, 3, 0, Math.PI * 2);
-      ctx.fill();
+      if (currentBpm) {
+        const lastY = midY - buffer[buffer.length - 1] * scaleY;
+        ctx.fillStyle = '#FFFFFF';
+        ctx.beginPath();
+        ctx.arc(buffer.length - 1, lastY, 3, 0, Math.PI * 2);
+        ctx.fill();
+      }
 
       ctx.restore();
 
@@ -241,24 +246,32 @@ export const PulsingHeartIcon: React.FC<{
 
   return (
     <motion.div
-      animate={{
-        scale: [1, 1.28, 0.95, 1.18, 1],
-        filter: [
-          'drop-shadow(0 0 2px rgba(255, 51, 68, 0.4))',
-          'drop-shadow(0 0 10px rgba(255, 51, 68, 0.95))',
-          'drop-shadow(0 0 4px rgba(255, 51, 68, 0.5))',
-          'drop-shadow(0 0 9px rgba(255, 51, 68, 0.85))',
-          'drop-shadow(0 0 2px rgba(255, 51, 68, 0.4))',
-        ],
-      }}
-      transition={{
-        duration: pulseDuration,
-        repeat: Infinity,
-        ease: 'easeInOut',
-      }}
-      className={`inline-flex items-center justify-center text-[#FF3344] ${className}`}
+      animate={
+        validBpm
+          ? {
+              scale: [1, 1.28, 0.95, 1.18, 1],
+              filter: [
+                'drop-shadow(0 0 2px rgba(255, 51, 68, 0.4))',
+                'drop-shadow(0 0 10px rgba(255, 51, 68, 0.95))',
+                'drop-shadow(0 0 4px rgba(255, 51, 68, 0.5))',
+                'drop-shadow(0 0 9px rgba(255, 51, 68, 0.85))',
+                'drop-shadow(0 0 2px rgba(255, 51, 68, 0.4))',
+              ],
+            }
+          : { scale: 1, filter: 'none' }
+      }
+      transition={
+        validBpm
+          ? {
+              duration: pulseDuration,
+              repeat: Infinity,
+              ease: 'easeInOut',
+            }
+          : undefined
+      }
+      className={`inline-flex items-center justify-center ${validBpm ? 'text-[#FF3344]' : 'text-zinc-600'} ${className}`}
     >
-      <Heart style={{ width: size, height: size }} className="fill-current stroke-[2]" />
+      <Heart style={{ width: size, height: size }} className={`${validBpm ? 'fill-current' : 'fill-none'} stroke-[2]`} />
     </motion.div>
   );
 };

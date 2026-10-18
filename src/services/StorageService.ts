@@ -53,11 +53,136 @@ export const DEFAULT_SETTINGS: UserSettings = {
   language: 'ar',
 };
 
+export function purgeLegacyMockStorage(): void {
+  if (typeof localStorage === 'undefined') return;
+
+  try {
+    // 1. Remove cached fake battery
+    localStorage.removeItem('whoop_last_battery_level');
+
+    // 2. Scan and clean all localStorage keys for legacy mock values
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key) continue;
+
+      // Clean whoop_steps_*
+      if (key.startsWith('whoop_steps_')) {
+        try {
+          const val = localStorage.getItem(key);
+          if (val) {
+            const parsed = JSON.parse(val);
+            if (parsed && (parsed.steps === 1245 || parsed.source === 'activity_inference')) {
+              parsed.steps = 0;
+              parsed.source = 'imu_hardware';
+              localStorage.setItem(key, JSON.stringify(parsed));
+            }
+          }
+        } catch {}
+      }
+
+      // Remove synthetic recovery locks
+      if (key.startsWith('whoop_daily_recovery_lock_') || key.startsWith('whoop_recovery_lock_')) {
+        try {
+          const val = localStorage.getItem(key);
+          if (val) {
+            const p = JSON.parse(val);
+            const score = p.recoveryScore ?? p.lockedRecoveryScore;
+            if (score === 51 || score === 78 || p.source === 'initial_calibration') {
+              keysToRemove.push(key);
+            }
+          }
+        } catch {}
+      }
+
+      // Clean whoop_day_* and whoop_real_day_*
+      if (key.startsWith('whoop_day_') || key.startsWith('whoop_real_day_')) {
+        try {
+          const val = localStorage.getItem(key);
+          if (val) {
+            const d = JSON.parse(val);
+            let changed = false;
+            if (d.steps === 1245) {
+              d.steps = 0;
+              changed = true;
+            }
+            if (d.recoveryScore === 51 || d.recoveryScore === 78) {
+              d.recoveryScore = null;
+              d.recoveryCategory = 'calibrating';
+              changed = true;
+            }
+            if (d.hrv === 65 && (!d.workouts || d.workouts.length === 0)) {
+              d.hrv = null;
+              changed = true;
+            }
+            if (d.rhr === 52 && (!d.workouts || d.workouts.length === 0)) {
+              d.rhr = null;
+              changed = true;
+            }
+            if (changed) {
+              localStorage.setItem(key, JSON.stringify(d));
+            }
+          }
+        } catch {}
+      }
+    }
+
+    keysToRemove.forEach((k) => localStorage.removeItem(k));
+
+    // 3. Clear fake streak if no physical strap was ever connected
+    const activeDaysRaw = localStorage.getItem('whoop_active_wear_days');
+    if (activeDaysRaw) {
+      try {
+        const lastStrap = localStorage.getItem('whoop_last_paired_serial');
+        if (!lastStrap) {
+          localStorage.removeItem('whoop_active_wear_days');
+          localStorage.removeItem('whoop_longest_streak');
+        }
+      } catch {}
+    }
+  } catch (e) {
+    console.warn('[Storage] purgeLegacyMockStorage error:', e);
+  }
+}
+
 class StorageService {
   private dbPromise: Promise<IDBDatabase> | null = null;
+  private activeUserId: string | null = null;
 
   constructor() {
+    // Purge any legacy fake metrics from earlier versions
+    purgeLegacyMockStorage();
+
+    // Try to load active user from localStorage if already logged in
+    if (typeof localStorage !== 'undefined') {
+      const storedId = localStorage.getItem('whoop_active_user_id');
+      if (storedId) this.activeUserId = storedId;
+    }
     this.initDB();
+  }
+
+  public setUserId(userId: string | null): void {
+    if (this.activeUserId !== userId) {
+      this.activeUserId = userId;
+      this.dbPromise = null;
+      this.initDB();
+    }
+  }
+
+  public getUserId(): string | null {
+    return this.activeUserId;
+  }
+
+  private getSettingsKey(): string {
+    return this.activeUserId ? `user_${this.activeUserId}_settings` : SETTINGS_KEY;
+  }
+
+  private getRealDayKey(dateStr: string): string {
+    return this.activeUserId ? `user_${this.activeUserId}_real_day_${dateStr}` : `${REAL_DAY_PREFIX}${dateStr}`;
+  }
+
+  private getDayKey(dateStr: string): string {
+    return this.activeUserId ? `user_${this.activeUserId}_day_${dateStr}` : `whoop_day_${dateStr}`;
   }
 
   private initDB(): Promise<IDBDatabase> {
@@ -69,7 +194,8 @@ class StorageService {
         return;
       }
 
-      const request = indexedDB.open(DB_NAME, DB_VERSION);
+      const dbName = this.activeUserId ? `WhoopPulseDB_${this.activeUserId}` : DB_NAME;
+      const request = indexedDB.open(dbName, DB_VERSION);
 
       request.onupgradeneeded = (event: IDBVersionChangeEvent) => {
         const db = (event.target as IDBOpenDBRequest).result;
@@ -111,7 +237,7 @@ class StorageService {
   // --- User Settings ---
   getUserSettings(): UserSettings {
     try {
-      const data = localStorage.getItem(SETTINGS_KEY);
+      const data = localStorage.getItem(this.getSettingsKey());
       if (data) {
         return { ...DEFAULT_SETTINGS, ...JSON.parse(data) };
       }
@@ -123,7 +249,7 @@ class StorageService {
 
   saveUserSettings(settings: UserSettings): void {
     try {
-      localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+      localStorage.setItem(this.getSettingsKey(), JSON.stringify(settings));
     } catch (e) {
       console.error('Failed saving user settings', e);
     }
@@ -132,7 +258,7 @@ class StorageService {
   // --- Real Day State Management (Zero Mock Data) ---
   saveRealDayState(dateStr: string, state: RealDayPersistedState): void {
     try {
-      localStorage.setItem(`${REAL_DAY_PREFIX}${dateStr}`, JSON.stringify(state));
+      localStorage.setItem(this.getRealDayKey(dateStr), JSON.stringify(state));
     } catch (e) {
       console.warn('Failed saving real day state:', e);
     }
@@ -140,7 +266,7 @@ class StorageService {
 
   getRealDayState(dateStr: string): RealDayPersistedState | null {
     try {
-      const data = localStorage.getItem(`${REAL_DAY_PREFIX}${dateStr}`);
+      const data = localStorage.getItem(this.getRealDayKey(dateStr));
       if (data) {
         return JSON.parse(data);
       }
@@ -152,7 +278,7 @@ class StorageService {
 
   clearRealDayState(dateStr: string): void {
     try {
-      localStorage.removeItem(`${REAL_DAY_PREFIX}${dateStr}`);
+      localStorage.removeItem(this.getRealDayKey(dateStr));
     } catch (e) {
       console.warn('Failed clearing real day state:', e);
     }
@@ -169,7 +295,7 @@ class StorageService {
       let saved = this.getRealDayState(dateStr);
 
       try {
-        const rawDay = localStorage.getItem(`whoop_day_${dateStr}`);
+        const rawDay = localStorage.getItem(this.getDayKey(dateStr));
         if (rawDay) {
           const parsed = JSON.parse(rawDay);
           saved = { ...(saved || {}), ...parsed };
@@ -260,16 +386,18 @@ class StorageService {
     return records;
   }
 
-  // List all archived dates from localStorage and Dexie
+  // List all archived dates from localStorage and Dexie for active user
   getAllArchivedDates(): string[] {
     const datesSet = new Set<string>();
+    const prefix1 = this.activeUserId ? `user_${this.activeUserId}_day_` : 'whoop_day_';
+    const prefix2 = this.activeUserId ? `user_${this.activeUserId}_real_day_` : 'whoop_real_day_';
     if (typeof localStorage !== 'undefined') {
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
-        if (key && key.startsWith('whoop_day_')) {
-          datesSet.add(key.replace('whoop_day_', ''));
-        } else if (key && key.startsWith('whoop_real_day_')) {
-          datesSet.add(key.replace('whoop_real_day_', ''));
+        if (key && key.startsWith(prefix1)) {
+          datesSet.add(key.replace(prefix1, ''));
+        } else if (key && key.startsWith(prefix2)) {
+          datesSet.add(key.replace(prefix2, ''));
         }
       }
     }
@@ -297,14 +425,14 @@ class StorageService {
         workouts.unshift(session);
         this.saveRealDayState(dateStr, { ...realDay, workouts });
       }
-      const rawDay = localStorage.getItem(`whoop_day_${dateStr}`);
+      const rawDay = localStorage.getItem(this.getDayKey(dateStr));
       if (rawDay) {
         const parsed = JSON.parse(rawDay);
         const wList = Array.isArray(parsed.workouts)
           ? parsed.workouts.filter((w: any) => w.id !== session.id)
           : [];
         wList.unshift(session);
-        localStorage.setItem(`whoop_day_${dateStr}`, JSON.stringify({ ...parsed, workouts: wList }));
+        localStorage.setItem(this.getDayKey(dateStr), JSON.stringify({ ...parsed, workouts: wList }));
       }
     } catch {}
   }
@@ -333,7 +461,7 @@ class StorageService {
 
   getWorkoutsForDate(dateStr: string): SessionRecord[] {
     try {
-      const raw = localStorage.getItem(`whoop_day_${dateStr}`);
+      const raw = localStorage.getItem(this.getDayKey(dateStr));
       if (raw) {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed.workouts)) return parsed.workouts;

@@ -85,14 +85,14 @@ export class PedometerEngine {
       const saved = localStorage.getItem(`whoop_steps_${this.getTodayKey()}`);
       if (saved) {
         const parsed = JSON.parse(saved);
-        this.steps = typeof parsed.steps === 'number' && parsed.steps > 0 ? parsed.steps : 1245;
-        this.source = parsed.source || 'activity_inference';
+        this.steps = typeof parsed.steps === 'number' && parsed.steps >= 0 ? parsed.steps : 0;
+        this.source = parsed.source || 'imu_hardware';
       } else {
-        this.steps = 1245;
+        this.steps = 0;
         this.persistSteps();
       }
     } catch {
-      this.steps = 1245;
+      this.steps = 0;
     }
   }
 
@@ -173,16 +173,10 @@ export class PedometerEngine {
     this.pruneCadenceWindow(timestamp);
   }
 
-  // --- 2. Fallback: Activity-Cadence Inference Model from Heart Rate ---
+  // --- 2. Activity Time Tracker from Heart Rate ---
   public ingestHeartRate(bpm: number, zone: number, timestamp = Date.now(), onWrist = true): void {
-    // If band is off wrist or heart rate is null/zero, freeze pedometer accrual
+    // If band is off wrist or heart rate is null/zero, do not track active time
     if (!onWrist || !bpm || bpm <= 0) {
-      this.cadence = 0;
-      return;
-    }
-
-    // If real hardware IMU has recorded steps in the last 4 seconds, prioritize hardware IMU
-    if (this.source === 'imu_hardware' && timestamp - this.lastStepTimestamp < 4000) {
       return;
     }
 
@@ -191,45 +185,6 @@ export class PedometerEngine {
 
     if (zone >= 1 || bpm >= 92) {
       this.activeSeconds += elapsedSec;
-    }
-
-    // Cadence inference by heart rate zone & elevated BPM
-    let inferredCadence = 0;
-    if (zone === 0 && bpm >= 92) {
-      inferredCadence = 95; // Active movement / brisk stroll
-    } else if (zone === 0) {
-      inferredCadence = 0; // Resting/Stationary
-    } else if (zone === 1) {
-      // Light active movement / recovery stroll: 95-105 steps/min
-      inferredCadence = 98;
-    } else if (zone === 2) {
-      // Steady aerobic walk/light jog: 115-128 steps/min
-      inferredCadence = 120;
-    } else if (zone === 3) {
-      // Moderate tempo run/jog: 140-155 steps/min
-      inferredCadence = 148;
-    } else if (zone === 4) {
-      // High threshold run: 160-172 steps/min
-      inferredCadence = 166;
-    } else if (zone === 5) {
-      // Max intensity sprint/HIIT: 175-185 steps/min
-      inferredCadence = 180;
-    }
-
-    this.cadence = inferredCadence;
-
-    if (inferredCadence > 0) {
-      const stepsPerSec = inferredCadence / 60.0;
-      this.accumulatedStepFraction += stepsPerSec * elapsedSec;
-
-      if (this.accumulatedStepFraction >= 1.0) {
-        const addedSteps = Math.floor(this.accumulatedStepFraction);
-        this.accumulatedStepFraction -= addedSteps;
-        this.steps += addedSteps;
-        this.lastStepTimestamp = timestamp;
-        this.persistSteps();
-        this.notifySubscribers();
-      }
     }
   }
 
@@ -383,7 +338,7 @@ export class PedometerEngine {
   }
 
   public resetTodaySteps(): void {
-    this.steps = 1245;
+    this.steps = 0;
     this.cadence = 0;
     this.accumulatedStepFraction = 0;
     this.activeSeconds = 0;

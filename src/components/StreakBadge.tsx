@@ -79,7 +79,11 @@ export const StreakBadge: React.FC<StreakBadgeProps> = ({
               </span>
             </div>
             <p className="text-[11px] text-zinc-400 font-sans mt-0.5">
-              {streakData.nextMilestone
+              {streak === 0
+                ? isRtl
+                  ? 'ابدأ ارتداء سوارك اليوم لتسجيل أول دورة'
+                  : 'Wear your strap today to start your streak'
+                : streakData.nextMilestone
                 ? isRtl
                   ? `باقي ${streakData.nextMilestone.daysRemaining} أيام على محطة ${streakData.nextMilestone.titleAr}`
                   : `${streakData.nextMilestone.daysRemaining} days until ${streakData.nextMilestone.title}`
