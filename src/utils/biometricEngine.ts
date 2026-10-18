@@ -7,6 +7,8 @@ import type {
   PoincarePoint,
   SessionRecord,
   DailyRecoveryLock,
+  SleepMetrics,
+  SleepStagePoint,
 } from '../types/whoop';
 import { storageService } from '../services/StorageService';
 import { notificationEngine } from '../services/notificationEngine';
@@ -74,10 +76,16 @@ export class BiometricEngine {
   private lastBpm: number | null = null;
   private lastWristStatus: boolean | null = null;
   private lastTimestamp = Date.now();
+  private liveSubscribers = new Set<(metrics: LiveMetrics) => void>();
 
   constructor(settings?: UserSettings) {
     this.userSettings = settings || storageService.getUserSettings();
     this.loadTodayRealState();
+
+    // Bind Sleep Completion hook (Automatic Morning Recovery Lock & Ingestion)
+    sleepEngine.onSleepCompleted((sleepMetrics) => {
+      this.onSleepSessionCompleted(sleepMetrics);
+    });
 
     // 60-Second Periodic Auto-Save Timer to IndexedDB and localStorage (whoop_day_YYYY-MM-DD)
     if (typeof window !== 'undefined') {
@@ -85,6 +93,29 @@ export class BiometricEngine {
         this.persistTodayRealState();
       }, 60000);
     }
+  }
+
+  public subscribeLive(callback: (metrics: LiveMetrics) => void): () => void {
+    this.liveSubscribers.add(callback);
+    return () => {
+      this.liveSubscribers.delete(callback);
+    };
+  }
+
+  public notifySubscribers(): void {
+    if (this.liveSubscribers.size === 0) return;
+    const current = this.getInitialDisconnectedMetrics();
+    this.liveSubscribers.forEach((cb) => {
+      try {
+        cb(current);
+      } catch (e) {
+        console.warn('[BiometricEngine] Subscriber notification error:', e);
+      }
+    });
+  }
+
+  public getCurrentMetrics(): LiveMetrics {
+    return this.getInitialDisconnectedMetrics();
   }
 
   public updateSettings(settings: UserSettings): void {
@@ -983,6 +1014,75 @@ export class BiometricEngine {
     saved.recoveryCategory = category;
     storageService.saveRealDayState(todayStr, saved);
     this.persistTodayRealState();
+  }
+
+  // --- Handle Real / Synced Sleep Session Completed -> Lock Morning Recovery ---
+  public onSleepSessionCompleted(sleepMetrics?: SleepMetrics): { score: number; category: 'green' | 'yellow' | 'red' } {
+    const todayStr = localDateKey();
+    const metrics = sleepMetrics || sleepEngine.getSleepMetrics(this.userSettings, this.dailyStrain);
+    const perf = metrics.sleepPerformance ?? 85;
+
+    // Derive resting heart rate from deep sleep (clinical WHOOP gold standard)
+    let sleepRhr = this.userSettings.restingHrBaseline || 56;
+    if (metrics.timeline && metrics.timeline.length > 0) {
+      const deepEpochs = metrics.timeline.filter((p: SleepStagePoint) => p.stage === 'deep');
+      if (deepEpochs.length > 0) {
+        sleepRhr = Math.round(deepEpochs.reduce((sum: number, p: SleepStagePoint) => sum + (p.hr || sleepRhr), 0) / deepEpochs.length);
+      } else {
+        const sleepEpochs = metrics.timeline.filter((p: SleepStagePoint) => p.stage === 'light' || p.stage === 'rem');
+        if (sleepEpochs.length > 0) {
+          sleepRhr = Math.round(sleepEpochs.reduce((sum: number, p: SleepStagePoint) => sum + (p.hr || sleepRhr), 0) / sleepEpochs.length);
+        }
+      }
+    }
+
+    const currentHrv = this.calculateRMSSD() || this.userSettings.hrvBaseline || 65;
+    const effectiveRhr = Math.min(sleepRhr, this.getRestingHeartRate());
+    this.realRhrObserved = effectiveRhr;
+    const effectiveResp = this.calculateRespiratoryRate() || 14.5;
+
+    // Reset old temporary locks to calculate fresh recovery score from real sleep
+    this.dailyRecoveryLock = null;
+
+    // Standardized z-scores per WHOOP 4.0 recovery formula
+    const avgHrvBase = this.userSettings.hrvBaseline || 65;
+    const avgRhrBase = this.userSettings.restingHrBaseline || 58;
+
+    const zHrv = (currentHrv - avgHrvBase) / Math.max(15, avgHrvBase * 0.25);
+    const zRhr = (avgRhrBase - effectiveRhr) / 6.0;
+    const zResp = (15.0 - effectiveResp) / 1.8;
+    const zSleep = (perf - 85.0) / 12.0;
+
+    const compositeZ = (0.50 * zHrv) + (0.25 * zRhr) + (0.10 * zResp) + (0.15 * zSleep);
+    const cdf = 0.5 * (1 + this.approxErf(compositeZ / Math.SQRT2));
+    let score = Math.round(cdf * 100);
+    score = Math.min(99, Math.max(1, score));
+
+    let category: 'green' | 'yellow' | 'red' = 'yellow';
+    if (score >= 67) {
+      category = 'green';
+    } else if (score <= 33) {
+      category = 'red';
+    }
+
+    this.lockDailyRecovery({
+      date: todayStr,
+      recoveryScore: score,
+      recoveryCategory: category,
+      lockedHrv: currentHrv,
+      lockedRhr: effectiveRhr,
+      lockedRespiratoryRate: effectiveResp,
+      lockedSkinTempCelsius: this.skinTempCelsius,
+      lockedSkinTempDelta: this.skinTempDelta,
+      lockedSpO2: this.spO2 ?? this.getSpO2NightlyAvg(),
+      lockedAt: Date.now(),
+      source: 'sleep',
+    });
+
+    this.persistTodayRealState();
+    this.notifySubscribers();
+
+    return { score, category };
   }
 
   private approxErf(x: number): number {

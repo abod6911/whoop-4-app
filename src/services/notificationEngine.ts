@@ -253,6 +253,10 @@ class NotificationEngine {
     return this.dispatch(notification);
   }
 
+  public notify(notification: Omit<WhoopNotification, 'id' | 'timestamp' | 'read'>): WhoopNotification {
+    return this.dispatch(notification);
+  }
+
   // ==========================================
   // REAL-TIME AUTOMATED TRIGGERS
   // ==========================================

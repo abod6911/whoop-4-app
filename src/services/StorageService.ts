@@ -180,7 +180,7 @@ class StorageService {
       if (offset === 1) label = 'YESTERDAY';
       else if (offset > 1) label = `${offset} DAYS AGO`;
 
-      if (saved && (saved.dayStrain > 0 || saved.recoveryScore !== null || (saved.activeCalories && saved.activeCalories > 0))) {
+      if (saved && (saved.dayStrain > 0 || saved.recoveryScore !== null || (saved.activeCalories && saved.activeCalories > 0) || saved.sleepPerformance !== null || saved.hoursAsleep !== null)) {
         records.push({
           offset,
           label,

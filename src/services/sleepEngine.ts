@@ -36,9 +36,44 @@ export class SleepEngine {
 
   // Subscribers for instant UI reactivity
   private subscribers = new Set<SleepSubscriber>();
+  private sleepCompletedCallbacks = new Set<(metrics: SleepMetrics) => void>();
+  private lastMotionIntensity = 0;
 
   constructor() {
     this.loadState();
+  }
+
+  public ingestMotion(motionDelta: number): void {
+    this.lastMotionIntensity = motionDelta;
+  }
+
+  public onSleepCompleted(callback: (metrics: SleepMetrics) => void): () => void {
+    this.sleepCompletedCallbacks.add(callback);
+    return () => {
+      this.sleepCompletedCallbacks.delete(callback);
+    };
+  }
+
+  private notifySleepCompleted(metrics?: SleepMetrics): void {
+    const defaultSettings: UserSettings = {
+      name: 'User',
+      age: 30,
+      weightKg: 75,
+      heightCm: 180,
+      maxHr: 190,
+      restingHrBaseline: 56,
+      hrvBaseline: 65,
+      sleepNeedHours: 7.9,
+      gender: 'male',
+    };
+    const m = metrics || this.getSleepMetrics(defaultSettings, 10.0);
+    this.sleepCompletedCallbacks.forEach((cb) => {
+      try {
+        cb(m);
+      } catch (e) {
+        console.warn('[SleepEngine] Sleep completed callback error:', e);
+      }
+    });
   }
 
   public subscribe(callback: SleepSubscriber): () => void {
@@ -176,8 +211,10 @@ export class SleepEngine {
     onWrist: boolean | null,
     rhrBaseline: number,
     timestamp = Date.now(),
-    motionIntensity = 0
+    motionIntensity?: number
   ): void {
+    const effectiveMotion = motionIntensity !== undefined ? motionIntensity : this.lastMotionIntensity;
+
     if (!bpm || bpm <= 0 || onWrist === false) {
       if (this.isSleeping && onWrist === false) {
         // Taking strap off triggers immediate wake-up transition
@@ -185,12 +222,13 @@ export class SleepEngine {
         this.wakeTimestamp = timestamp;
         this.isSleeping = false;
         this.persistState();
+        this.notifySleepCompleted();
         this.notify();
       }
       return;
     }
 
-    const sample: SleepSample = { timestamp, bpm, rmssd, onWrist, motionIntensity };
+    const sample: SleepSample = { timestamp, bpm, rmssd, onWrist, motionIntensity: effectiveMotion };
     this.samples.push(sample);
     // Keep up to 25 minutes of samples for rolling window checks (1500 samples at 1Hz)
     if (this.samples.length > 1500) this.samples.shift();
@@ -245,6 +283,8 @@ export class SleepEngine {
           this.isSleeping = false;
           this.wakeTimestamp = timestamp;
           this.recordEpochStage(timestamp, 'awake', bpm);
+          this.persistState();
+          this.notifySleepCompleted();
           this.notify();
         }
       }
@@ -306,11 +346,13 @@ export class SleepEngine {
 
       if (parsedCount > 0) {
         if (!this.sleepOnsetTimestamp && this.timeline.length > 0) {
-          this.sleepOnsetTimestamp = this.timeline[0].timestamp;
+          const firstNonAwake = this.timeline.find((p) => p.stage !== 'awake');
+          this.sleepOnsetTimestamp = firstNonAwake ? firstNonAwake.timestamp : this.timeline[0].timestamp;
         }
         this.wakeTimestamp = this.timeline[this.timeline.length - 1]?.timestamp || Date.now();
         this.isSleeping = false;
         this.persistState();
+        this.notifySleepCompleted();
         this.notify();
         console.log(`[SleepEngine] ✓ Successfully parsed ${parsedCount} offline episodic sleep records from strap.`);
         return true;
@@ -491,6 +533,7 @@ export class SleepEngine {
     };
 
     const metrics = this.getSleepMetrics(defaultSettings, 10.4);
+    this.notifySleepCompleted(metrics);
     this.notify();
     return metrics;
   }

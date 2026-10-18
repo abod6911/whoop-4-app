@@ -148,6 +148,18 @@ export const App: React.FC = () => {
     });
   }, []);
 
+  // Live Biometric Engine Subscriber (Instant reactivity for recovery lock, sleep sync, calibration)
+  useEffect(() => {
+    return biometricEngine.subscribeLive((metrics) => {
+      setLiveMetrics((prev) => ({
+        ...prev,
+        ...metrics,
+        currentHr: prev.currentHr ?? metrics.currentHr,
+      }));
+      setDaysHistory(storageService.getDaysHistory());
+    });
+  }, []);
+
   const handleBannerAction = (actionType: string) => {
     if (actionType === 'open_breathe') {
       setIsHrvBreatheOpen(true);

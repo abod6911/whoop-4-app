@@ -24,6 +24,7 @@ import {
   Pause,
   RotateCcw,
   Moon,
+  RefreshCw,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -385,6 +386,26 @@ export const StrapLabView: React.FC<StrapLabViewProps> = ({
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 font-condensed text-xs font-bold">
+            {/* Primary Morning Catch-up Reconnection Simulation */}
+            <button
+              onClick={async () => {
+                setCommandFeedback(isRtl ? 'جاري محاكاة إعادة الاتصال والمزامنة الصباحية...' : 'Simulating morning sync...');
+                const ok = await whoopBleEngine.simulateMorningReconnectionSync();
+                if (ok) {
+                  setCommandFeedback(
+                    isRtl
+                      ? '✓ تمت محاكاة إعادة الاتصال الصباحي ومزامنة 7.5 ساعة نوم وتحديث الاستشفاء'
+                      : '✓ Morning reconnection simulated (7.5h sleep synced & recovery updated)'
+                  );
+                }
+                setTimeout(() => setCommandFeedback(null), 4000);
+              }}
+              className="py-3 px-4 rounded-xl bg-gradient-to-r from-[#00A3FF]/20 via-[#16EC06]/15 to-[#00A3FF]/20 border border-[#00A3FF]/40 hover:border-[#16EC06] text-white flex items-center justify-center gap-2 active:scale-95 transition-all shadow-[0_0_20px_rgba(0,163,255,0.2)] font-black uppercase tracking-wider text-xs font-condensed col-span-1 sm:col-span-3"
+            >
+              <RefreshCw className="w-4 h-4 text-[#00A3FF]" />
+              <span>{isRtl ? 'محاكاة إعادة الاتصال والمزامنة الصباحية للنوم (7.5h)' : 'Simulate Morning Reconnection & Sync (7.5h)'}</span>
+            </button>
+
             <button
               onClick={() => {
                 sleepEngine.simulateNightSleep({
