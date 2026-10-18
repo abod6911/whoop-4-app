@@ -18,6 +18,7 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { SheetBackdrop, SheetPanel } from './motion/Sheet';
 import { hapticMedium, hapticSuccess, hapticLight } from '../utils/haptics';
 import { TransparentHardwareImage } from './TransparentHardwareImage';
+import { pedometerEngine } from '../services/pedometerEngine';
 
 interface StrapConnectSheetProps {
   isOpen: boolean;
@@ -290,6 +291,43 @@ export const StrapConnectSheet: React.FC<StrapConnectSheetProps> = ({
                   </motion.div>
                 )}
               </AnimatePresence>
+
+              {/* Live Active Streaming Bar when Connected (image_7.png upgrade) */}
+              {isConnected && (
+                <div className="absolute bottom-4 left-6 right-6 flex justify-center z-20">
+                  <div className="w-full max-w-[360px] py-2.5 px-4 rounded-2xl bg-gradient-to-r from-[#0D3528]/95 via-[#0B2538]/95 to-[#0D3528]/95 border border-[#16EC06]/40 backdrop-blur-md shadow-[0_0_25px_rgba(22,236,6,0.3)] flex items-center justify-between animate-pulse-subtle">
+                    <div className="flex items-center gap-2.5">
+                      <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
+                        className="text-[#16EC06] flex items-center justify-center"
+                      >
+                        <RefreshCw className="w-4 h-4 stroke-[2.2]" />
+                      </motion.div>
+                      <div className="text-start">
+                        <div className="text-xs font-black font-condensed tracking-wide text-white">
+                          {isRtl ? 'مزامنة ونشاط مستمر من الساعة' : 'Continuous Watch Sync'}
+                        </div>
+                        <div className="text-[10px] text-[#16EC06] font-mono flex items-center gap-1.5 mt-0.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#16EC06] animate-ping" />
+                          <span>25 Hz • {isRtl ? 'بث فوري مباشر' : 'Real-time Stream'}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <div className="text-end">
+                        <span className="text-sm font-black font-condensed text-white tabular-nums">
+                          {pedometerEngine.getState().steps.toLocaleString()}
+                        </span>
+                        <span className="text-[9px] text-zinc-400 block font-condensed -mt-1">
+                          {isRtl ? 'خطوة' : 'STEPS'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Clean bottom connect pill (ONLY when disconnected) */}
               {!isConnected && (

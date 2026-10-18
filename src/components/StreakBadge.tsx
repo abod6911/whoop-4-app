@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { Flame, ChevronRight, CheckCircle2 } from 'lucide-react';
+import { ChevronRight, CheckCircle2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { streakEngine, type StreakSummary } from '../services/streakEngine';
 import { useLanguage } from '../i18n/LanguageContext';
 import { hapticLight, hapticMedium } from '../utils/haptics';
+import { BlazingFlame } from './motion/BlazingFlame';
 
 interface StreakBadgeProps {
   onClick: () => void;
@@ -37,12 +38,15 @@ export const StreakBadge: React.FC<StreakBadgeProps> = ({
     return (
       <div
         onClick={handleClick}
-        className={`rounded-[24px] bg-[#12151A] border border-white/5 hover:border-white/15 p-4 relative overflow-hidden cursor-pointer transition-all group select-none shadow-lg shadow-black/40 ${className}`}
+        className={`rounded-[24px] bg-gradient-to-br from-[#161B22] via-[#12151A] to-[#0E1116] border border-amber-500/25 hover:border-amber-400/50 p-4 relative overflow-hidden cursor-pointer transition-all duration-300 group select-none shadow-[0_4px_24px_rgba(0,0,0,0.5)] hover:shadow-[0_4px_30px_rgba(255,136,0,0.18)] ${className}`}
       >
-        <div className="flex items-center justify-between pb-2 border-b border-white/5">
+        {/* Subtle shimmering gradient flow */}
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-amber-400/[0.04] to-transparent bg-[length:200%_100%] animate-shimmer pointer-events-none" />
+
+        <div className="flex items-center justify-between pb-2 border-b border-white/5 relative z-10">
           <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded-md bg-[#FF8800]/15 flex items-center justify-center">
-              <Flame className="w-3.5 h-3.5 text-[#FF8800] fill-[#FF8800]" />
+            <div className="w-6 h-6 rounded-md bg-[#FF8800]/15 flex items-center justify-center">
+              <BlazingFlame size={18} showSparks={true} />
             </div>
             <span className="text-[11px] font-black uppercase tracking-[0.08em] text-zinc-300 font-condensed">
               {isRtl ? 'سلسلة البيانات المتصلة' : 'DATA STREAK'}
@@ -105,14 +109,14 @@ export const StreakBadge: React.FC<StreakBadgeProps> = ({
   return (
     <button
       onClick={handleClick}
-      className={`flex items-center gap-1.5 bg-[#16191E] border border-white/5 hover:border-zinc-700 px-2.5 py-1 rounded-full transition-all active:scale-95 select-none ${className}`}
+      className={`flex items-center gap-1.5 bg-[#16191E] border border-amber-500/30 hover:border-amber-400 px-2.5 py-1 rounded-full transition-all active:scale-95 select-none shadow-[0_0_12px_rgba(255,136,0,0.2)] ${className}`}
       title={isRtl ? `سلسلة البيانات: ${streak} أيام متتالية` : `Data Streak: ${streak} consecutive days`}
     >
-      <Flame className="w-3.5 h-3.5 text-[#FF8800] fill-[#FF8800]" />
+      <BlazingFlame size={14} showSparks={false} />
       <span className="text-xs font-bold font-condensed tabular-nums tracking-wide text-white">
         {streak}
       </span>
-      <span className="text-[10px] font-medium font-condensed text-zinc-500 uppercase">
+      <span className="text-[10px] font-medium font-condensed text-zinc-400 uppercase">
         {isRtl ? 'ي' : 'd'}
       </span>
     </button>

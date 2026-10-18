@@ -21,6 +21,7 @@ import {
 } from 'recharts';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { AnimatedRing } from '../motion/AnimatedRing';
+import { HypnogramChart } from '../HypnogramChart';
 
 interface SleepViewProps {
   metrics: LiveMetrics;
@@ -166,22 +167,42 @@ export const SleepView: React.FC<SleepViewProps> = ({
           </button>
         </div>
 
-        {/* Giant Number / Animated Ring */}
-        <div className="flex flex-col items-center justify-center my-3">
+        {/* Giant Number / Animated Rings: SLEEP PERFORMANCE & SLEEP EFFICIENCY */}
+        <div className="flex items-center justify-center gap-6 my-3">
+          {/* Performance Ring */}
           <AnimatedRing
-            radius={70}
-            strokeWidth={9}
+            radius={65}
+            strokeWidth={8}
             progress={perf !== null ? Math.min(1, Math.max(0, perf / 100)) : 0}
             strokeColor="#38BDF8"
             glow
             glowColor="rgba(56, 189, 248, 0.45)"
           >
             <div className="flex flex-col items-center justify-center">
-              <span className="text-4xl font-black font-condensed text-white tracking-tight tabular-nums">
+              <span className="text-3xl font-black font-condensed text-white tracking-tight tabular-nums">
                 {perf !== null ? `${perf}%` : '--'}
               </span>
-              <span className="text-[10px] font-black uppercase text-zinc-400 font-condensed tracking-wider">
+              <span className="text-[9px] font-black uppercase text-zinc-400 font-condensed tracking-wider">
                 {t('sleepPerformance')}
+              </span>
+            </div>
+          </AnimatedRing>
+
+          {/* Efficiency Ring */}
+          <AnimatedRing
+            radius={65}
+            strokeWidth={8}
+            progress={sleepData.efficiencyPercent !== null ? Math.min(1, Math.max(0, sleepData.efficiencyPercent / 100)) : 0}
+            strokeColor="#16EC06"
+            glow
+            glowColor="rgba(22, 236, 6, 0.45)"
+          >
+            <div className="flex flex-col items-center justify-center">
+              <span className="text-3xl font-black font-condensed text-white tracking-tight tabular-nums">
+                {sleepData.efficiencyPercent !== null ? `${sleepData.efficiencyPercent}%` : '--'}
+              </span>
+              <span className="text-[9px] font-black uppercase text-zinc-400 font-condensed tracking-wider">
+                {isRtl ? 'كفاءة النوم' : 'SLEEP EFFICIENCY'}
               </span>
             </div>
           </AnimatedRing>
@@ -195,7 +216,7 @@ export const SleepView: React.FC<SleepViewProps> = ({
             </div>
             <div className="text-2xl font-black font-condensed text-white tabular-nums mt-0.5" dir="ltr">
               {hoursAsleep !== null
-                ? `${Math.floor(hoursAsleep)}:${Math.round((hoursAsleep % 1) * 60).toString().padStart(2, '0')}`
+                ? `${Math.floor(hoursAsleep)}h ${Math.round((hoursAsleep % 1) * 60)}m`
                 : '--'}
             </div>
           </div>
@@ -206,7 +227,7 @@ export const SleepView: React.FC<SleepViewProps> = ({
             </div>
             <div className="text-2xl font-black font-condensed text-white tabular-nums mt-0.5" dir="ltr">
               {sleepNeed
-                ? `${Math.floor(sleepNeed)}:${Math.round((sleepNeed % 1) * 60).toString().padStart(2, '0')}`
+                ? `${Math.floor(sleepNeed)}h ${Math.round((sleepNeed % 1) * 60)}m`
                 : '--'}
             </div>
           </div>
@@ -237,21 +258,25 @@ export const SleepView: React.FC<SleepViewProps> = ({
           <div className="flex items-center justify-between p-2.5 rounded-xl bg-[#16191E] border border-white/5">
             <span className="text-zinc-300 font-bold uppercase">{isRtl ? 'الاحتياج الأساسي' : 'Baseline Sleep Need'}</span>
             <span className="text-white font-mono font-bold" dir="ltr">
-              {sleepData.needBreakdown ? `${Math.floor(sleepData.needBreakdown.baselineNeedHours)}h ${Math.round((sleepData.needBreakdown.baselineNeedHours % 1) * 60)}m` : '--'}
+              {sleepData.needBreakdown ? `${Math.floor(sleepData.needBreakdown.baselineNeedHours)}h ${Math.round((sleepData.needBreakdown.baselineNeedHours % 1) * 60)}m` : (sleepNeed ? `${Math.floor(sleepNeed)}h ${Math.round((sleepNeed % 1) * 60)}m` : '--')}
             </span>
           </div>
 
           <div className="flex items-center justify-between p-2.5 rounded-xl bg-[#16191E] border border-white/5">
             <span className="text-zinc-300 font-bold uppercase">{isRtl ? 'دين النوم المتراكم' : 'Recent Sleep Debt'}</span>
             <span className="text-[#FFDE00] font-mono font-bold" dir="ltr">
-              {sleepData.needBreakdown ? `+${Math.round(sleepData.needBreakdown.recentDebtHours * 60)}m` : '--'}
+              {sleepData.needBreakdown && sleepData.needBreakdown.recentDebtHours > 0
+                ? `+${Math.round(sleepData.needBreakdown.recentDebtHours * 60)}m`
+                : (hoursAsleep !== null ? '0m' : '--')}
             </span>
           </div>
 
           <div className="flex items-center justify-between p-2.5 rounded-xl bg-[#16191E] border border-white/5">
             <span className="text-zinc-300 font-bold uppercase">{isRtl ? 'طلب التعافي من الإجهاد' : 'Strain Sleep Demand'}</span>
             <span className="text-[#00A3FF] font-mono font-bold" dir="ltr">
-              {sleepData.needBreakdown ? `+${Math.round(sleepData.needBreakdown.strainNeedHours * 60)}m` : (metrics.dailyStrain > 0 ? `+${Math.round((metrics.dailyStrain / 21) * 84)}m` : '--')}
+              {sleepData.needBreakdown
+                ? `+${Math.round(sleepData.needBreakdown.strainNeedHours * 60)}m`
+                : (metrics.dailyStrain > 0 ? `+${Math.round((metrics.dailyStrain / 21) * 84)}m` : (hoursAsleep !== null ? '0m' : '--'))}
             </span>
           </div>
         </div>
@@ -268,74 +293,8 @@ export const SleepView: React.FC<SleepViewProps> = ({
           </span>
         </div>
 
-        {/* Multi-Segment Stacked Stage Bar */}
-        {hoursAsleep !== null ? (
-          <div className="w-full h-3.5 bg-black/40 rounded-full overflow-hidden flex border border-white/10">
-            <div
-              style={{ width: `${sleepData.stages.deepPercent}%` }}
-              className="bg-[#EC4899] h-full transition-all"
-              title="Deep Sleep"
-            />
-            <div
-              style={{ width: `${sleepData.stages.remPercent}%` }}
-              className="bg-[#A855F7] h-full transition-all"
-              title="REM Sleep"
-            />
-            <div
-              style={{ width: `${sleepData.stages.lightPercent}%` }}
-              className="bg-[#38BDF8] h-full transition-all"
-              title="Light Sleep"
-            />
-            <div
-              style={{ width: `${sleepData.stages.awakePercent}%` }}
-              className="bg-[#E4E4E7] h-full transition-all"
-              title="Awake"
-            />
-          </div>
-        ) : (
-          <div className="w-full h-3.5 bg-[#16191E] rounded-full border border-white/5 flex items-center justify-center text-[9px] text-zinc-500 font-mono">
-            {t('calibrating')}
-          </div>
-        )}
-
-        {/* 4 Stages Legend */}
-        <div className="grid grid-cols-4 gap-1.5 pt-1 text-center">
-          <div className="p-2 rounded-xl bg-[#16191E] border border-white/5">
-            <div className="text-[9px] font-black uppercase text-[#EC4899] font-condensed">
-              {isRtl ? 'عميق SWS' : 'DEEP (SWS)'}
-            </div>
-            <div className="text-sm font-black font-condensed text-white tabular-nums mt-0.5">
-              {hoursAsleep !== null ? `${sleepData.stages.deepPercent}%` : '--'}
-            </div>
-          </div>
-
-          <div className="p-2 rounded-xl bg-[#16191E] border border-white/5">
-            <div className="text-[9px] font-black uppercase text-[#A855F7] font-condensed">
-              REM
-            </div>
-            <div className="text-sm font-black font-condensed text-white tabular-nums mt-0.5">
-              {hoursAsleep !== null ? `${sleepData.stages.remPercent}%` : '--'}
-            </div>
-          </div>
-
-          <div className="p-2 rounded-xl bg-[#16191E] border border-white/5">
-            <div className="text-[9px] font-black uppercase text-[#38BDF8] font-condensed">
-              {isRtl ? 'خفيف' : 'LIGHT'}
-            </div>
-            <div className="text-sm font-black font-condensed text-white tabular-nums mt-0.5">
-              {hoursAsleep !== null ? `${sleepData.stages.lightPercent}%` : '--'}
-            </div>
-          </div>
-
-          <div className="p-2 rounded-xl bg-[#16191E] border border-white/5">
-            <div className="text-[9px] font-black uppercase text-[#E4E4E7] font-condensed">
-              {isRtl ? 'استيقاظ' : 'AWAKE'}
-            </div>
-            <div className="text-sm font-black font-condensed text-white tabular-nums mt-0.5">
-              {hoursAsleep !== null ? `${sleepData.stages.awakePercent}%` : '--'}
-            </div>
-          </div>
-        </div>
+        {/* Full Interactive Multi-Tier Hypnogram Chart */}
+        <HypnogramChart timeline={sleepData.timeline || []} />
       </div>
 
       {/* 4. SLEEP STATISTICS Rows */}

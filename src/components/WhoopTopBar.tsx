@@ -1,6 +1,7 @@
 import React from 'react';
 import type { DeviceMetadata, LiveMetrics, HomeSubTab, MainTabType } from '../types/whoop';
-import { ChevronLeft, ChevronRight, Bell, Globe, Zap } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Bell, Globe, Zap, RefreshCw } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 interface WhoopTopBarProps {
   metadata: DeviceMetadata;
@@ -127,6 +128,34 @@ export const WhoopTopBar: React.FC<WhoopTopBarProps> = ({
                 style={{ width: `${metadata.syncProgress ?? 0}%` }}
               />
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Live Continuous Watch Sync Streaming Ribbon (image_7.png upgrade) */}
+      {metadata.connected && !metadata.isSyncing && (
+        <div
+          onClick={onOpenStrapSheet}
+          className="w-full bg-gradient-to-r from-[#16EC06]/15 via-[#00F0FF]/20 to-[#16EC06]/15 border-b border-[#16EC06]/30 px-4 py-1 flex items-center justify-between cursor-pointer hover:bg-[#16EC06]/25 transition-all select-none shadow-[0_1px_12px_rgba(22,236,6,0.15)] animate-pulse-subtle"
+        >
+          <div className="flex items-center gap-2">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#16EC06] opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-[#16EC06]" />
+            </span>
+            <span className="text-[10px] font-condensed font-black tracking-wider text-white">
+              {isRtl ? 'مزامنة ونشاط مستمر من الساعة' : 'Continuous Watch Sync'}
+            </span>
+          </div>
+          <div className="flex items-center gap-2 text-[10px] font-mono text-[#00F0FF]">
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
+              className="text-[#16EC06] flex items-center justify-center"
+            >
+              <RefreshCw className="w-2.5 h-2.5 stroke-[2.5]" />
+            </motion.div>
+            <span className="font-bold tabular-nums">25 Hz</span>
           </div>
         </div>
       )}

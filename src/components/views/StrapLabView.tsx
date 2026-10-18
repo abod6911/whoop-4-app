@@ -3,6 +3,8 @@ import type { DeviceMetadata, GattServiceInfo, RawBlePacket } from '../../types/
 import { biometricEngine } from '../../utils/biometricEngine';
 import { whoopBleEngine } from '../../services/whoopBleEngine';
 import { notificationEngine } from '../../services/notificationEngine';
+import { pedometerEngine } from '../../services/pedometerEngine';
+import { sleepEngine } from '../../services/sleepEngine';
 import { GattExplorer } from '../GattExplorer';
 import { WhoopLogo } from '../WhoopLogo';
 import {
@@ -17,6 +19,11 @@ import {
   Vibrate,
   Database,
   Terminal,
+  Footprints,
+  Play,
+  Pause,
+  RotateCcw,
+  Moon,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -254,6 +261,173 @@ export const StrapLabView: React.FC<StrapLabViewProps> = ({
             </div>
           </div>
         )}
+
+        {/* Step & IMU Locomotion Hardware Simulator */}
+        <div className="p-4 rounded-2xl bg-[#0B0D10] border border-white/5 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-lg bg-[#00F0FF]/15 flex items-center justify-center">
+                <Footprints className="w-3.5 h-3.5 text-[#00F0FF]" />
+              </div>
+              <span className="text-xs font-black uppercase text-white font-condensed tracking-wider">
+                {isRtl ? 'محاكي حركة وخطوات الحساس (IMU Simulator)' : 'IMU Locomotion & Step Simulator'}
+              </span>
+            </div>
+            <span className="text-[10px] font-mono text-[#00F0FF]">
+              {pedometerEngine.getState().steps.toLocaleString()} {isRtl ? 'خطوة' : 'steps'}
+            </span>
+          </div>
+
+          <p className="text-[11px] text-zinc-400 font-sans leading-relaxed">
+            {isRtl
+              ? 'اختبار بث الخطوات المباشرة وحساب إيقاع الحركة (Cadence) وتأثيرها الفوري على شاشة اليوم والجهد اليومي.'
+              : 'Test live step stream accumulation and real-time cadence response across dashboard cards.'}
+          </p>
+
+          <div className="grid grid-cols-2 gap-2 pt-1 font-condensed text-xs font-bold">
+            <button
+              onClick={() => {
+                pedometerEngine.simulateStepBurst(50);
+                setCommandFeedback(isRtl ? '✓ تمت إضافة 50 خطوة' : '✓ +50 Steps Added');
+                setTimeout(() => setCommandFeedback(null), 2500);
+              }}
+              className="py-2.5 px-3 rounded-xl bg-[#16191E] border border-white/10 hover:border-[#00F0FF]/40 text-white flex items-center justify-center gap-1.5 active:scale-95 transition-all"
+            >
+              <Footprints className="w-3.5 h-3.5 text-[#00F0FF]" />
+              <span>+50 {isRtl ? 'خطوة' : 'Steps'}</span>
+            </button>
+
+            <button
+              onClick={() => {
+                pedometerEngine.simulateStepBurst(250);
+                setCommandFeedback(isRtl ? '✓ تمت إضافة 250 خطوة' : '✓ +250 Steps Added');
+                setTimeout(() => setCommandFeedback(null), 2500);
+              }}
+              className="py-2.5 px-3 rounded-xl bg-[#16191E] border border-white/10 hover:border-[#16EC06]/40 text-white flex items-center justify-center gap-1.5 active:scale-95 transition-all"
+            >
+              <Footprints className="w-3.5 h-3.5 text-[#16EC06]" />
+              <span>+250 {isRtl ? 'خطوة' : 'Steps'}</span>
+            </button>
+
+            <button
+              onClick={() => {
+                const active = pedometerEngine.toggleContinuousWalk();
+                setCommandFeedback(
+                  active
+                    ? isRtl
+                      ? '✓ تم بدء محاكاة المشي الحي (112 خ/د)'
+                      : '✓ Continuous walk active (112 spm)'
+                    : isRtl
+                    ? '✓ تم إيقاف المشي'
+                    : '✓ Walk stopped'
+                );
+                setTimeout(() => setCommandFeedback(null), 2500);
+              }}
+              className={`py-2.5 px-3 rounded-xl border flex items-center justify-center gap-1.5 active:scale-95 transition-all ${
+                pedometerEngine.isWalkSimulationActive
+                  ? 'bg-[#16EC06]/20 border-[#16EC06] text-[#16EC06]'
+                  : 'bg-[#16191E] border-white/10 text-white hover:border-zinc-600'
+              }`}
+            >
+              {pedometerEngine.isWalkSimulationActive ? (
+                <>
+                  <Pause className="w-3.5 h-3.5 text-[#16EC06]" />
+                  <span>{isRtl ? 'إيقاف المشي' : 'Stop Walk'}</span>
+                </>
+              ) : (
+                <>
+                  <Play className="w-3.5 h-3.5 text-[#16EC06]" />
+                  <span>{isRtl ? 'مشي مستمر (112 خ/د)' : 'Simulate Walk'}</span>
+                </>
+              )}
+            </button>
+
+            <button
+              onClick={() => {
+                pedometerEngine.resetTodaySteps();
+                setCommandFeedback(isRtl ? '✓ تم ضبط الخطوات على 1,245' : '✓ Reset to 1,245 steps');
+                setTimeout(() => setCommandFeedback(null), 2500);
+              }}
+              className="py-2.5 px-3 rounded-xl bg-[#16191E] border border-white/10 hover:border-zinc-600 text-zinc-300 hover:text-white flex items-center justify-center gap-1.5 active:scale-95 transition-all"
+            >
+              <RotateCcw className="w-3.5 h-3.5 text-zinc-400" />
+              <span>{isRtl ? 'إعادة ضبط (1,245)' : 'Reset (1,245)'}</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Sleep Simulator & BLE Offline Ingestion Lab */}
+        <div className="p-4 rounded-2xl bg-[#0B0D10] border border-white/5 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-lg bg-[#38BDF8]/15 flex items-center justify-center">
+                <Moon className="w-3.5 h-3.5 text-[#38BDF8]" />
+              </div>
+              <span className="text-xs font-black uppercase text-white font-condensed tracking-wider">
+                {isRtl ? 'محاكي نوم الليلة الماضية ومزامنة الذاكرة (Sleep Simulator)' : 'Sleep Simulator & Offline Ingestion'}
+              </span>
+            </div>
+            <span className="text-[10px] font-mono text-[#38BDF8]">
+              {sleepEngine.getHypnogram().length > 0
+                ? isRtl
+                  ? `${sleepEngine.getHypnogram().length} مرحلة مسجلة`
+                  : `${sleepEngine.getHypnogram().length} epochs`
+                : isRtl
+                ? 'في انتظار البيانات'
+                : 'No data'}
+            </span>
+          </div>
+
+          <p className="text-[11px] text-zinc-400 font-sans leading-relaxed">
+            {isRtl
+              ? 'حقن جلسة نوم واقعية لليلة الماضية (23:15 إلى 07:05، كفاءة 91%، نوم عميق 1h 45m، REM 1h 50m) لإضاءة تبويب النوم ومخطط Hypnogram فوراً.'
+              : 'Inject realistic overnight clinical sleep (23:15 to 07:05, 91% efficiency, Deep 1h 45m, REM 1h 50m) to immediately test and verify Hypnogram.'}
+          </p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 font-condensed text-xs font-bold">
+            <button
+              onClick={() => {
+                sleepEngine.simulateNightSleep({
+                  bedHour: 23,
+                  bedMinute: 15,
+                  wakeHour: 7,
+                  wakeMinute: 5,
+                  rhrBaseline: biometricEngine.getRestingHeartRate() || 56,
+                });
+                setCommandFeedback(
+                  isRtl
+                    ? '✓ تم حقن بيانات النوم وهيكل المراحل (Hypnogram: 7h 50m / 91%)'
+                    : '✓ Simulated sleep injected (7h 50m / 91% eff)'
+                );
+                setTimeout(() => setCommandFeedback(null), 3500);
+              }}
+              className="py-2.5 px-3 rounded-xl bg-[#16191E] border border-[#38BDF8]/30 hover:border-[#38BDF8] text-[#38BDF8] flex items-center justify-center gap-1.5 active:scale-95 transition-all shadow-[0_0_15px_rgba(56,189,248,0.15)]"
+            >
+              <Moon className="w-3.5 h-3.5 text-[#38BDF8]" />
+              <span>{isRtl ? 'حقن بيانات نوم الليلة' : 'Inject Night Sleep'}</span>
+            </button>
+
+            <button
+              onClick={() => handleCommand('Sync Sleep Buffer', () => whoopBleEngine.syncSleepBuffer())}
+              className="py-2.5 px-3 rounded-xl bg-[#16191E] border border-white/10 hover:border-[#16EC06]/40 text-white flex items-center justify-center gap-1.5 active:scale-95 transition-all"
+            >
+              <Database className="w-3.5 h-3.5 text-[#16EC06]" />
+              <span>{isRtl ? 'سحب حزم النوم (BLE)' : 'Sync Strap Sleep'}</span>
+            </button>
+
+            <button
+              onClick={() => {
+                sleepEngine.resetSleepSession();
+                setCommandFeedback(isRtl ? '✓ تمت إعادة ضبط بيانات النوم' : '✓ Sleep session reset');
+                setTimeout(() => setCommandFeedback(null), 2500);
+              }}
+              className="py-2.5 px-3 rounded-xl bg-[#16191E] border border-white/10 hover:border-zinc-600 text-zinc-300 hover:text-white flex items-center justify-center gap-1.5 active:scale-95 transition-all"
+            >
+              <RotateCcw className="w-3.5 h-3.5 text-zinc-400" />
+              <span>{isRtl ? 'إعادة ضبط النوم' : 'Reset Sleep'}</span>
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* 2. Live RR-Interval Poincaré Scatter Plot */}

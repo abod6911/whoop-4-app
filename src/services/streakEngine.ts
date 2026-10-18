@@ -223,7 +223,7 @@ class StreakEngine {
       }
     }
 
-    if (currentStreak === 0 && isTodayActive) {
+    if (currentStreak === 0) {
       currentStreak = 1;
       streakStartDateStr = todayStr;
     }

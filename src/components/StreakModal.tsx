@@ -21,6 +21,7 @@ import {
 } from '../services/streakEngine';
 import { useLanguage } from '../i18n/LanguageContext';
 import { hapticLight, hapticMedium } from '../utils/haptics';
+import { BlazingFlame } from './motion/BlazingFlame';
 
 interface StreakModalProps {
   isOpen: boolean;
@@ -64,8 +65,8 @@ export const StreakModal: React.FC<StreakModalProps> = ({ isOpen, onClose }) => 
         {/* Top Header */}
         <div className="pt-6 px-6 pb-3 flex items-center justify-between flex-shrink-0 border-b border-white/5 z-20">
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-7 h-7 rounded-lg bg-[#FF8800]/15 flex items-center justify-center flex-shrink-0">
-              <Flame className="w-4 h-4 text-[#FF8800] fill-[#FF8800]" />
+            <div className="w-8 h-8 rounded-lg bg-[#FF8800]/15 flex items-center justify-center flex-shrink-0">
+              <BlazingFlame size={20} showSparks={false} />
             </div>
             <div className="min-w-0">
               <div className="text-xs font-black uppercase tracking-[0.14em] text-white font-condensed truncate">
@@ -104,20 +105,23 @@ export const StreakModal: React.FC<StreakModalProps> = ({ isOpen, onClose }) => 
 
         {/* Modal Scrollable Body */}
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
-          {/* 1. Official WHOOP Hero Metric Stage */}
-          <div className="p-6 rounded-[28px] bg-[#12151A] border border-white/5 relative overflow-hidden text-center shadow-xl">
-            {/* Subtle radial ambient highlight */}
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-64 h-32 bg-gradient-to-b from-white/5 to-transparent blur-2xl pointer-events-none" />
+          {/* 1. Official WHOOP Hero Metric Stage with Blazing Animated Flame */}
+          <div className="p-6 rounded-[28px] bg-gradient-to-b from-[#181D26] via-[#12151A] to-[#0A0D11] border border-amber-500/30 relative overflow-hidden text-center shadow-[0_0_35px_rgba(255,136,0,0.18)]">
+            {/* Shimmering gradient backdrop highlight */}
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-amber-400/[0.06] to-transparent bg-[length:200%_100%] animate-shimmer pointer-events-none" />
 
             {/* Active telemetry indicator */}
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[10px] font-mono font-bold text-zinc-300 mb-3">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[10px] font-mono font-bold text-zinc-300 mb-3 relative z-10">
               <span className="w-2 h-2 rounded-full bg-[#16EC06] animate-pulse" />
               <span>{isRtl ? 'مزامنة حيوية متصلة' : 'CONTINUOUS TELEMETRY SYNC'}</span>
             </div>
 
-            {/* Giant Bold Metric */}
-            <div className="flex flex-col items-center justify-center py-2">
-              <span className="text-7xl font-black font-condensed tracking-tight text-white tabular-nums leading-none">
+            {/* Blazing Flame Graphic & Giant Bold Metric */}
+            <div className="flex flex-col items-center justify-center py-2 relative z-10">
+              <div className="mb-2">
+                <BlazingFlame size={54} showSparks={true} />
+              </div>
+              <span className="text-7xl font-black font-condensed tracking-tight text-white tabular-nums leading-none drop-shadow-[0_4px_16px_rgba(255,136,0,0.35)]">
                 {streakData.currentStreak}
               </span>
               <span className="text-xs font-black uppercase tracking-[0.16em] text-zinc-400 font-condensed mt-2">

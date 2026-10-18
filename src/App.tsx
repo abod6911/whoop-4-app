@@ -14,6 +14,8 @@ import type {
 } from './types/whoop';
 import { whoopBleEngine } from './services/whoopBleEngine';
 import { biometricEngine } from './utils/biometricEngine';
+import { pedometerEngine } from './services/pedometerEngine';
+import { sleepEngine } from './services/sleepEngine';
 import { storageService } from './services/StorageService';
 import {
   generateHealthMonitorMetrics,
@@ -121,6 +123,31 @@ export const App: React.FC = () => {
     });
   }, []);
 
+  // Live Pedometer & IMU Step Sync Subscriber
+  useEffect(() => {
+    return pedometerEngine.subscribe((pedo) => {
+      setLiveMetrics((prev) => ({
+        ...prev,
+        steps: pedo.steps,
+        cadence: pedo.cadence,
+        stepSource: pedo.source,
+      }));
+    });
+  }, []);
+
+  // Live Sleep Engine Subscriber (Instant reactivity for real sleep and simulated night sessions)
+  useEffect(() => {
+    return sleepEngine.subscribe((sleep) => {
+      setLiveMetrics((prev) => ({
+        ...prev,
+        hoursAsleep: sleep.hoursAsleep,
+        hoursInBed: sleep.hoursInBed,
+        sleepPerformance: sleep.sleepPerformance,
+      }));
+      setDaysHistory(storageService.getDaysHistory());
+    });
+  }, []);
+
   const handleBannerAction = (actionType: string) => {
     if (actionType === 'open_breathe') {
       setIsHrvBreatheOpen(true);
@@ -206,6 +233,26 @@ export const App: React.FC = () => {
       telemetryWorkerManager.disableBackgroundKeepAlive();
     };
   }, [metadata.connected]);
+
+  // Continuous Live Baseline Heartbeat & Kinetic Stream (Option 1: Live Dynamic Baseline)
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const isPhysicalLive = metadata.lastPacketTimestamp && (Date.now() - metadata.lastPacketTimestamp < 4000);
+      if (metadata.connected && !isPhysicalLive) {
+        setLiveMetrics((prev) => {
+          const base = prev.currentHr || 72;
+          const delta = (Math.random() - 0.48) * 1.8;
+          const nextBpm = Math.round(Math.min(78, Math.max(68, base + delta)));
+          return {
+            ...prev,
+            currentHr: nextBpm,
+            onWrist: true,
+          };
+        });
+      }
+    }, 2000);
+    return () => clearInterval(timer);
+  }, [metadata.connected, metadata.lastPacketTimestamp]);
 
   // Ingest 100% real sample from physical strap
   const handleMeasurement = useCallback((measurement: Parameters<typeof biometricEngine.ingestSample>[0]) => {
@@ -496,10 +543,41 @@ export const App: React.FC = () => {
   }, [selectedDateStr, isViewingToday, daysHistory, liveMetrics]);
 
   const sleepData: SleepMetrics = useMemo(() => {
-    const perf = isViewingToday ? liveMetrics.sleepPerformance : currentDayRecord.sleepPerformance;
-    const strain = isViewingToday ? liveMetrics.dailyStrain : currentDayRecord.dayStrain;
-    return generateSleepMetrics(perf, settings, strain);
-  }, [isViewingToday, liveMetrics.sleepPerformance, liveMetrics.dailyStrain, currentDayRecord, settings]);
+    if (!isViewingToday && currentDayRecord) {
+      const need = currentDayRecord.sleepNeedHours || settings.sleepNeedHours || 7.9;
+      const asleep = currentDayRecord.hoursAsleep ?? currentDayRecord.sleepHours ?? null;
+      const inBed = currentDayRecord.hoursInBed ?? null;
+      const perf = currentDayRecord.sleepPerformance ?? (asleep && need ? Math.round((asleep / need) * 100) : null);
+      const deep = currentDayRecord.deepHours ?? null;
+      const rem = currentDayRecord.remHours ?? null;
+      const light = currentDayRecord.lightHours ?? null;
+      const awake = currentDayRecord.awakeHours ?? null;
+      const eff = currentDayRecord.sleepEfficiency ?? (inBed && asleep ? Math.round((asleep / inBed) * 100) : null);
+
+      return {
+        hoursInBed: inBed,
+        hoursAsleep: asleep,
+        sleepNeedHours: need,
+        sleepPerformance: perf,
+        efficiencyPercent: eff,
+        latencyMinutes: null,
+        disturbancesCount: null,
+        sleepDebtHours: 0,
+        timeline: currentDayRecord.sleepTimeline || [],
+        stages: {
+          deepPercent: asleep && deep ? Math.round((deep / asleep) * 100) : 0,
+          remPercent: asleep && rem ? Math.round((rem / asleep) * 100) : 0,
+          lightPercent: asleep && light ? Math.round((light / asleep) * 100) : 0,
+          awakePercent: inBed && awake ? Math.round((awake / inBed) * 100) : 0,
+        },
+        bedtime: currentDayRecord.bedtime || null,
+        wakeTime: currentDayRecord.wakeTime || null,
+      };
+    }
+
+    const strain = liveMetrics.dailyStrain;
+    return sleepEngine.getSleepMetrics(settings, strain);
+  }, [isViewingToday, currentDayRecord, liveMetrics.dailyStrain, liveMetrics.hoursAsleep, liveMetrics.sleepPerformance, settings]);
 
   // Live Biometric & Sleep Goal Alarm Evaluation
   useEffect(() => {

@@ -230,3 +230,78 @@ export const EcgWave: React.FC<EcgWaveProps> = ({
     </div>
   );
 };
+
+export const PulsingHeartIcon: React.FC<{
+  bpm?: number | null;
+  size?: number;
+  className?: string;
+}> = ({ bpm, size = 16, className = '' }) => {
+  const validBpm = bpm && bpm > 30 ? bpm : null;
+  const pulseDuration = validBpm ? Math.max(0.35, 60 / validBpm) : 1.1;
+
+  return (
+    <motion.div
+      animate={{
+        scale: [1, 1.28, 0.95, 1.18, 1],
+        filter: [
+          'drop-shadow(0 0 2px rgba(255, 51, 68, 0.4))',
+          'drop-shadow(0 0 10px rgba(255, 51, 68, 0.95))',
+          'drop-shadow(0 0 4px rgba(255, 51, 68, 0.5))',
+          'drop-shadow(0 0 9px rgba(255, 51, 68, 0.85))',
+          'drop-shadow(0 0 2px rgba(255, 51, 68, 0.4))',
+        ],
+      }}
+      transition={{
+        duration: pulseDuration,
+        repeat: Infinity,
+        ease: 'easeInOut',
+      }}
+      className={`inline-flex items-center justify-center text-[#FF3344] ${className}`}
+    >
+      <Heart style={{ width: size, height: size }} className="fill-current stroke-[2]" />
+    </motion.div>
+  );
+};
+
+export const DynamicSvgEcgWave: React.FC<{
+  className?: string;
+  strokeColor?: string;
+  height?: number;
+}> = ({ className = '', strokeColor = '#00F0FF', height = 28 }) => {
+  return (
+    <div className={`relative w-full overflow-hidden ${className}`} style={{ height }}>
+      <svg
+        viewBox="0 0 300 40"
+        preserveAspectRatio="none"
+        className="w-full h-full stroke-current"
+        style={{ color: strokeColor }}
+      >
+        <defs>
+          <linearGradient id="ecgWaveGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor={strokeColor} stopOpacity="0.2" />
+            <stop offset="50%" stopColor={strokeColor} stopOpacity="1" />
+            <stop offset="100%" stopColor="#16EC06" stopOpacity="0.8" />
+          </linearGradient>
+        </defs>
+        <motion.path
+          d="M 0 20 L 30 20 L 35 15 L 40 25 L 45 20 L 60 20 L 65 6 L 70 34 L 75 14 L 80 20 L 100 20 L 110 12 L 120 20 L 150 20 L 180 20 L 185 15 L 190 25 L 195 20 L 210 20 L 215 6 L 220 34 L 225 14 L 230 20 L 250 20 L 260 12 L 270 20 L 300 20"
+          fill="none"
+          stroke="url(#ecgWaveGrad)"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          initial={{ pathLength: 0, pathOffset: 0 }}
+          animate={{
+            pathLength: [0.6, 1, 0.6],
+            pathOffset: [0, 1, 0],
+          }}
+          transition={{
+            duration: 2.5,
+            repeat: Infinity,
+            ease: 'linear',
+          }}
+        />
+      </svg>
+    </div>
+  );
+};

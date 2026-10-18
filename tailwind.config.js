@@ -51,6 +51,9 @@ export default {
       animation: {
         'pulse-subtle': 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
         'heartbeat': 'heartbeat 1s ease-in-out infinite',
+        'shimmer': 'shimmer 2.5s linear infinite',
+        'flicker': 'flicker 1.8s ease-in-out infinite',
+        'glow-pulse': 'glowPulse 2s ease-in-out infinite',
       },
       keyframes: {
         heartbeat: {
@@ -59,7 +62,21 @@ export default {
           '30%': { transform: 'scale(1.05)' },
           '45%': { transform: 'scale(1.2)' },
           '60%': { transform: 'scale(1)' },
-        }
+        },
+        shimmer: {
+          '0%': { backgroundPosition: '200% 0' },
+          '100%': { backgroundPosition: '-200% 0' },
+        },
+        flicker: {
+          '0%, 100%': { opacity: '1', transform: 'scale(1) rotate(0deg)' },
+          '25%': { opacity: '0.85', transform: 'scale(1.08) rotate(-2deg)' },
+          '50%': { opacity: '0.95', transform: 'scale(0.96) rotate(2deg)' },
+          '75%': { opacity: '0.88', transform: 'scale(1.04) rotate(-1deg)' },
+        },
+        glowPulse: {
+          '0%, 100%': { filter: 'drop-shadow(0 0 8px rgba(0, 240, 255, 0.4))' },
+          '50%': { filter: 'drop-shadow(0 0 16px rgba(22, 236, 6, 0.7))' },
+        },
       }
     },
   },

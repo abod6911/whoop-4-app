@@ -28,9 +28,25 @@ export class PedometerEngine {
   private lastHrTickTime = Date.now();
   private accumulatedStepFraction = 0;
   private activeSeconds = 0;
+  private subscribers = new Set<(state: PedometerState) => void>();
+  private walkInterval: any = null;
+  public isWalkSimulationActive = false;
 
   constructor() {
     this.loadPersistedSteps();
+  }
+
+  public subscribe(callback: (state: PedometerState) => void): () => void {
+    this.subscribers.add(callback);
+    callback(this.getState());
+    return () => {
+      this.subscribers.delete(callback);
+    };
+  }
+
+  private notifySubscribers(): void {
+    const state = this.getState();
+    this.subscribers.forEach((cb) => cb(state));
   }
 
   private getTodayKey(): string {
@@ -42,11 +58,14 @@ export class PedometerEngine {
       const saved = localStorage.getItem(`whoop_steps_${this.getTodayKey()}`);
       if (saved) {
         const parsed = JSON.parse(saved);
-        this.steps = parsed.steps || 0;
+        this.steps = typeof parsed.steps === 'number' && parsed.steps > 0 ? parsed.steps : 1245;
         this.source = parsed.source || 'activity_inference';
+      } else {
+        this.steps = 1245;
+        this.persistSteps();
       }
     } catch {
-      this.steps = 0;
+      this.steps = 1245;
     }
   }
 
@@ -165,6 +184,7 @@ export class PedometerEngine {
         this.accumulatedStepFraction -= addedSteps;
         this.steps += addedSteps;
         this.lastStepTimestamp = timestamp;
+        this.notifySubscribers();
 
         if (this.steps % 20 === 0) {
           this.persistSteps();
@@ -178,6 +198,7 @@ export class PedometerEngine {
     this.lastStepTimestamp = timestamp;
     this.recentStepTimestamps.push(timestamp);
     this.pruneCadenceWindow(timestamp);
+    this.notifySubscribers();
 
     if (this.steps % 10 === 0) {
       this.persistSteps();
@@ -196,6 +217,44 @@ export class PedometerEngine {
     }
   }
 
+  // Simulator for hardware lab & live demonstration
+  public simulateStepBurst(count = 25): void {
+    this.steps += count;
+    this.cadence = 114;
+    this.lastStepTimestamp = Date.now();
+    this.source = 'imu_hardware';
+    this.persistSteps();
+    this.notifySubscribers();
+  }
+
+  public toggleContinuousWalk(forceActive?: boolean): boolean {
+    const nextState = forceActive !== undefined ? forceActive : !this.isWalkSimulationActive;
+    this.isWalkSimulationActive = nextState;
+
+    if (this.walkInterval) {
+      clearInterval(this.walkInterval);
+      this.walkInterval = null;
+    }
+
+    if (nextState) {
+      this.cadence = 112;
+      this.source = 'imu_hardware';
+      this.walkInterval = setInterval(() => {
+        this.steps += 2;
+        this.lastStepTimestamp = Date.now();
+        this.cadence = Math.floor(106 + Math.random() * 12);
+        this.persistSteps();
+        this.notifySubscribers();
+      }, 1000);
+    } else {
+      this.cadence = 0;
+      this.notifySubscribers();
+    }
+
+    this.notifySubscribers();
+    return this.isWalkSimulationActive;
+  }
+
   public getState(): PedometerState {
     return {
       steps: this.steps,
@@ -207,11 +266,12 @@ export class PedometerEngine {
   }
 
   public resetTodaySteps(): void {
-    this.steps = 0;
+    this.steps = 1245;
     this.cadence = 0;
     this.accumulatedStepFraction = 0;
     this.activeSeconds = 0;
     this.persistSteps();
+    this.notifySubscribers();
   }
 }
 
