@@ -902,6 +902,7 @@ export class WhoopBleEngine {
     this.lastDisconnectedTimestamp = Date.now();
     try {
       localStorage.setItem('whoop_last_disconnected_timestamp', String(this.lastDisconnectedTimestamp));
+      localStorage.setItem('whoop_last_seen_timestamp', String(this.lastDisconnectedTimestamp));
     } catch {}
     if (this.batteryPollingInterval) {
       clearInterval(this.batteryPollingInterval);
@@ -2355,6 +2356,9 @@ export class WhoopBleEngine {
     this.packetTimestamps = this.packetTimestamps.filter((t) => t >= cutoff);
     this.metadata.packetsPerMinute = this.packetTimestamps.length;
     this.metadata.lastPacketTimestamp = now;
+    try {
+      localStorage.setItem('whoop_last_seen_timestamp', String(now));
+    } catch {}
 
     const { hex, ascii, bytes } = this.formatDataView(data);
     const packet: RawBlePacket = {
@@ -2370,6 +2374,31 @@ export class WhoopBleEngine {
 
     this.onPacketCallbacks.forEach((cb) => cb(packet));
     storageService.saveRawPacket(packet).catch(() => {});
+  }
+
+  public getNocturnalDisconnectionGap(): {
+    lastSeen: number;
+    reconnectedAt: number;
+    durationHours: number;
+    isValidSleepWindow: boolean;
+  } | null {
+    try {
+      const lastSeenStr = localStorage.getItem('whoop_last_seen_timestamp') || localStorage.getItem('whoop_last_disconnected_timestamp');
+      if (!lastSeenStr) return null;
+      const lastSeen = Number(lastSeenStr);
+      if (isNaN(lastSeen) || lastSeen <= 0) return null;
+      const reconnectedAt = Number(localStorage.getItem('whoop_last_reconnected_timestamp')) || Date.now();
+      const durationMs = reconnectedAt - lastSeen;
+      const durationHours = Number((durationMs / (1000 * 3600)).toFixed(2));
+      return {
+        lastSeen,
+        reconnectedAt,
+        durationHours,
+        isValidSleepWindow: durationHours >= 3.0 && durationHours <= 20.0,
+      };
+    } catch {
+      return null;
+    }
   }
 }
 

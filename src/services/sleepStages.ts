@@ -185,6 +185,8 @@ export function calculateSleepStatsFromTimeline(
 export function generateRealisticOvernightSession(
   rhrBaseline = 56,
   options?: {
+    startMs?: number;
+    endMs?: number;
     bedHour?: number;
     bedMinute?: number;
     wakeHour?: number;
@@ -200,26 +202,35 @@ export function generateRealisticOvernightSession(
   const effectiveRhr = options?.rhrBaseline ?? rhrBaseline;
   rhrBaseline = effectiveRhr;
   const now = new Date();
-  // Target: Yesterday evening to this morning
-  const bedDate = new Date(now);
-  const bedHour = (options?.bedHour !== undefined && !isNaN(options.bedHour)) ? options.bedHour : 23;
-  const bedMinute = (options?.bedMinute !== undefined && !isNaN(options.bedMinute)) ? options.bedMinute : 15;
-  const wakeHour = (options?.wakeHour !== undefined && !isNaN(options.wakeHour)) ? options.wakeHour : 7;
-  const wakeMinute = (options?.wakeMinute !== undefined && !isNaN(options.wakeMinute)) ? options.wakeMinute : 5;
 
-  bedDate.setHours(bedHour, bedMinute, 0, 0);
-  if (bedDate.getTime() > now.getTime()) {
-    bedDate.setDate(bedDate.getDate() - 1);
+  let startMs: number;
+  let endMs: number;
+
+  if (options?.startMs && options?.endMs && options.endMs > options.startMs) {
+    startMs = options.startMs;
+    endMs = options.endMs;
+  } else {
+    // Target: Yesterday evening to this morning
+    const bedDate = new Date(now);
+    const bedHour = (options?.bedHour !== undefined && !isNaN(options.bedHour)) ? options.bedHour : 22;
+    const bedMinute = (options?.bedMinute !== undefined && !isNaN(options.bedMinute)) ? options.bedMinute : 30;
+    const wakeHour = (options?.wakeHour !== undefined && !isNaN(options.wakeHour)) ? options.wakeHour : 7;
+    const wakeMinute = (options?.wakeMinute !== undefined && !isNaN(options.wakeMinute)) ? options.wakeMinute : 30;
+
+    bedDate.setHours(bedHour, bedMinute, 0, 0);
+    if (bedDate.getTime() > now.getTime()) {
+      bedDate.setDate(bedDate.getDate() - 1);
+    }
+
+    const wakeDate = new Date(bedDate);
+    wakeDate.setDate(wakeDate.getDate() + (wakeHour <= bedHour ? 1 : 0));
+    wakeDate.setHours(wakeHour, wakeMinute, 0, 0);
+
+    startMs = bedDate.getTime();
+    endMs = wakeDate.getTime();
   }
 
-  const wakeDate = new Date(bedDate);
-  wakeDate.setDate(wakeDate.getDate() + (wakeHour < bedHour ? 1 : 0));
-  wakeDate.setHours(wakeHour, wakeMinute, 0, 0);
-
-  const startMs = bedDate.getTime();
-  const endMs = wakeDate.getTime();
   const totalDurationMs = Math.max(3600000, endMs - startMs);
-
   const epochMs = 30000; // 30 seconds
   const totalEpochs = Math.floor(totalDurationMs / epochMs);
 

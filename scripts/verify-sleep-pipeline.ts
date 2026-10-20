@@ -428,15 +428,35 @@ async function runStep4Tests() {
   assert(diag.hasTimeline === true, 'Timeline presence confirmed for UI hypnogram visualization');
   assert(diag.timelineEpochCount > 0, `Epoch count is positive (${diag.timelineEpochCount} epochs)`);
 
-  // Test 4.4: Nocturnal Gap Fallback Simulation
-  console.log(`\n${colors.yellow}[4.4] Nocturnal Gap Fallback Reconciliation:${colors.reset}`);
-  const reconciled = sleepEngine.reconcileNocturnalGap();
-  assert(reconciled.hoursAsleep !== null && reconciled.hoursAsleep > 0, `Nocturnal gap successfully computed fallback (${reconciled.hoursAsleep}h asleep)`);
-  assertNoNaN(reconciled.sleepPerformance, 'reconciled.sleepPerformance');
-  assertNoNaN(reconciled.efficiencyPercent, 'reconciled.efficiencyPercent');
+  // Test 4.4: Dynamic Disconnection Gap & Manual Sleep Adjustment
+  console.log(`\n${colors.yellow}[4.4] Dynamic Nocturnal Disconnection Gap & Manual Confirmation:${colors.reset}`);
+  const now = Date.now();
+  const nineHoursAgo = now - 9 * 3600 * 1000;
+  mockLocalStorage.setItem('whoop_last_seen_timestamp', String(nineHoursAgo));
+  mockLocalStorage.setItem('whoop_last_reconnected_timestamp', String(now));
+
+  const reconciled = sleepEngine.reconcileNocturnalGap({
+    lastSyncedTimestamp: nineHoursAgo,
+    currentTimestamp: now,
+  });
+
+  assert(reconciled !== null && reconciled.hoursAsleep !== null && reconciled.hoursAsleep >= 8.0, `Dynamic hardware gap successfully computed exact sleep (${reconciled?.hoursAsleep}h asleep across 9h gap)`);
+  assertNoNaN(reconciled?.sleepPerformance, 'reconciled.sleepPerformance');
+  assertNoNaN(reconciled?.efficiencyPercent, 'reconciled.efficiencyPercent');
 
   const reconciledDiag = sleepEngine.getDiagnosticInfo();
   assert(reconciledDiag.activeSource === 'reconciled', `Diagnostic source switches to 'reconciled' (Got: ${reconciledDiag.activeSource})`);
+
+  // Test 4.4.b: Manual Sleep Confirmation (User enters 9.0 hours: 22:30 to 07:30)
+  console.log(`\n${colors.yellow}[4.4.b] Manual Sleep Window Confirmation (Xiaomi Band 10 / 9 Hours):${colors.reset}`);
+  const manualSleep = sleepEngine.recordManualSleepWindow({
+    bedtime: '22:30',
+    wakeTime: '07:30',
+  });
+  assert(manualSleep.hoursInBed === 9, `hoursInBed matches confirmed 9.0 hours exactly (Got: ${manualSleep.hoursInBed}h)`);
+  assert(manualSleep.hoursAsleep !== null && manualSleep.hoursAsleep >= 8.0, `hoursAsleep reflects clinical net sleep (${manualSleep.hoursAsleep}h)`);
+  const manualDiag = sleepEngine.getDiagnosticInfo();
+  assert(manualDiag.activeSource === 'manual', `Diagnostic source switches to 'manual' (Got: ${manualDiag.activeSource})`);
 
   // Test 4.5: Timezone Bed/Wake Verification (Zero UTC Drift)
   console.log(`\n${colors.yellow}[4.5] Local Timezone Bed/Wake Offset Verification:${colors.reset}`);

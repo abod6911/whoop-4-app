@@ -16,6 +16,8 @@ import {
   Key,
   AlertTriangle,
   Terminal,
+  Clock,
+  Watch,
   X,
 } from 'lucide-react';
 import {
@@ -32,6 +34,7 @@ import { useLanguage } from '../../i18n/LanguageContext';
 import { AnimatedRing } from '../motion/AnimatedRing';
 import { HypnogramChart } from '../HypnogramChart';
 import { WhoopCloudApiModal } from '../WhoopCloudApiModal';
+import { AdjustSleepModal } from '../AdjustSleepModal';
 import { whoopApiService } from '../../services/whoopApiService';
 import { sleepEngine } from '../../services/sleepEngine';
 
@@ -64,6 +67,7 @@ export const SleepView: React.FC<SleepViewProps> = ({
   const sleepNeed = sleepData.sleepNeedHours;
   const [shared, setShared] = useState(false);
   const [isCloudApiModalOpen, setIsCloudApiModalOpen] = useState(false);
+  const [isAdjustSleepModalOpen, setIsAdjustSleepModalOpen] = useState(false);
   const [isAutoSyncing, setIsAutoSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [inlineToken, setInlineToken] = useState(() => whoopApiService.getAccessToken() || '');
@@ -411,6 +415,16 @@ export const SleepView: React.FC<SleepViewProps> = ({
               </span>
             </button>
             <button
+              onClick={() => setIsAdjustSleepModalOpen(true)}
+              title={isRtl ? 'تسجيل أو تعديل أوقات النوم الفعلي' : 'Adjust or manually record sleep window'}
+              className="flex items-center gap-1 font-condensed tracking-wider text-[#C084FC] hover:text-white px-2 py-0.5 rounded-lg bg-[#A855F7]/15 hover:bg-[#A855F7]/25 border border-[#A855F7]/30 transition-colors active:scale-95"
+            >
+              <Clock className="w-3 h-3 text-[#C084FC]" />
+              <span className="text-[10px] font-bold">
+                {isRtl ? 'تعديل النوم' : 'ADJUST'}
+              </span>
+            </button>
+            <button
               onClick={() => setIsCloudApiModalOpen(true)}
               title={isRtl ? 'مزامنة سحابة WHOOP Developer API' : 'Sync WHOOP Cloud API'}
               className="flex items-center gap-1 font-condensed tracking-wider text-[#16EC06] hover:text-white px-2 py-0.5 rounded-lg bg-[#16EC06]/10 hover:bg-[#16EC06]/20 transition-colors active:scale-95"
@@ -547,11 +561,11 @@ export const SleepView: React.FC<SleepViewProps> = ({
               <div className="space-y-2.5 pt-1">
                 {/* 1. Primary Highlight Button: Instant Real Sleep Calculation (7.6 Hours) */}
                 <button
-                  onClick={handleActivateRealSleep}
-                  className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-[#16EC06] via-[#10d404] to-[#00F0FF] text-black font-black text-xs sm:text-sm font-condensed uppercase tracking-wider flex items-center justify-center gap-2 active:scale-95 transition-all shadow-[0_0_25px_rgba(22,236,6,0.35)] hover:brightness-110"
+                  onClick={() => setIsAdjustSleepModalOpen(true)}
+                  className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-[#A855F7] via-[#9333EA] to-[#38BDF8] text-white font-black text-xs sm:text-sm font-condensed uppercase tracking-wider flex items-center justify-center gap-2 active:scale-95 transition-all shadow-[0_0_25px_rgba(168,85,247,0.35)] hover:brightness-110"
                 >
-                  <Sparkles className="w-4 h-4 text-black animate-pulse" />
-                  <span>{isRtl ? 'تفعيل وحساب بيانات النوم الآن (7.6 س - فوري)' : 'Activate Sleep Data Calculation Now (7.6h)'}</span>
+                  <Watch className="w-4 h-4 text-white animate-pulse" />
+                  <span>{isRtl ? 'تسجيل أوقات النوم الفعلي (Xiaomi Band 10 / يدوي)' : 'Record Actual Sleep Window (Xiaomi / Manual)'}</span>
                 </button>
 
                 {/* 2. Secondary Action Row: WHOOP Cloud API Modal & Strap Sync */}
@@ -921,6 +935,11 @@ export const SleepView: React.FC<SleepViewProps> = ({
       <WhoopCloudApiModal
         isOpen={isCloudApiModalOpen}
         onClose={() => setIsCloudApiModalOpen(false)}
+      />
+
+      <AdjustSleepModal
+        isOpen={isAdjustSleepModalOpen}
+        onClose={() => setIsAdjustSleepModalOpen(false)}
       />
     </div>
   );
