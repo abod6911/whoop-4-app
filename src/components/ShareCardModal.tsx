@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 import type { LiveMetrics, SessionRecord, UserSettings } from '../types/whoop';
 import {
   Share2,
@@ -26,6 +26,37 @@ interface ShareCardModalProps {
   session?: SessionRecord | null;
 }
 
+const drawStatTile = (
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  label: string,
+  value: string,
+  valColor: string
+) => {
+  // Tile Background
+  ctx.fillStyle = '#11141A';
+  ctx.fillRect(x, y, w, h);
+
+  // Border
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(x, y, w, h);
+
+  // Label
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+  ctx.font = '800 22px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText(label, x + 30, y + 55);
+
+  // Value
+  ctx.fillStyle = valColor;
+  ctx.font = '900 48px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+  ctx.fillText(value, x + 30, y + 125);
+};
+
 export const ShareCardModal: React.FC<ShareCardModalProps> = ({
   isOpen,
   onClose,
@@ -46,15 +77,7 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
     }
   }, [isOpen, initialType]);
 
-  // Re-draw canvas whenever cardType or metrics change
-  useEffect(() => {
-    if (!isOpen) return;
-    renderScorecardCanvas();
-  }, [isOpen, cardType, metrics, settings, session, isRtl]);
-
-  if (!isOpen) return null;
-
-  const renderScorecardCanvas = () => {
+  const renderScorecardCanvas = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -272,38 +295,13 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
     ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
     ctx.font = '600 20px monospace';
     ctx.fillText('LIVE AT: WHOOP-4-APP.VERCEL.APP', W / 2, H - 100);
-  };
+  }, [cardType, metrics, settings, session, isRtl]);
 
-  const drawStatTile = (
-    ctx: CanvasRenderingContext2D,
-    x: number,
-    y: number,
-    w: number,
-    h: number,
-    label: string,
-    value: string,
-    valColor: string
-  ) => {
-    // Tile Background
-    ctx.fillStyle = '#11141A';
-    ctx.fillRect(x, y, w, h);
-
-    // Border
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(x, y, w, h);
-
-    // Label
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-    ctx.font = '800 22px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.textAlign = 'left';
-    ctx.fillText(label, x + 30, y + 55);
-
-    // Value
-    ctx.fillStyle = valColor;
-    ctx.font = '900 48px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.fillText(value, x + 30, y + 125);
-  };
+  // Re-draw canvas whenever cardType or metrics change
+  useEffect(() => {
+    if (!isOpen) return;
+    renderScorecardCanvas();
+  }, [isOpen, renderScorecardCanvas]);
 
   // Export & Share Handlers
   const handleShareNative = async () => {
@@ -371,6 +369,8 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
       setTimeout(() => setCopied(false), 2500);
     } catch {}
   };
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/90 backdrop-blur-md animate-in fade-in">

@@ -4,6 +4,7 @@ import { biometricEngine } from '../../utils/biometricEngine';
 import { whoopBleEngine } from '../../services/whoopBleEngine';
 import { notificationEngine } from '../../services/notificationEngine';
 import { pedometerEngine } from '../../services/pedometerEngine';
+import { AnimatedStepCounter } from '../AnimatedStepCounter';
 import { sleepEngine } from '../../services/sleepEngine';
 import { activityDetectionEngine } from '../../services/activityDetectionEngine';
 import { GattExplorer } from '../GattExplorer';
@@ -286,7 +287,7 @@ export const StrapLabView: React.FC<StrapLabViewProps> = ({
               </span>
             </div>
             <span className="text-[10px] font-mono text-[#00F0FF]">
-              {labSteps.toLocaleString()} {isRtl ? 'خطوة' : 'steps'}
+              <AnimatedStepCounter value={labSteps} /> {isRtl ? 'خطوة' : 'steps'}
             </span>
           </div>
 
@@ -486,24 +487,24 @@ export const StrapLabView: React.FC<StrapLabViewProps> = ({
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 font-condensed text-xs font-bold">
-            {/* Primary Morning Catch-up Reconnection Simulation */}
+            {/* Primary Morning Catch-up Reconnection Simulation & Offline Sleep Offload */}
             <button
               onClick={async () => {
-                setCommandFeedback(isRtl ? 'جاري محاكاة إعادة الاتصال والمزامنة الصباحية...' : 'Simulating morning sync...');
-                const ok = await whoopBleEngine.simulateMorningReconnectionSync();
+                setCommandFeedback(isRtl ? 'جاري محاكاة إعادة الاتصال الصباحي وتفريغ ذاكرة نوم السوار...' : 'Simulating morning reconnect & sleep offload...');
+                const ok = await whoopBleEngine.simulateMorningReconnectAndSleepOffload();
                 if (ok) {
                   setCommandFeedback(
                     isRtl
-                      ? '✓ تمت محاكاة إعادة الاتصال الصباحي ومزامنة 7.5 ساعة نوم وتحديث الاستشفاء'
-                      : '✓ Morning reconnection simulated (7.5h sleep synced & recovery updated)'
+                      ? '✓ تمت محاكاة إعادة الاتصال وتفريغ 7.5 ساعة نوم وتحديث الاستشفاء فوراً'
+                      : '✓ Morning Reconnect & Sleep Offload complete (7.5h sleep & recovery updated)'
                   );
                 }
                 setTimeout(() => setCommandFeedback(null), 4000);
               }}
-              className="py-3 px-4 rounded-xl bg-gradient-to-r from-[#00A3FF]/20 via-[#16EC06]/15 to-[#00A3FF]/20 border border-[#00A3FF]/40 hover:border-[#16EC06] text-white flex items-center justify-center gap-2 active:scale-95 transition-all shadow-[0_0_20px_rgba(0,163,255,0.2)] font-black uppercase tracking-wider text-xs font-condensed col-span-1 sm:col-span-3"
+              className="py-3.5 px-4 rounded-xl bg-gradient-to-r from-[#00A3FF]/25 via-[#16EC06]/20 to-[#00A3FF]/25 border border-[#00A3FF]/50 hover:border-[#16EC06] text-white flex items-center justify-center gap-2 active:scale-95 transition-all shadow-[0_0_20px_rgba(0,163,255,0.25)] font-black uppercase tracking-wider text-xs font-condensed col-span-1 sm:col-span-3 cursor-pointer"
             >
-              <RefreshCw className="w-4 h-4 text-[#00A3FF]" />
-              <span>{isRtl ? 'محاكاة إعادة الاتصال والمزامنة الصباحية للنوم (7.5h)' : 'Simulate Morning Reconnection & Sync (7.5h)'}</span>
+              <RefreshCw className="w-4 h-4 text-[#00A3FF] animate-spin-slow" />
+              <span>{isRtl ? 'محاكاة إعادة الاتصال الصباحي وتفريغ نوم السوار (7.5h)' : 'Simulate Morning Reconnect & Sleep Offload'}</span>
             </button>
 
             <button

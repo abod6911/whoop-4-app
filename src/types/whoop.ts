@@ -89,6 +89,8 @@ export interface SleepMetrics {
   efficiencyPercent: number | null;
   latencyMinutes: number | null;
   disturbancesCount: number | null;
+  scoreState?: WhoopSleepScoreState;
+  statusMessage?: string;
   sleepDebtHours: number;
   needBreakdown?: SleepNeedBreakdown;
   timeline?: SleepStagePoint[];
@@ -335,6 +337,21 @@ export interface UserProfileEntity {
   hrvBaseline: number;
   sleepNeedHours: number;
   updatedAt: number;
+  lastSyncedTimestamp?: number;
+}
+
+export interface AggregateSleepSummary {
+  bedtime: number | string;
+  wakeTime: number | string;
+  actualSleepDurationMinutes: number;
+  stageDistribution: {
+    deepMinutes: number;
+    remMinutes: number;
+    lightMinutes: number;
+    awakeMinutes: number;
+  };
+  restingHr?: number;
+  hrvRmssd?: number;
 }
 
 export interface RealtimeTelemetryEntity {
@@ -414,3 +431,111 @@ export interface WorkoutEntity {
   notes?: string;
 }
 
+
+// --- Official WHOOP Developer API v1 Types ---
+
+export type WhoopSleepScoreState = 'SCORED' | 'PENDING_SCORE' | 'UNSCORABLE';
+
+export interface WhoopSleepStageSummary {
+  total_in_bed_time_milli: number;
+  total_awake_time_milli: number;
+  total_no_data_time_milli: number;
+  total_light_sleep_time_milli: number;
+  total_slow_wave_sleep_time_milli: number; // Deep Sleep
+  total_rem_sleep_time_milli: number;
+  sleep_cycle_count?: number;
+  disturbance_count?: number;
+}
+
+export interface WhoopSleepNeeded {
+  baseline_milli: number;
+  need_from_sleep_debt_milli: number;
+  need_from_recent_strain_milli: number;
+  need_from_recent_nap_milli: number;
+}
+
+export interface WhoopSleepScore {
+  stage_summary: WhoopSleepStageSummary;
+  sleep_needed: WhoopSleepNeeded;
+  respiratory_rate?: number;
+  sleep_performance_percentage?: number;
+  sleep_consistency_percentage?: number;
+  sleep_efficiency_percentage?: number;
+}
+
+export interface WhoopSleepRecord {
+  id: number;
+  user_id: number;
+  created_at: string;
+  updated_at: string;
+  start: string;
+  end: string;
+  timezone_offset: string;
+  nap: boolean;
+  score_state: WhoopSleepScoreState;
+  score?: WhoopSleepScore | null;
+}
+
+export interface WhoopSleepResponse {
+  records: WhoopSleepRecord[];
+  next_token?: string | null;
+}
+
+export interface FormattedTimeDuration {
+  hours: number;
+  minutes: number;
+  totalHoursDecimal: number;
+  formatted: string; // e.g. "7h 35m"
+  formattedAr: string; // e.g. "7 س 35 د"
+}
+
+export interface ProcessedWhoopSleep {
+  id: number;
+  isNap: boolean;
+  scoreState: WhoopSleepScoreState;
+  statusMessage?: string; // "جاري تحليل بيانات النوم" when PENDING_SCORE
+  startTime: string;
+  endTime: string;
+  // Raw Milliseconds
+  totalInBedMilli: number;
+  totalAsleepMilli: number;
+  totalLightMilli: number;
+  totalSlowWaveMilli: number;
+  totalRemMilli: number;
+  totalAwakeMilli: number;
+  // Converted Durations (Hours & Minutes)
+  inBed: FormattedTimeDuration;
+  asleep: FormattedTimeDuration;
+  light: FormattedTimeDuration;
+  slowWave: FormattedTimeDuration; // Deep
+  rem: FormattedTimeDuration;
+  awake: FormattedTimeDuration;
+  // Percentages & Clinical Scores
+  performancePercentage: number | null;
+  efficiencyPercentage: number | null;
+  consistencyPercentage: number | null;
+  respiratoryRate: number | null;
+  stages: {
+    awakePercent: number;
+    lightPercent: number;
+    deepPercent: number;
+    remPercent: number;
+  };
+  sleepNeed: FormattedTimeDuration;
+  sleepDebt: FormattedTimeDuration;
+}
+
+export interface WhoopOAuthConfig {
+  clientId: string;
+  clientSecret?: string;
+  redirectUri: string;
+  scopes: string[]; // e.g. ['read:sleep', 'offline', 'read:profile', 'read:recovery']
+}
+
+export interface WhoopTokenResponse {
+  access_token: string;
+  refresh_token?: string;
+  expires_in: number;
+  token_type: string;
+  scope: string;
+}

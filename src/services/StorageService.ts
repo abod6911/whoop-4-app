@@ -1,5 +1,6 @@
 import type { SessionRecord, UserSettings, RawBlePacket, DayHistoryRecord, StressPoint } from '../types/whoop';
 import { localDateKey } from '../utils/dateKey';
+import { whoopDb } from './whoopDatabase';
 
 const DB_NAME = 'WhoopPulseLocalDB';
 const DB_VERSION = 2;
@@ -311,6 +312,13 @@ class StorageService {
       if (day) {
         this.saveRealDayState(dateStr, { ...day, steps });
       }
+
+      // Commit immediately to Dexie IndexedDB
+      whoopDb.daily_records.get(dateStr).then((rec) => {
+        if (rec) {
+          whoopDb.daily_records.update(dateStr, { steps });
+        }
+      }).catch(() => {});
     } catch (e) {
       console.warn('[StorageService] Error saving steps:', e);
     }
@@ -585,6 +593,15 @@ class StorageService {
     a.download = `whoop-session-${new Date(session.startTime).toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  // --- IndexedDB Synced Timestamp Accessors ---
+  async getLastSyncedTimestamp(): Promise<number> {
+    return whoopDb.getLastSyncedTimestamp();
+  }
+
+  async setLastSyncedTimestamp(timestamp: number): Promise<void> {
+    return whoopDb.setLastSyncedTimestamp(timestamp);
   }
 }
 

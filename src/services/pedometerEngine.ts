@@ -95,9 +95,46 @@ export class PedometerEngine {
     };
   }
 
-  private notifySubscribers(): void {
+  public get dailySteps(): number {
+    return this.steps;
+  }
+
+  public set dailySteps(targetSteps: number) {
+    this.setDailySteps(targetSteps);
+  }
+
+  public setDailySteps(targetSteps: number, source: 'imu_hardware' | 'activity_inference' = 'imu_hardware'): void {
+    const sanitized = Math.max(0, Math.round(targetSteps));
+    this.steps = sanitized;
+    this.lastStepTimestamp = Date.now();
+    this.source = source;
+    this.persistSteps();
+    this.notifySubscribers(this.steps);
+  }
+
+  public notifySubscribers(_stepsCount?: number): void {
     const state = this.getState();
-    this.subscribers.forEach((cb) => cb(state));
+    this.subscribers.forEach((cb) => {
+      try {
+        cb(state);
+      } catch (err) {
+        console.error('[PedometerEngine] Subscriber notification error:', err);
+      }
+    });
+  }
+
+  public reloadForUser(): void {
+    if (this.walkInterval) {
+      clearInterval(this.walkInterval);
+      this.walkInterval = null;
+      this.isWalkSimulationActive = false;
+    }
+    this.cadence = 0;
+    this.accumulatedStepFraction = 0;
+    this.activeSeconds = 0;
+    this.recentStepTimestamps = [];
+    this.loadPersistedSteps();
+    this.notifySubscribers(this.steps);
   }
 
   private getTodayKey(): string {
@@ -306,13 +343,13 @@ export class PedometerEngine {
   }
 
   // Simulator for hardware lab & live demonstration
-  public simulateStepBurst(count = 25): void {
+  public simulateStepBurst(count = 50): void {
     this.steps += count;
     this.cadence = 114;
     this.lastStepTimestamp = Date.now();
     this.source = 'imu_hardware';
     this.persistSteps();
-    this.notifySubscribers();
+    this.notifySubscribers(this.steps);
   }
 
   public toggleContinuousWalk(forceActive?: boolean): boolean {
@@ -327,19 +364,16 @@ export class PedometerEngine {
     if (nextState) {
       this.cadence = 112;
       this.source = 'imu_hardware';
+      // Real-time walking simulator: pulses steps immediately per tick without artificial catch-up queues
       this.walkInterval = setInterval(() => {
-        this.steps += 2;
-        this.lastStepTimestamp = Date.now();
-        this.cadence = Math.floor(106 + Math.random() * 12);
-        this.persistSteps();
-        this.notifySubscribers();
+        this.recordSteps(2, Date.now(), 'imu_hardware');
       }, 1000);
     } else {
       this.cadence = 0;
-      this.notifySubscribers();
+      this.notifySubscribers(this.steps);
     }
 
-    this.notifySubscribers();
+    this.notifySubscribers(this.steps);
     return this.isWalkSimulationActive;
   }
 
@@ -357,17 +391,18 @@ export class PedometerEngine {
 
   /**
    * Reconcile cumulative hardware counter upon strap reconnection.
-   * Updates total if hardware count exceeds current tracked steps.
+   * Commits the entire target count immediately and in one transaction into IndexedDB and reactive state.
    */
   public reconcileCumulativeHardwareSteps(hardwareDailyTotal: number): number {
-    if (hardwareDailyTotal > this.steps) {
-      const delta = hardwareDailyTotal - this.steps;
-      this.steps = hardwareDailyTotal;
+    const target = Math.max(0, Math.round(hardwareDailyTotal));
+    if (target > 0 && target !== this.steps) {
+      const delta = target - this.steps;
+      this.steps = target;
       this.lastStepTimestamp = Date.now();
       this.source = 'imu_hardware';
       this.persistSteps();
-      this.notifySubscribers();
-      return delta;
+      this.notifySubscribers(this.steps);
+      return Math.max(0, delta);
     }
     return 0;
   }
@@ -376,6 +411,7 @@ export class PedometerEngine {
    * Process historical minute-by-minute IMU/cadence buffer offloaded from strap:
    * Delta Steps = Sum ( Cadence_epoch * Delta_t )
    * Deduplicates by checking epoch timestamps before appending.
+   * Commits full delta immediately in one bulk transaction.
    */
   public reconcileOfflineCadenceEpochs(
     epochs: Array<{ timestamp: number; cadence: number; durationMinutes?: number }>
@@ -398,35 +434,35 @@ export class PedometerEngine {
       this.lastStepTimestamp = Date.now();
       this.source = 'imu_hardware';
       this.persistSteps();
-      this.notifySubscribers();
+      this.notifySubscribers(this.steps);
     }
     return deltaSteps;
   }
 
   /**
-   * Add a known offline step delta directly (e.g. from telemetry catch-up)
+   * Add a known offline step delta directly in one bulk transaction
    */
   public addOfflineStepDelta(
     delta: number,
     source: 'imu_hardware' | 'activity_inference' = 'imu_hardware'
   ): void {
     if (delta <= 0) return;
-    this.steps += delta;
+    this.steps += Math.round(delta);
     this.lastStepTimestamp = Date.now();
     this.source = source;
     this.persistSteps();
-    this.notifySubscribers();
+    this.notifySubscribers(this.steps);
   }
 
   /**
-   * Simulate reconnecting after a 45-minute outdoor walk without the phone (+2,500 Steps)
+   * Reconnect after outdoor walk without phone: commits full bulk delta immediately
    */
   public simulateOfflineWalkReconnection(additionalSteps = 2000): number {
-    this.steps += additionalSteps;
+    this.steps += Math.round(additionalSteps);
     this.lastStepTimestamp = Date.now();
     this.source = 'imu_hardware';
     this.persistSteps();
-    this.notifySubscribers();
+    this.notifySubscribers(this.steps);
     return additionalSteps;
   }
 
@@ -439,8 +475,9 @@ export class PedometerEngine {
     this.cadence = 0;
     this.accumulatedStepFraction = 0;
     this.activeSeconds = 0;
+    this.recentStepTimestamps = [];
     this.persistSteps();
-    this.notifySubscribers();
+    this.notifySubscribers(this.steps);
   }
 }
 

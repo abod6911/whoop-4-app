@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { Moon } from 'lucide-react';
 import type { SleepStagePoint } from '../types/whoop';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -67,10 +67,10 @@ export const HypnogramChart: React.FC<HypnogramChartProps> = ({ timeline, height
   const chartHeight = svgHeight - paddingTop - paddingBottom;
 
   // Level Y coordinates (Awake: top, Deep: bottom)
-  const getY = (level: number) => {
-    // level: 3 (awake) -> top, 0 (deep) -> bottom
-    return paddingTop + ((3 - level) / 3) * chartHeight;
-  };
+  const getY = useCallback(
+    (level: number) => paddingTop + ((3 - level) / 3) * chartHeight,
+    [paddingTop, chartHeight]
+  );
 
   const { points, segments, timeTicks, stageStats } = useMemo(() => {
     if (!timeline || timeline.length === 0) {
@@ -175,7 +175,7 @@ export const HypnogramChart: React.FC<HypnogramChartProps> = ({ timeline, height
     };
 
     return { points: pts, segments: segs, timeTicks: ticks, stageStats: stats };
-  }, [timeline, chartWidth, chartHeight]);
+  }, [timeline, chartWidth, getY]);
 
   if (!timeline || timeline.length === 0) {
     return (

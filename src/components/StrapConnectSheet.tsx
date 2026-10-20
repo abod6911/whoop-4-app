@@ -19,6 +19,7 @@ import { SheetBackdrop, SheetPanel } from './motion/Sheet';
 import { hapticMedium, hapticSuccess, hapticLight } from '../utils/haptics';
 import { TransparentHardwareImage } from './TransparentHardwareImage';
 import { pedometerEngine } from '../services/pedometerEngine';
+import { AnimatedStepCounter } from './AnimatedStepCounter';
 
 interface StrapConnectSheetProps {
   isOpen: boolean;
@@ -309,7 +310,7 @@ export const StrapConnectSheet: React.FC<StrapConnectSheetProps> = ({
                     <div className="flex items-center gap-2">
                       <div className="text-end">
                         <span className="text-sm font-black font-condensed text-white tabular-nums">
-                          {liveSteps.toLocaleString()}
+                          <AnimatedStepCounter value={liveSteps} />
                         </span>
                         <span className="text-[9px] text-zinc-400 block font-condensed -mt-1">
                           {isRtl ? 'خطوة' : 'STEPS'}

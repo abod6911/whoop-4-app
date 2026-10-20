@@ -48,6 +48,47 @@ export class WhoopPulseDatabase extends Dexie {
     return this.user_profile.get('current_user');
   }
 
+  // --- IndexedDB Last Synced Timestamp Tracker ---
+  public async getLastSyncedTimestamp(): Promise<number> {
+    try {
+      const user = await this.user_profile.get('current_user');
+      if (user && user.lastSyncedTimestamp) {
+        return user.lastSyncedTimestamp;
+      }
+    } catch {}
+    const raw = typeof localStorage !== 'undefined' ? localStorage.getItem('whoop_last_synced_timestamp') : null;
+    return raw ? parseInt(raw, 10) : 0;
+  }
+
+  public async setLastSyncedTimestamp(timestamp: number): Promise<void> {
+    try {
+      const user = await this.user_profile.get('current_user');
+      if (user) {
+        await this.user_profile.update('current_user', { lastSyncedTimestamp: timestamp, updatedAt: Date.now() });
+      } else {
+        await this.user_profile.put({
+          id: 'current_user',
+          name: 'Athlete',
+          age: 28,
+          gender: 'male',
+          weightKg: 75,
+          heightCm: 178,
+          maxHr: 192,
+          restingHrBaseline: 52,
+          hrvBaseline: 65,
+          sleepNeedHours: 7.9,
+          updatedAt: Date.now(),
+          lastSyncedTimestamp: timestamp,
+        });
+      }
+    } catch {}
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('whoop_last_synced_timestamp', String(timestamp));
+      }
+    } catch {}
+  }
+
   // --- Real-time Telemetry Samples (Buffered) ---
   public async logTelemetry(sample: Omit<RealtimeTelemetryEntity, 'id'>): Promise<number> {
     const id = await this.realtime_telemetry.add(sample);

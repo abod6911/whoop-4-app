@@ -117,10 +117,18 @@ export const WhoopTopBar: React.FC<WhoopTopBarProps> = ({
     <div className="sticky top-0 z-40 bg-[#0B0D10]/95 backdrop-blur-md border-b border-white/5">
       {/* Catch-Up Sync Animated Progress Banner */}
       {metadata.isSyncing && (
-        <div className="w-full bg-[#00A3FF]/15 border-b border-[#00A3FF]/30 px-4 py-1.5 flex items-center justify-between text-[10px] font-condensed font-bold text-[#00A3FF]">
-          <div className="flex items-center gap-2 animate-pulse">
-            <span className="w-2 h-2 rounded-full bg-[#00A3FF]" />
-            <span>{metadata.syncStatusText || (isRtl ? 'جاري مزامنة ذاكرة السوار...' : 'Syncing strap memory...')}</span>
+        <div className={`w-full border-b px-4 py-1.5 flex items-center justify-between text-[10px] font-condensed font-bold transition-all ${
+          metadata.syncProgress === 100 || (metadata.syncStatusText && metadata.syncStatusText.includes('✓'))
+            ? 'bg-[#16EC06]/15 border-[#16EC06]/30 text-[#16EC06]'
+            : 'bg-[#00A3FF]/15 border-[#00A3FF]/30 text-[#00A3FF]'
+        }`}>
+          <div className="flex items-center gap-2">
+            <span className={`w-2 h-2 rounded-full ${
+              metadata.syncProgress === 100 || (metadata.syncStatusText && metadata.syncStatusText.includes('✓'))
+                ? 'bg-[#16EC06]'
+                : 'bg-[#00A3FF] animate-pulse'
+            }`} />
+            <span>{metadata.syncStatusText || (isRtl ? 'جاري سحب بيانات النوم من السوار...' : 'Syncing strap memory...')}</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="tabular-nums font-black">{metadata.syncProgress ?? 0}%</span>

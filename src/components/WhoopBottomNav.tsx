@@ -41,12 +41,12 @@ export const WhoopBottomNav: React.FC<WhoopBottomNavProps> = ({
   };
 
   return (
-    <nav className="fixed md:absolute bottom-0 inset-x-0 max-w-md md:max-w-[430px] mx-auto z-40 bg-[#0E1116]/95 backdrop-blur-xl border-t border-white/5 pb-[max(env(safe-area-inset-bottom),0.5rem)] pt-2 px-6 flex justify-between items-center shadow-[0_-10px_30px_rgba(0,0,0,0.6)]">
+    <nav className="fixed md:absolute bottom-0 inset-x-0 max-w-md md:max-w-[430px] mx-auto z-40 bg-[#0E1116]/95 backdrop-blur-xl border-t border-white/5 pb-[env(safe-area-inset-bottom)] pt-2 px-6 flex justify-between items-center shadow-[0_-10px_30px_rgba(0,0,0,0.6)] select-none">
       <div className="w-full flex items-center justify-between">
         {/* Tab 1: Home (00:00) */}
         <button
           onClick={() => handleSelectTab('home')}
-          className={`flex flex-col items-center justify-center transition-colors ${
+          className={`flex flex-col items-center justify-center active:scale-95 transition-transform cursor-pointer ${
             activeTab === 'home' ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'
           }`}
         >
@@ -59,7 +59,7 @@ export const WhoopBottomNav: React.FC<WhoopBottomNavProps> = ({
         {/* Tab 2: Plan (02:15) */}
         <button
           onClick={() => handleSelectTab('plan')}
-          className={`flex flex-col items-center justify-center transition-colors ${
+          className={`flex flex-col items-center justify-center active:scale-95 transition-transform cursor-pointer ${
             activeTab === 'plan' ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'
           }`}
         >
@@ -72,7 +72,7 @@ export const WhoopBottomNav: React.FC<WhoopBottomNavProps> = ({
         {/* Tab 3: Community (02:29) */}
         <button
           onClick={() => handleSelectTab('community')}
-          className={`flex flex-col items-center justify-center transition-colors ${
+          className={`flex flex-col items-center justify-center active:scale-95 transition-transform cursor-pointer ${
             activeTab === 'community' ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'
           }`}
         >
@@ -85,7 +85,7 @@ export const WhoopBottomNav: React.FC<WhoopBottomNavProps> = ({
         {/* Tab 4: More (02:43) */}
         <button
           onClick={() => handleSelectTab('more')}
-          className={`flex flex-col items-center justify-center transition-colors ${
+          className={`flex flex-col items-center justify-center active:scale-95 transition-transform cursor-pointer ${
             activeTab === 'more' ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'
           }`}
         >

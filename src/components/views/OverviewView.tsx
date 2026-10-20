@@ -66,6 +66,8 @@ interface OverviewViewProps {
 
 import { useLanguage } from '../../i18n/LanguageContext';
 import { StreakBadge } from '../StreakBadge';
+import { useAuth } from '../../context/AuthContext';
+import { AnimatedStepCounter } from '../AnimatedStepCounter';
 
 export const OverviewView: React.FC<OverviewViewProps> = ({
   metrics,
@@ -88,6 +90,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   onOpenQuickAction,
 }) => {
   const { t, isRtl, dayNames, formatNumber } = useLanguage();
+  const { currentUser } = useAuth();
   const [isOutlookModalOpen, setIsOutlookModalOpen] = useState(false);
   const [isCustomizeOpen, setIsCustomizeOpen] = useState(false);
   const [pendingActivity, setPendingActivity] = useState<DetectedActivity | null>(() =>
@@ -246,16 +249,24 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -10 }}
-          className="rounded-2xl border border-[#00F0FF]/30 bg-[#00F0FF]/10 px-4 py-3 text-xs text-white flex items-center justify-between gap-3 shadow-lg shadow-[#00F0FF]/10"
+          className={`rounded-2xl border px-4 py-3 text-xs flex items-center justify-between gap-3 shadow-lg transition-all ${
+            metadata.syncProgress === 100 || metadata.syncStatusText.includes('✓')
+              ? 'border-[#16EC06]/40 bg-[#16EC06]/15 text-[#16EC06] shadow-[#16EC06]/10'
+              : 'border-[#00F0FF]/30 bg-[#00F0FF]/10 text-[#00F0FF] shadow-[#00F0FF]/10'
+          }`}
         >
           <div className="flex items-center gap-2.5 min-w-0">
-            <span className="w-2 h-2 rounded-full bg-[#00F0FF] animate-ping shrink-0" />
-            <span className="font-condensed font-bold truncate text-[#00F0FF]">
+            <span className={`w-2 h-2 rounded-full shrink-0 ${
+              metadata.syncProgress === 100 || metadata.syncStatusText.includes('✓')
+                ? 'bg-[#16EC06]'
+                : 'bg-[#00F0FF] animate-ping'
+            }`} />
+            <span className="font-condensed font-bold truncate">
               {metadata.syncStatusText}
             </span>
           </div>
           {metadata.syncProgress !== undefined && (
-            <span className="text-[10px] font-mono font-bold text-[#00F0FF] shrink-0">
+            <span className="text-[10px] font-mono font-bold shrink-0">
               {metadata.syncProgress}%
             </span>
           )}
@@ -727,7 +738,10 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
         {dashboardPrefs.hrv && (() => {
           const displayHrv = metrics.lockedHrv ?? metrics.currentHrv;
           return (
-            <div className="w-full p-4 rounded-[22px] bg-[#12151A] border border-white/5 flex items-center justify-between">
+            <button
+              onClick={() => onSelectSubTab('recovery')}
+              className="w-full p-4 rounded-[22px] bg-[#12151A] hover:bg-[#16191E] border border-white/5 hover:border-zinc-700 flex items-center justify-between transition-all active:scale-98 cursor-pointer text-start"
+            >
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-xl bg-white/[0.04] flex items-center justify-center text-[#8A94A6]">
                   <Activity className="w-5 h-5 stroke-[1.8]" />
@@ -770,13 +784,16 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                   <div className="text-[10px] text-zinc-500 font-mono">--</div>
                 )}
               </div>
-            </div>
+            </button>
           );
         })()}
 
         {/* Metric Row 2: SLEEP PERFORMANCE */}
         {dashboardPrefs.sleep && (
-          <div className="w-full p-4 rounded-[22px] bg-[#12151A] border border-white/5 flex items-center justify-between">
+          <button
+            onClick={() => onSelectSubTab('sleep')}
+            className="w-full p-4 rounded-[22px] bg-[#12151A] hover:bg-[#16191E] border border-white/5 hover:border-zinc-700 flex items-center justify-between transition-all active:scale-98 cursor-pointer text-start"
+          >
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-white/[0.04] flex items-center justify-center text-[#8A94A6]">
                 <Moon className="w-5 h-5 stroke-[1.8]" />
@@ -803,7 +820,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                 <div className="text-[10px] text-zinc-500 font-mono">--</div>
               )}
             </div>
-          </div>
+          </button>
         )}
 
         {/* Embedded STRESS MONITOR Card (00:58 in Video) */}
@@ -966,7 +983,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                     transition={{ duration: 0.4 }}
                     className="text-3xl font-black font-condensed text-white tabular-nums drop-shadow-[0_2px_10px_rgba(22,236,6,0.3)] inline-block"
                   >
-                    {(metrics.steps || 0).toLocaleString()}
+                    <AnimatedStepCounter value={metrics.steps || 0} resetKey={currentUser?.id} isPulsing={isStepPulsing} />
                   </motion.span>
                   <span className="text-xs text-[#16EC06] font-bold font-condensed uppercase tracking-wider">
                     {isRtl ? 'خطوة' : 'steps'}

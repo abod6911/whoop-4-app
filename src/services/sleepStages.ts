@@ -190,19 +190,22 @@ export function generateRealisticOvernightSession(
     wakeHour?: number;
     wakeMinute?: number;
     totalHours?: number;
+    rhrBaseline?: number;
   }
 ): {
   timeline: SleepStagePoint[];
   sleepOnsetTimestamp: number;
   wakeTimestamp: number;
 } {
+  const effectiveRhr = options?.rhrBaseline ?? rhrBaseline;
+  rhrBaseline = effectiveRhr;
   const now = new Date();
   // Target: Yesterday evening to this morning
   const bedDate = new Date(now);
-  const bedHour = options?.bedHour ?? 23;
-  const bedMinute = options?.bedMinute ?? 15;
-  const wakeHour = options?.wakeHour ?? 7;
-  const wakeMinute = options?.wakeMinute ?? 5;
+  const bedHour = (options?.bedHour !== undefined && !isNaN(options.bedHour)) ? options.bedHour : 23;
+  const bedMinute = (options?.bedMinute !== undefined && !isNaN(options.bedMinute)) ? options.bedMinute : 15;
+  const wakeHour = (options?.wakeHour !== undefined && !isNaN(options.wakeHour)) ? options.wakeHour : 7;
+  const wakeMinute = (options?.wakeMinute !== undefined && !isNaN(options.wakeMinute)) ? options.wakeMinute : 5;
 
   bedDate.setHours(bedHour, bedMinute, 0, 0);
   if (bedDate.getTime() > now.getTime()) {

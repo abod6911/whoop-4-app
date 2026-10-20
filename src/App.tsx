@@ -16,6 +16,7 @@ import { whoopBleEngine } from './services/whoopBleEngine';
 import { biometricEngine } from './utils/biometricEngine';
 import { pedometerEngine } from './services/pedometerEngine';
 import { sleepEngine } from './services/sleepEngine';
+import { whoopApiService } from './services/whoopApiService';
 import { storageService, purgeLegacyMockStorage } from './services/StorageService';
 import {
   generateHealthMonitorMetrics,
@@ -144,8 +145,36 @@ export const App: React.FC = () => {
   }, []);
 
   // Live Sleep Engine Subscriber (Instant reactivity for real sleep and simulated night sessions)
+  // Handle WHOOP Cloud OAuth URL redirect (?code=... or ?access_token=...) and auto-sync sleep
   useEffect(() => {
+    const urlAuth = whoopApiService.checkAndHandleUrlAuth();
+    const token = urlAuth?.token || whoopApiService.getAccessToken();
+    if (token) {
+      console.log('[App Boot] Detected WHOOP Access Token. Auto-syncing sleep from v1 API...');
+      sleepEngine.syncFromWhoopApi(token).then((res) => {
+        if (res) {
+          console.log('[App Boot] ✓ Auto-synced sleep successfully from WHOOP v1 API:', res.asleep.formatted);
+          setLiveSleepMetrics(sleepEngine.getSleepMetrics(settings, 0));
+          setDaysHistory(storageService.getDaysHistory());
+        }
+      }).catch((err) => {
+        console.warn('[App Boot] Auto-sync sleep notice:', err);
+      });
+    }
+  }, [settings]);
+
+  const [liveSleepMetrics, setLiveSleepMetrics] = useState<SleepMetrics>(() => sleepEngine.getSleepMetrics(settings, 0));
+
+  useEffect(() => {
+    sleepEngine.restoreFromDb().then((restored) => {
+      if (restored) {
+        setLiveSleepMetrics(sleepEngine.getSleepMetrics(settings, 0));
+        setDaysHistory(storageService.getDaysHistory());
+      }
+    });
+
     return sleepEngine.subscribe((sleep) => {
+      setLiveSleepMetrics(sleep);
       setLiveMetrics((prev) => ({
         ...prev,
         hoursAsleep: sleep.hoursAsleep,
@@ -154,7 +183,7 @@ export const App: React.FC = () => {
       }));
       setDaysHistory(storageService.getDaysHistory());
     });
-  }, []);
+  }, [settings]);
 
   // Live Biometric Engine Subscriber (Instant reactivity for recovery lock, sleep sync, calibration)
   useEffect(() => {
@@ -576,9 +605,8 @@ export const App: React.FC = () => {
       };
     }
 
-    const strain = liveMetrics.dailyStrain;
-    return sleepEngine.getSleepMetrics(settings, strain);
-  }, [isViewingToday, currentDayRecord, liveMetrics.dailyStrain, liveMetrics.hoursAsleep, liveMetrics.sleepPerformance, settings]);
+    return liveSleepMetrics;
+  }, [isViewingToday, currentDayRecord, liveSleepMetrics, settings]);
 
   // Live Biometric & Sleep Goal Alarm Evaluation
   useEffect(() => {
@@ -690,8 +718,9 @@ export const App: React.FC = () => {
     if (currentUser) {
       setSettings(storageService.getUserSettings());
       setDaysHistory(storageService.getDaysHistory());
+      pedometerEngine.reloadForUser();
     }
-  }, [currentUser?.id]);
+  }, [currentUser]);
 
   // 1. Initializing State: Ambient Glowing WHOOP Splash
   if (isLoading) {
@@ -865,7 +894,7 @@ export const App: React.FC = () => {
         )}
 
         {/* Main Content Area */}
-        <main className="flex-1 overflow-y-auto overscroll-contain px-4 pt-2 pb-[calc(env(safe-area-inset-bottom)+5.5rem)] no-scrollbar">
+        <main className="flex-1 overflow-y-auto no-scrollbar pb-24 px-4 pt-2">
           {/* TAB 1: HOME (Sub-tabs: Overview | Sleep | Recovery | Strain) */}
           {mainTab === 'home' && (
             <>
@@ -904,6 +933,17 @@ export const App: React.FC = () => {
                   sleepData={sleepData}
                   daysHistory={daysHistory}
                   onActivateOledNightLock={() => setIsOledNightLockOpen(true)}
+                  metadata={metadata}
+                  onSyncSleep={() => whoopBleEngine.syncOfflineSleepSession(true)}
+                  onConnectStrap={() => setIsStrapSheetOpen(true)}
+                  onSimulateSleep={() => {
+                    sleepEngine.activateRealSleepCalculation();
+                    refreshSessions();
+                  }}
+                  onActivateRealSleep={() => {
+                    sleepEngine.activateRealSleepCalculation();
+                    refreshSessions();
+                  }}
                 />
               )}
 
