@@ -19,6 +19,10 @@ import {
   type SleepStage,
   type EpochFeatures,
 } from './sleepStages';
+import {
+  parseEpisodicSleepPayload,
+  type DecodedSleepEpoch,
+} from './whoopBleProtocol';
 
 export interface SleepSample {
   timestamp: number;
@@ -318,6 +322,30 @@ export class SleepEngine {
               workouts: existing.workouts || [],
               stressAvg: null,
               zoneSeconds: existing.zoneSeconds || { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+            }).catch(() => {});
+
+            // Also persist directly into IndexedDB (whoopDb.sleep_sessions)
+            whoopDb.saveSleepSession({
+              id: `sleep_${this.sleepOnsetTimestamp || today}`,
+              date: today,
+              startTime: this.sleepOnsetTimestamp || Date.now(),
+              endTime: this.wakeTimestamp || Date.now(),
+              durationMs: Math.max(0, (this.wakeTimestamp || Date.now()) - (this.sleepOnsetTimestamp || Date.now())),
+              hoursAsleep: stats.hoursAsleep,
+              hoursInBed: stats.hoursInBed,
+              sleepPerformance: stats.sleepPerformance,
+              efficiencyPercent: stats.efficiencyPercent,
+              stageDistribution: {
+                deepMinutes: stats.stageDurations.deepMinutes,
+                remMinutes: stats.stageDurations.remMinutes,
+                lightMinutes: stats.stageDurations.lightMinutes,
+                awakeMinutes: stats.stageDurations.awakeMinutes,
+              },
+              restingHr: existing.rhr || 52,
+              hrvRmssd: existing.hrv || 65,
+              source: this.activeSource,
+              timeline: this.timeline,
+              syncedAt: Date.now(),
             }).catch(() => {});
           } catch {}
         }
@@ -657,16 +685,85 @@ export class SleepEngine {
   }
 
   // --- Historical Packet Sync (Offline Data Offload from Strap Flash Buffer) ---
-  public ingestEpisodicBuffer(data: DataView | Uint8Array | ArrayBuffer): boolean {
-    try {
-      const view =
-        data instanceof DataView
-          ? data
-          : data instanceof Uint8Array
-          ? new DataView(data.buffer, data.byteOffset, data.byteLength)
-          : new DataView(data);
+  public ingestDecodedEpochs(epochs: DecodedSleepEpoch[], settings?: UserSettings): SleepMetrics {
+    if (!epochs || epochs.length === 0) {
+      throw new Error('No epochs provided for ingestion');
+    }
 
-      if (view.byteLength < 8) return false;
+    const defaultSettings: UserSettings = settings || {
+      name: 'User',
+      age: 30,
+      weightKg: 75,
+      heightCm: 180,
+      maxHr: 190,
+      restingHrBaseline: 54,
+      hrvBaseline: 65,
+      sleepNeedHours: 7.9,
+      gender: 'male',
+    };
+    const rhrBase = defaultSettings.restingHrBaseline || 54;
+
+    const sorted = [...epochs].sort((a, b) => a.timestamp - b.timestamp);
+
+    this.timeline = [];
+    for (const epoch of sorted) {
+      const features: EpochFeatures = {
+        hrMean: epoch.hr,
+        hrStd: epoch.hrStd ?? (epoch.hr <= rhrBase - 2 ? 1.0 : 2.5),
+        avgRmssd: epoch.rmssd,
+        rmssdStdDev: epoch.rmssdStdDev ?? 4.0,
+        motionIntensity: epoch.motionVariance,
+        rhrBaseline: rhrBase,
+      };
+
+      const stage: SleepStage = epoch.stage || classifyEpoch(features);
+      this.recordEpochStage(epoch.timestamp, stage, epoch.hr);
+    }
+
+    const firstNonAwake = this.timeline.find((p) => p.stage !== 'awake');
+    this.sleepOnsetTimestamp = firstNonAwake ? firstNonAwake.timestamp : this.timeline[0].timestamp;
+    this.wakeTimestamp = this.timeline[this.timeline.length - 1].timestamp;
+    this.isSleeping = false;
+    this.scoreState = 'SCORED';
+    this.statusMessage = undefined;
+    this.activeSource = 'ble';
+    this.lastIngestedTimestamp = Date.now();
+
+    this.persistState();
+
+    const metrics = this.getSleepMetrics(defaultSettings, 10.2);
+    this.notifySleepCompleted(metrics);
+    this.notify();
+
+    console.log(`[SleepEngine] ✓ Ingested ${this.timeline.length} decoded epochs from WHOOP Strap: ${metrics.hoursAsleep}h asleep (${metrics.sleepPerformance}% perf).`);
+    return metrics;
+  }
+
+  public ingestEpisodicBuffer(data: DataView | Uint8Array | ArrayBuffer, settings?: UserSettings): boolean {
+    try {
+      const rawBytes =
+        data instanceof Uint8Array
+          ? data
+          : data instanceof DataView
+          ? new Uint8Array(data.buffer, data.byteOffset, data.byteLength)
+          : new Uint8Array(data);
+
+      if (rawBytes.length < 8) return false;
+
+      // 1. Un-pack using OpenStrap reverse-engineered protocol parser
+      const parsed = parseEpisodicSleepPayload(rawBytes);
+      if (parsed.summary) {
+        console.log(`[SleepEngine] ✓ Detected WHOOP Aggregate Sleep Summary packet! Duration=${parsed.summary.actualSleepDurationMinutes}m`);
+        this.ingestSleepSummary(parsed.summary, settings);
+        return true;
+      }
+
+      if (parsed.epochs && parsed.epochs.length > 0) {
+        this.ingestDecodedEpochs(parsed.epochs, settings);
+        return true;
+      }
+
+      const view = new DataView(rawBytes.buffer, rawBytes.byteOffset, rawBytes.byteLength);
 
       // Check if this is a WHOOP Flash Episodic buffer (Header 0xAA or Opcode 0x08/0x10/0x16/0x24/0x25)
       let offset = 0;

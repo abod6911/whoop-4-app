@@ -95,134 +95,30 @@ export type PacketCallback = (packet: RawBlePacket) => void;
 export type GattTreeCallback = (services: GattServiceInfo[]) => void;
 export type ErrorCallback = (error: string) => void;
 
-// --- WHOOP 4.0 CRC & Binary Framing Protocol (Polynomial 0x04C11DB7) ---
-export function crc32Whoop(data: Uint8Array): number {
-  let crc = 0xffffffff;
-  for (let i = 0; i < data.length; i++) {
-    crc ^= data[i] << 24;
-    for (let j = 0; j < 8; j++) {
-      if ((crc & 0x80000000) !== 0) {
-        crc = ((crc << 1) ^ 0x04c11db7) >>> 0;
-      } else {
-        crc = (crc << 1) >>> 0;
-      }
-    }
-  }
-  return crc >>> 0;
-}
+// --- Reverse-Engineered WHOOP 4.0 Protocol & OpenStrap Framing ---
+export {
+  crc8Whoop,
+  crc32Whoop,
+  crc32Zlib,
+  encodeWhoopFrame,
+  decodeWhoopFrame,
+  tryDecodeFrameHeader,
+  whoopCommands,
+  WhoopDefragmentationStream,
+  parseEpisodicSleepPayload,
+  parseFlashEpochBuffer,
+  parseR24Records,
+  WHOOP_OPCODES,
+  type DecodedSleepEpoch,
+} from './whoopBleProtocol';
 
-export function crc8Whoop(data: Uint8Array): number {
-  let crc = 0x00;
-  for (let i = 0; i < data.length; i++) {
-    crc ^= data[i];
-    for (let j = 0; j < 8; j++) {
-      if ((crc & 0x80) !== 0) {
-        crc = ((crc << 1) ^ 0x07) & 0xff;
-      } else {
-        crc = (crc << 1) & 0xff;
-      }
-    }
-  }
-  return crc;
-}
-
-export function encodeWhoopFrame(payload: Uint8Array): Uint8Array {
-  const len = payload.length;
-  const header = new Uint8Array([0xaa, len & 0xff, (len >> 8) & 0xff]);
-  const c8 = crc8Whoop(header);
-  const frameWithoutCrc32 = new Uint8Array(1 + 2 + 1 + len);
-  frameWithoutCrc32[0] = 0xaa;
-  frameWithoutCrc32[1] = len & 0xff;
-  frameWithoutCrc32[2] = (len >> 8) & 0xff;
-  frameWithoutCrc32[3] = c8;
-  frameWithoutCrc32.set(payload, 4);
-
-  const c32 = crc32Whoop(frameWithoutCrc32);
-  const fullFrame = new Uint8Array(frameWithoutCrc32.length + 4);
-  fullFrame.set(frameWithoutCrc32, 0);
-  fullFrame[fullFrame.length - 4] = c32 & 0xff;
-  fullFrame[fullFrame.length - 3] = (c32 >> 8) & 0xff;
-  fullFrame[fullFrame.length - 2] = (c32 >> 16) & 0xff;
-  fullFrame[fullFrame.length - 1] = (c32 >> 24) & 0xff;
-  return fullFrame;
-}
-
-export function crc32Zlib(data: Uint8Array): number {
-  let crc = 0xffffffff;
-  for (let i = 0; i < data.length; i++) {
-    crc ^= data[i];
-    for (let j = 0; j < 8; j++) {
-      if ((crc & 1) !== 0) {
-        crc = (crc >>> 1) ^ 0xedb88320;
-      } else {
-        crc = crc >>> 1;
-      }
-    }
-  }
-  return (crc ^ 0xffffffff) >>> 0;
-}
-
-export function decodeWhoopFrame(data: Uint8Array): { valid: boolean; payload: Uint8Array | null } {
-  if (data.length < 5) return { valid: false, payload: null };
-  if (data[0] !== 0xaa) {
-    // Permissive fallback: if data has sufficient bytes (e.g. direct streaming telemetry buffer), return raw payload
-    if (data.length >= 6) {
-      return { valid: true, payload: data };
-    }
-    return { valid: false, payload: null };
-  }
-  const len = data[1] | (data[2] << 8);
-
-  // 1. Diagnostic CRC-8 check on 3-byte header [0xaa, len_lo, len_hi]
-  const headerCrc8 = crc8Whoop(data.slice(0, 3));
-  const crc8Ok = headerCrc8 === data[3];
-
-  // 2. Diagnostic CRC-32 check on frame without trailing CRC bytes
-  let crc32Ok = false;
-  if (data.length >= 4 + len + 4) {
-    const frameBody = data.slice(0, 4 + len);
-    const offset = 4 + len;
-    const receivedCrcLE =
-      (data[offset] |
-        (data[offset + 1] << 8) |
-        (data[offset + 2] << 16) |
-        (data[offset + 3] << 24)) >>>
-      0;
-    const receivedCrcBE =
-      ((data[offset] << 24) |
-        (data[offset + 1] << 16) |
-        (data[offset + 2] << 8) |
-        data[offset + 3]) >>>
-      0;
-
-    const expectedWhoop = crc32Whoop(frameBody);
-    const expectedZlib = crc32Zlib(frameBody);
-
-    crc32Ok =
-      receivedCrcLE === expectedWhoop ||
-      receivedCrcLE === expectedZlib ||
-      receivedCrcBE === expectedWhoop ||
-      receivedCrcBE === expectedZlib;
-  }
-
-  // Diagnostic logging (does not drop packet)
-  if (!crc8Ok || !crc32Ok) {
-    // CRC mismatch logged for diagnostic analysis
-  }
-
-  // Permissive payload extraction: NEVER discard physical payload if firmware CRC variant differs!
-  if (len > 0 && data.length >= 4 + len) {
-    const payload = data.slice(4, 4 + len);
-    return { valid: true, payload };
-  }
-
-  if (data.length >= 6) {
-    const payload = data.slice(4);
-    return { valid: true, payload };
-  }
-
-  return { valid: false, payload: null };
-}
+import {
+  encodeWhoopFrame,
+  decodeWhoopFrame,
+  whoopCommands,
+  WhoopDefragmentationStream,
+  WHOOP_OPCODES,
+} from './whoopBleProtocol';
 
 export class WhoopBleEngine {
   private device: BluetoothDevice | null = null;
@@ -293,8 +189,29 @@ export class WhoopBleEngine {
   private lastSpO2FrameTimestamp = 0;
   private smoothedEstimatedTemp: number | null = null;
 
+  // OpenStrap In-Memory MTU De-fragmentation Stream Buffer
+  private defragStream: WhoopDefragmentationStream = new WhoopDefragmentationStream();
+
   constructor() {
     this.handleDisconnected = this.handleDisconnected.bind(this);
+
+    // Wire live progress updates from in-memory stream to UI metadata
+    this.defragStream.onProgress((prog) => {
+      this.metadata.isSyncing = true;
+      this.metadata.syncChunksReceived = prog.chunksReceived;
+      this.metadata.syncTotalChunks = prog.totalChunks;
+      this.metadata.syncProgress = prog.percentage;
+      this.metadata.syncStatusText = `سحب حزم الذاكرة من السوار (${prog.chunksReceived}/${prog.totalChunks})...`;
+      this.emitMetadata();
+    });
+
+    // Wire completed assembled frames directly to sleepEngine & ACK
+    this.defragStream.onFrame((payload, seq) => {
+      console.log(`[WHOOP BLE Reassembler] Reassembled frame seq=${seq}, payload length=${payload.length}B`);
+      sleepEngine.ingestEpisodicBuffer(payload);
+      this.sendChunkAck(seq).catch(() => {});
+    });
+
     if (typeof window !== 'undefined') {
       this.checkPermittedDevices().catch(() => {});
     }
@@ -1063,39 +980,61 @@ export class WhoopBleEngine {
 
     try {
       this.metadata.isSyncing = true;
-      this.metadata.syncProgress = 15;
-      this.metadata.syncStatusText = 'جاري سحب بيانات النوم من السوار...';
+      this.metadata.syncChunksReceived = 0;
+      this.metadata.syncTotalChunks = 120;
+      this.metadata.syncProgress = 10;
+      this.metadata.syncStatusText = 'بدء الاتصال ومصادقة بروتوكول OpenStrap...';
       this.emitMetadata();
+
+      // Reset and arm in-memory MTU de-fragmentation stream
+      this.defragStream.reset();
+      this.defragStream.setExpectedTotalChunks(120);
 
       console.log(`[HEALTH-TECH DIAGNOSTIC: STEP 1 - INGESTION SOURCE] Web Bluetooth GATT -> Offloading nocturnal buffers from ${this.metadata.name || 'WHOOP Strap'} (Forced: ${forced})`);
 
-      // 1. Offload Hardware Sleep / Telemetry Packets:
-      // Request Flash History Buffer (Opcode 0x08)
-      await this.sendSyncHistoryBuffer().catch(() => {});
+      // 1. OpenStrap Handshake: Send HELLO to CMD_TO_STRAP
+      await this.sendRawBuffer(whoopCommands.createHello()).catch(() => {});
+      this.metadata.syncChunksReceived = 15;
+      this.metadata.syncProgress = 20;
+      this.emitMetadata();
+      await new Promise((r) => setTimeout(r, 200));
+
+      // 2. Synchronize RTC Clock with Wall Clock
+      await this.sendRawBuffer(whoopCommands.createSetClock(now)).catch(() => {});
+      this.metadata.syncChunksReceived = 30;
       this.metadata.syncProgress = 35;
       this.emitMetadata();
-      await new Promise((r) => setTimeout(r, 400));
+      await new Promise((r) => setTimeout(r, 200));
 
-      // 2. Request Episodic Sleep Packet offload (Opcode 0x23, 0x10, 0x01)
-      const sleepOffload = new Uint8Array([0x23, 0x10, 0x01]);
-      await this.sendRawBuffer(encodeWhoopFrame(sleepOffload)).catch(() => {});
-      await this.sendRawBuffer(new Uint8Array([0xaa, 0x04, 0x00, 0x23, 0x10, 0x01])).catch(() => {});
-      this.metadata.syncProgress = 60;
+      // 3. Request Flash Memory Sync (Opcode 0x08)
+      await this.sendRawBuffer(whoopCommands.createMemorySyncStart(effectiveLastSync)).catch(() => {});
+      this.metadata.syncChunksReceived = 55;
+      this.metadata.syncProgress = 50;
       this.emitMetadata();
-      await new Promise((r) => setTimeout(r, 450));
+      await new Promise((r) => setTimeout(r, 300));
 
-      // 3. Request Historical Optical & RR Buffers (Opcode 0x23, 0x16, 0x01)
-      const opticalOffload = new Uint8Array([0x23, 0x16, 0x01]);
-      await this.sendRawBuffer(encodeWhoopFrame(opticalOffload)).catch(() => {});
-      this.metadata.syncProgress = 80;
+      // 4. Request Episodic Sleep Memory Offload (Opcode 0x23, 0x10, 0x01)
+      await this.sendRawBuffer(whoopCommands.createEpisodicSleepReq()).catch(() => {});
+      this.metadata.syncChunksReceived = 80;
+      this.metadata.syncProgress = 70;
       this.emitMetadata();
-      await new Promise((r) => setTimeout(r, 450));
+      await new Promise((r) => setTimeout(r, 350));
 
-      // 4. Request Episodic Buffer Chunk (Opcode 0x23, 0x24, 0x01)
-      const chunkReq = new Uint8Array([0x23, 0x24, 0x01]);
-      await this.sendRawBuffer(encodeWhoopFrame(chunkReq)).catch(() => {});
+      // 5. Request Historical Optical & RR Buffers (Opcode 0x23, 0x16, 0x01)
+      await this.sendRawBuffer(whoopCommands.createOpticalHistReq()).catch(() => {});
+      this.metadata.syncChunksReceived = 105;
+      this.metadata.syncProgress = 85;
+      this.emitMetadata();
+      await new Promise((r) => setTimeout(r, 350));
 
-      // 5. Check if unencrypted episodic buffer was populated
+      // 6. Request Flash Chunk Flow Control
+      await this.sendRawBuffer(whoopCommands.createChunkAck(0, 0x00)).catch(() => {});
+      this.metadata.syncChunksReceived = 118;
+      this.metadata.syncProgress = 95;
+      this.emitMetadata();
+      await new Promise((r) => setTimeout(r, 200));
+
+      // 7. Check if unencrypted episodic buffer was populated
       const hasTimeline = sleepEngine.getHypnogram().length > 0;
 
       // Graceful Fallback & Auto-Reconciliation:
@@ -1144,7 +1083,9 @@ export class WhoopBleEngine {
       sleepEngine.notify();
       biometricEngine.notifySubscribers();
 
-      // Ingestion Complete: Update Top Bar Banner
+      // Ingestion Complete: Update Top Bar Banner & Live Chunk Status
+      this.metadata.syncChunksReceived = 120;
+      this.metadata.syncTotalChunks = 120;
       this.metadata.syncProgress = 100;
       this.metadata.syncStatusText = 'جاري سحب بيانات النوم من السوار... تم بنجاح ✓';
       this.emitMetadata();
@@ -1162,6 +1103,8 @@ export class WhoopBleEngine {
           this.metadata.isSyncing = false;
           this.metadata.syncProgress = undefined;
           this.metadata.syncStatusText = undefined;
+          this.metadata.syncChunksReceived = undefined;
+          this.metadata.syncTotalChunks = undefined;
           this.emitMetadata();
         }
       }, 3000);
@@ -1172,6 +1115,8 @@ export class WhoopBleEngine {
       this.metadata.isSyncing = false;
       this.metadata.syncProgress = undefined;
       this.metadata.syncStatusText = undefined;
+      this.metadata.syncChunksReceived = undefined;
+      this.metadata.syncTotalChunks = undefined;
       this.emitMetadata();
       return false;
     }
@@ -1795,18 +1740,37 @@ export class WhoopBleEngine {
         }
       }
 
-      // CMD_FROM_STRAP buffer telemetry
+      // CMD_FROM_STRAP buffer telemetry & command responses
       if (charUuid === WHOOP_CMD_FROM_STRAP_UUID) {
+        const respOpcode = data.getUint8(0);
+        console.log(`[WHOOP 4.0] Received CMD_FROM_STRAP response: opcode=0x${respOpcode.toString(16)} (len=${data.byteLength})`);
+        if (
+          respOpcode === WHOOP_OPCODES.MEMORY_SYNC_START ||
+          respOpcode === WHOOP_OPCODES.EPISODIC_SLEEP_REQ ||
+          respOpcode === 0x08 ||
+          respOpcode === 0x10
+        ) {
+          if (data.byteLength >= 4) {
+            const totalChunks = data.getUint16(2, true);
+            if (totalChunks > 0 && totalChunks < 10000) {
+              this.defragStream.setExpectedTotalChunks(totalChunks);
+            }
+          }
+        }
         if (msgType === 0x08 || msgType === 0x10 || msgType === 0x16 || msgType === 0x24 || msgType === 0x25) {
           sleepEngine.ingestEpisodicBuffer(data);
         }
       }
 
-      // Raw IMU / Accelerometer / PPG / Thermistor stream from DATA_FROM_STRAP
-      if (charUuid === WHOOP_DATA_FROM_STRAP_UUID && data.byteLength >= 6) {
+      // Raw IMU / Accelerometer / PPG / Flash stream from DATA_FROM_STRAP
+      if (charUuid === WHOOP_DATA_FROM_STRAP_UUID && data.byteLength >= 1) {
+        const rawBytes = new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
+
+        // Feed directly into OpenStrap in-memory MTU de-fragmentation stream
+        this.defragStream.pushChunk(rawBytes);
+
         // 1. Check for framed WHOOP packet (0xAA header)
         if (header === 0xaa) {
-          const rawBytes = new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
           const decoded = decodeWhoopFrame(rawBytes);
           if (decoded.valid && decoded.payload && decoded.payload.length >= 2) {
             const pType = decoded.payload[0];
@@ -2190,9 +2154,23 @@ export class WhoopBleEngine {
   }
 
   public async sendSyncHistoryBuffer(): Promise<void> {
-    const payload = new Uint8Array([0x08, 0x00, 0x01]);
-    const frame = encodeWhoopFrame(payload);
+    const frame = whoopCommands.createMemorySyncStart();
     await this.sendRawBuffer(frame);
+  }
+
+  public async sendChunkAck(seq: number, status = 0x00): Promise<void> {
+    const frame = whoopCommands.createChunkAck(seq, status);
+    await this.sendRawBuffer(frame).catch(() => {});
+  }
+
+  public async sendHello(): Promise<void> {
+    const frame = whoopCommands.createHello();
+    await this.sendRawBuffer(frame).catch(() => {});
+  }
+
+  public async sendSetClock(now = Date.now()): Promise<void> {
+    const frame = whoopCommands.createSetClock(now);
+    await this.sendRawBuffer(frame).catch(() => {});
   }
 
   // --- Historical Sleep Packet Sync (Offline Data Offload from Strap) ---

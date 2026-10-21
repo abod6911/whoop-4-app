@@ -443,7 +443,11 @@ export const SleepView: React.FC<SleepViewProps> = ({
               >
                 <RefreshCw className={`w-3 h-3 ${isSyncing ? 'animate-spin text-[#38BDF8]' : ''}`} />
                 <span className="text-[10px] font-bold">
-                  {isSyncing ? (isRtl ? 'جاري السحب...' : 'Syncing...') : (isRtl ? 'مزامنة السوار' : 'Sync')}
+                  {isSyncing
+                    ? (metadata?.syncChunksReceived !== undefined && metadata?.syncTotalChunks
+                        ? `${metadata.syncChunksReceived}/${metadata.syncTotalChunks}`
+                        : (isRtl ? 'جاري السحب...' : 'Syncing...'))
+                    : (isRtl ? 'مزامنة السوار' : 'Sync')}
                 </span>
               </button>
             )}
@@ -548,7 +552,11 @@ export const SleepView: React.FC<SleepViewProps> = ({
                     <RefreshCw className="w-3.5 h-3.5 animate-spin" />
                     <span>{metadata?.syncStatusText || (isRtl ? 'جاري الاتصال بسيرفر WHOOP Developer API v1...' : 'Syncing sleep from WHOOP API...')}</span>
                   </span>
-                  <span>{metadata?.syncProgress ?? 65}%</span>
+                  <span>
+                    {metadata?.syncChunksReceived !== undefined && metadata?.syncTotalChunks
+                      ? `${metadata.syncChunksReceived} / ${metadata.syncTotalChunks} ${isRtl ? 'حزمة' : 'chunks'} (${metadata.syncProgress ?? 0}%)`
+                      : `${metadata?.syncProgress ?? 65}%`}
+                  </span>
                 </div>
                 <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
                   <div
@@ -592,8 +600,14 @@ export const SleepView: React.FC<SleepViewProps> = ({
                       onClick={onSyncSleep}
                       className="py-2.5 px-3 rounded-xl bg-white/10 hover:bg-white/15 text-white font-black text-xs font-condensed uppercase tracking-wider flex items-center justify-center gap-1.5 active:scale-95 transition-all"
                     >
-                      <RefreshCw className="w-3.5 h-3.5 text-[#38BDF8]" />
-                      <span>{isRtl ? 'سحب من السوار (Bluetooth)' : 'Offload Strap'}</span>
+                      <RefreshCw className={`w-3.5 h-3.5 text-[#38BDF8] ${isSyncing ? 'animate-spin text-[#16EC06]' : ''}`} />
+                      <span>
+                        {isSyncing
+                          ? (metadata?.syncChunksReceived !== undefined && metadata?.syncTotalChunks
+                              ? `${metadata.syncChunksReceived}/${metadata.syncTotalChunks} (${metadata.syncProgress ?? 0}%)`
+                              : (isRtl ? 'جاري السحب...' : 'Syncing...'))
+                          : (isRtl ? 'سحب من السوار (Bluetooth)' : 'Offload Strap')}
+                      </span>
                     </button>
                   ) : (
                     <button

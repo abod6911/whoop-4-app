@@ -5,6 +5,7 @@ import type {
   DailyRecordEntity,
   JournalEntryEntity,
   WorkoutEntity,
+  SleepSessionEntity,
   UserSettings,
 } from '../types/whoop';
 
@@ -14,6 +15,7 @@ export class WhoopPulseDatabase extends Dexie {
   daily_records!: Table<DailyRecordEntity, string>;
   journal_entries!: Table<JournalEntryEntity, string>;
   workouts!: Table<WorkoutEntity, string>;
+  sleep_sessions!: Table<SleepSessionEntity, string>;
 
   constructor() {
     super('WhoopPulseProductionDB');
@@ -23,6 +25,9 @@ export class WhoopPulseDatabase extends Dexie {
       daily_records: 'date, timestamp, dayStrain, recoveryScore',
       journal_entries: 'date, timestamp',
       workouts: 'id, startTime, sport, type',
+    });
+    this.version(2).stores({
+      sleep_sessions: 'id, date, startTime, syncedAt',
     });
   }
 
@@ -149,6 +154,40 @@ export class WhoopPulseDatabase extends Dexie {
 
   public async getWorkouts(limit = 50): Promise<WorkoutEntity[]> {
     return this.workouts.orderBy('startTime').reverse().limit(limit).toArray();
+  }
+
+  // --- Sleep Sessions (Decoded Flash & BLE Offloads) ---
+  public async saveSleepSession(session: SleepSessionEntity): Promise<string> {
+    try {
+      await this.sleep_sessions.put(session);
+    } catch (e) {
+      console.warn('[WhoopDatabase] Notice saving sleep session to IndexedDB:', e);
+    }
+    return session.id;
+  }
+
+  public async getSleepSession(id: string): Promise<SleepSessionEntity | undefined> {
+    try {
+      return await this.sleep_sessions.get(id);
+    } catch {
+      return undefined;
+    }
+  }
+
+  public async getRecentSleepSessions(limit = 30): Promise<SleepSessionEntity[]> {
+    try {
+      return await this.sleep_sessions.orderBy('startTime').reverse().limit(limit).toArray();
+    } catch {
+      return [];
+    }
+  }
+
+  public async getAllSleepSessions(): Promise<SleepSessionEntity[]> {
+    try {
+      return await this.sleep_sessions.orderBy('startTime').reverse().toArray();
+    } catch {
+      return [];
+    }
   }
 
   // --- Full Backup: JSON Export ---

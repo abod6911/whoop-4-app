@@ -200,6 +200,8 @@ export interface DeviceMetadata {
   isSyncing?: boolean;
   syncProgress?: number;
   syncStatusText?: string;
+  syncChunksReceived?: number;
+  syncTotalChunks?: number;
 }
 
 export type SessionType = 'workout' | 'sleep';
@@ -431,6 +433,29 @@ export interface WorkoutEntity {
   notes?: string;
 }
 
+
+export interface SleepSessionEntity {
+  id: string; // primary key
+  date: string; // YYYY-MM-DD
+  startTime: number;
+  endTime: number;
+  durationMs: number;
+  hoursAsleep: number;
+  hoursInBed: number;
+  sleepPerformance: number;
+  efficiencyPercent: number;
+  stageDistribution: {
+    deepMinutes: number;
+    remMinutes: number;
+    lightMinutes: number;
+    awakeMinutes: number;
+  };
+  restingHr: number;
+  hrvRmssd: number;
+  source: 'ble' | 'flash_dump' | 'cloud_api' | 'manual' | 'reconciled' | 'cached' | 'fallback';
+  timeline: SleepStagePoint[];
+  syncedAt: number;
+}
 
 // --- Official WHOOP Developer API v1 Types ---
 

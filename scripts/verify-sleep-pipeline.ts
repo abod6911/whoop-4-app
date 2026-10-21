@@ -48,6 +48,25 @@ import {
   type EpochFeatures,
 } from '../src/services/sleepStages';
 import type { WhoopSleepRecord, ProcessedWhoopSleep } from '../src/types/whoop';
+import {
+  WHOOP_BASE_SERVICE_UUID,
+  WHOOP_CMD_TO_STRAP_UUID,
+  WHOOP_CMD_FROM_STRAP_UUID,
+  WHOOP_DATA_FROM_STRAP_UUID,
+  WHOOP_OPCODES,
+  crc8Whoop,
+  crc32Whoop,
+  crc32Zlib,
+  encodeWhoopFrame,
+  decodeWhoopFrame,
+  whoopCommands,
+  WhoopDefragmentationStream,
+  parseFlashEpochBuffer,
+  parseR24Records,
+  parseEpisodicSleepPayload,
+  type DecodedSleepEpoch,
+} from '../src/services/whoopBleProtocol';
+import { whoopDb } from '../src/services/whoopDatabase';
 
 // ANSI terminal color helpers
 const colors = {
@@ -469,6 +488,176 @@ async function runStep4Tests() {
 }
 
 // ============================================================================
+// TEST SUITE 5: STEP 5 - REVERSE-ENGINEERED PROTOCOL & FLASH-DECODING VERIFICATION
+// ============================================================================
+async function runStep5Tests() {
+  console.log(`\n${colors.bright}${colors.cyan}====================================================================${colors.reset}`);
+  console.log(`${colors.bright}${colors.cyan}STEP 5: Reverse-Engineered WHOOP 4.0 Protocol & Flash Decoding${colors.reset}`);
+  console.log(`${colors.cyan}====================================================================${colors.reset}`);
+
+  // Test 5.1: UUIDs and Handshake Command Sequences
+  console.log(`\n${colors.yellow}[5.1] OpenStrap Protocol Command Sequences & GATT Mapping:${colors.reset}`);
+  assert(WHOOP_BASE_SERVICE_UUID === '61080001-8d6d-82b8-614a-1c8cb0f8dcc6', 'Base service UUID matches Nordic nRF52840 WHOOP Gen 4');
+  assert(WHOOP_CMD_TO_STRAP_UUID === '61080002-8d6d-82b8-614a-1c8cb0f8dcc6', 'CMD_TO_STRAP UUID matches specification');
+  assert(WHOOP_CMD_FROM_STRAP_UUID === '61080003-8d6d-82b8-614a-1c8cb0f8dcc6', 'CMD_FROM_STRAP UUID matches specification');
+  assert(WHOOP_DATA_FROM_STRAP_UUID === '61080005-8d6d-82b8-614a-1c8cb0f8dcc6', 'DATA_FROM_STRAP UUID matches specification');
+
+  const helloFrame = whoopCommands.createHello();
+  assert(helloFrame[0] === 0xaa, 'HELLO frame starts with 0xAA delimiter');
+  assert(helloFrame.length >= 9, 'HELLO frame contains header, payload, and CRC-32');
+
+  const clockFrame = whoopCommands.createSetClock(1729550000000);
+  assert(clockFrame[0] === 0xaa, 'SET_CLOCK frame starts with 0xAA delimiter');
+
+  const syncFrame = whoopCommands.createMemorySyncStart(1729550000000);
+  assert(syncFrame[0] === 0xaa, 'MEMORY_SYNC_START frame starts with 0xAA delimiter');
+
+  // Test 5.2: Binary Framing & CRC Verification
+  console.log(`\n${colors.yellow}[5.2] Binary Framing & CRC Integrity Validation:${colors.reset}`);
+  const samplePayload = new Uint8Array([0x08, 0x01, 0x22, 0x33, 0x44, 0x55]);
+  const encoded = encodeWhoopFrame(samplePayload, 42);
+
+  assert(encoded[0] === 0xaa, 'Start-of-frame delimiter is strictly 0xAA');
+  assert(encoded[1] === 42, 'Sequence counter (42) preserved at byte 1');
+  const payloadLen = encoded[2] | (encoded[3] << 8);
+  assert(payloadLen === samplePayload.length, `2-byte little-endian length matches payload size (${payloadLen} bytes)`);
+
+  const decoded = decodeWhoopFrame(encoded);
+  assert(decoded.valid === true, 'Frame successfully decoded and validated');
+  assert(decoded.sequence === 42, 'Sequence number matches encoded sequence (42)');
+  assert(decoded.headerCrcValid === true, 'Header CRC-8 (polynomial 0x07) validated');
+  assert(decoded.payloadCrcValid === true, 'Payload CRC-32 (0x04C11DB7) validated');
+  assert(decoded.payload !== null && decoded.payload.length === samplePayload.length, 'Payload byte content extracted with exact length');
+
+  // Test 5.3: In-Memory MTU De-fragmentation Stream
+  console.log(`\n${colors.yellow}[5.3] In-Memory BLE MTU De-fragmentation Stream (20-Byte Reassembly):${colors.reset}`);
+  const stream = new WhoopDefragmentationStream();
+  stream.setExpectedTotalChunks(5);
+
+  let reassembledPayload: Uint8Array | null = null;
+  let reassembledSeq = -1;
+  stream.onFrame((payload, seq) => {
+    reassembledPayload = payload;
+    reassembledSeq = seq;
+  });
+
+  let lastProgressPct = 0;
+  stream.onProgress((prog) => {
+    lastProgressPct = prog.percentage;
+  });
+
+  // Construct a 64-byte payload frame
+  const largePayload = new Uint8Array(64);
+  for (let i = 0; i < largePayload.length; i++) {
+    largePayload[i] = (i * 7) & 0xff;
+  }
+  const largeFrame = encodeWhoopFrame(largePayload, 7);
+
+  // Slice into 20-byte MTU fragments
+  const mtuSize = 20;
+  const fragments: Uint8Array[] = [];
+  for (let i = 0; i < largeFrame.length; i += mtuSize) {
+    fragments.push(largeFrame.slice(i, i + mtuSize));
+  }
+
+  assert(fragments.length >= 4, `Frame correctly fragmented into ${fragments.length} BLE MTU slices`);
+
+  // Push fragments one by one
+  for (let i = 0; i < fragments.length - 1; i++) {
+    stream.pushChunk(fragments[i]);
+    assert(reassembledPayload === null, `Frame should not complete prematurely on fragment #${i + 1}`);
+  }
+
+  // Push final fragment
+  stream.pushChunk(fragments[fragments.length - 1]);
+  assert(reassembledPayload !== null, 'Fragmented frame successfully reassembled upon final chunk arrival');
+  assert(reassembledSeq === 7, 'Reassembled frame sequence counter matches (7)');
+  assert(reassembledPayload && (reassembledPayload as Uint8Array).length === largePayload.length, 'Reassembled payload length matches original buffer');
+  assert(lastProgressPct > 0, `Live stream progress tracked accurately (${lastProgressPct}%)`);
+
+  // Test 5.4: Epoch Payload Decoding & De-obfuscation
+  console.log(`\n${colors.yellow}[5.4] 30-Second Physiological Epoch & R24 Decoding:${colors.reset}`);
+  // Construct raw flash buffer containing 4 30-second epoch records (8 bytes each = 32 bytes)
+  const baseEpochSec = 1729555200; // 2024-10-22 00:00:00 UTC
+  const epochBuffer = new Uint8Array(1 + 32);
+  epochBuffer[0] = 0x24; // Flash chunk opcode
+  const view = new DataView(epochBuffer.buffer, epochBuffer.byteOffset, epochBuffer.byteLength);
+
+  // Epoch 1: Deep SWS (HR 46, Low Motion 0.02, RMSSD 85)
+  view.setUint32(1, baseEpochSec, true);
+  view.setUint8(5, 46);
+  view.setUint8(6, 2);  // 0.02G motion
+  view.setUint8(7, 85); // RMSSD
+  view.setUint8(8, 8);  // HR std dev (0.8)
+
+  // Epoch 2: REM (HR 56, Low Motion 0.02, RMSSD 55, high variance)
+  view.setUint32(9, baseEpochSec + 30, true);
+  view.setUint8(13, 56);
+  view.setUint8(14, 2);  // 0.02G motion
+  view.setUint8(15, 55); // RMSSD
+  view.setUint8(16, 35); // HR std dev (3.5)
+
+  // Epoch 3: Light (HR 54, Minor Motion 0.06, RMSSD 65)
+  view.setUint32(17, baseEpochSec + 60, true);
+  view.setUint8(21, 54);
+  view.setUint8(22, 6);  // 0.06G motion
+  view.setUint8(23, 65); // RMSSD
+  view.setUint8(24, 18); // HR std dev (1.8)
+
+  // Epoch 4: Awake (HR 78, Significant Motion 0.35, RMSSD 30)
+  view.setUint32(25, baseEpochSec + 90, true);
+  view.setUint8(29, 78);
+  view.setUint8(30, 35); // 0.35G motion
+  view.setUint8(31, 30); // RMSSD
+  view.setUint8(32, 50); // HR std dev (5.0)
+
+  const parsedEpochs = parseFlashEpochBuffer(epochBuffer);
+  assert(parsedEpochs.length === 4, `Successfully parsed 4 30-second physiological epochs (Got: ${parsedEpochs.length})`);
+  assert(parsedEpochs[0].hr === 46, 'Epoch 1 HR parsed correctly (46 bpm)');
+  assert(parsedEpochs[0].motionVariance === 0.02, 'Epoch 1 motion variance parsed correctly (0.02G)');
+  assert(parsedEpochs[0].rmssd === 85, 'Epoch 1 RMSSD parsed correctly (85 ms)');
+  assert(parsedEpochs[0].timestamp === baseEpochSec * 1000, 'Epoch 1 Unix timestamp converted accurately to milliseconds');
+
+  // Test 5.5: Integration with SleepEngine & Dynamic Stage Classification
+  console.log(`\n${colors.yellow}[5.5] End-to-End Pipeline: Decoded Stream Ingestion & Stage Classification:${colors.reset}`);
+  const streamMetrics = sleepEngine.ingestDecodedEpochs(parsedEpochs, {
+    name: 'Athlete',
+    age: 28,
+    weightKg: 75,
+    heightCm: 178,
+    maxHr: 192,
+    restingHrBaseline: 52,
+    hrvBaseline: 65,
+    sleepNeedHours: 8.0,
+    gender: 'male',
+  });
+
+  assertNoNaN(streamMetrics.hoursAsleep, 'Decoded stream hoursAsleep');
+  assertNoNaN(streamMetrics.hoursInBed, 'Decoded stream hoursInBed');
+  assertNoNaN(streamMetrics.sleepPerformance, 'Decoded stream sleepPerformance');
+  assertNoNaN(streamMetrics.efficiencyPercent, 'Decoded stream efficiencyPercent');
+
+  const diag = sleepEngine.getDiagnosticInfo();
+  assert(diag.activeSource === 'ble', `Diagnostic source switches to 'ble' from real strap offload (Got: ${diag.activeSource})`);
+  assert(diag.timelineEpochCount === 4, `Hypnogram timeline contains all 4 decoded epochs (Got: ${diag.timelineEpochCount})`);
+
+  // Verify dynamic classifications
+  const timeline = sleepEngine.getHypnogram();
+  assert(timeline[0].stage === 'deep', `Epoch 1 (Low HR, Low Var, Low Motion) dynamically staged as DEEP SWS (Got: ${timeline[0].stage})`);
+  assert(timeline[1].stage === 'rem', `Epoch 2 (HR near RHR, High HR Std, Low Motion) dynamically staged as REM (Got: ${timeline[1].stage})`);
+  assert(timeline[2].stage === 'light', `Epoch 3 (Intermediate HR, Mild motion) dynamically staged as LIGHT (Got: ${timeline[2].stage})`);
+  assert(timeline[3].stage === 'awake', `Epoch 4 (High Motion, High HR) dynamically staged as AWAKE (Got: ${timeline[3].stage})`);
+
+  // Verify storage persistence
+  let storedSessionFound = false;
+  for (let i = 0; i < mockLocalStorage.length; i++) {
+    const key = mockLocalStorage.key(i);
+    if (key && key.startsWith('whoop_sleep_session_')) storedSessionFound = true;
+  }
+  assert(storedSessionFound, 'Decoded sleep session persisted to storage');
+}
+
+// ============================================================================
 // MAIN EXECUTION
 // ============================================================================
 async function main() {
@@ -481,6 +670,7 @@ async function main() {
     await runStep2Tests();
     await runStep3Tests();
     await runStep4Tests();
+    await runStep5Tests();
 
     console.log(`\n${colors.bright}${colors.cyan}====================================================================${colors.reset}`);
     console.log(`${colors.bright}VERIFICATION SUMMARY:${colors.reset}`);
@@ -493,7 +683,7 @@ async function main() {
       console.error(`\n${colors.red}${colors.bright}VERIFICATION FAILED with ${failedAssertions} errors.${colors.reset}\n`);
       process.exit(1);
     } else {
-      console.log(`\n${colors.green}${colors.bright}ALL 4 DIAGNOSTIC STEPS PASSED WITH 0 ERRORS! (100% HEALTHY)${colors.reset}\n`);
+      console.log(`\n${colors.green}${colors.bright}ALL 5 DIAGNOSTIC STEPS PASSED WITH 0 ERRORS! (100% HEALTHY)${colors.reset}\n`);
       process.exit(0);
     }
   } catch (err) {
