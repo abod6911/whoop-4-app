@@ -19,15 +19,21 @@ import { calculateSleepStatsFromTimeline, generateRealisticOvernightSession } fr
 import { localDateKey } from '../utils/dateKey';
 
 /**
- * Checks if a disconnection gap is >= 3 hours and spans nocturnal sleep hours (21:00 to 11:00)
+ * Checks if a disconnection gap is >= 3 hours and qualifies as a sleep session window.
+ * Supports shift-workers and late/daytime sleep windows:
+ * - Any continuous rest/disconnection gap >= 4 hours is treated as a Primary Sleep Session,
+ *   regardless of time of day (even 5:00 AM to 2:00 PM or afternoon shift sleep).
+ * - For gaps between 3 and 4 hours, checks if it touches nocturnal, morning, or shift rest hours.
  */
 export function spansNighttimeHours(startTs: number, endTs: number): boolean {
   const gapMs = endTs - startTs;
   if (gapMs < 3 * 3600 * 1000) return false;
-  // Step through in 30-minute intervals
+  // Any continuous rest session >= 4 hours is automatically eligible as primary sleep
+  if (gapMs >= 4 * 3600 * 1000) return true;
+  // Step through in 30-minute intervals for 3-4h gaps
   for (let t = startTs; t <= endTs; t += 30 * 60 * 1000) {
     const h = new Date(t).getHours();
-    if (h >= 21 || h < 11) {
+    if (h >= 20 || h < 14) {
       return true;
     }
   }

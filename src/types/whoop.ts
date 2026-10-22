@@ -102,6 +102,8 @@ export interface SleepMetrics {
   };
   bedtime?: string | null;
   wakeTime?: string | null;
+  isPreviousSessionBaseline?: boolean;
+  sessionDateLabel?: string;
 }
 
 export interface StressPoint {
@@ -246,6 +248,8 @@ export interface DayHistoryRecord {
   sleepEfficiency?: number | null;
   bedtime?: string | null;
   wakeTime?: string | null;
+  isPreviousSessionBaseline?: boolean;
+  sessionDateLabel?: string;
   sleepTimeline?: SleepStagePoint[];
   rhr: number | null;
   hrv: number | null;
@@ -398,6 +402,8 @@ export interface DailyRecordEntity {
   sleepEfficiency?: number | null;
   bedtime?: string | null;
   wakeTime?: string | null;
+  isPreviousSessionBaseline?: boolean;
+  sessionDateLabel?: string;
   sleepTimeline?: SleepStagePoint[];
   stressTimeline?: StressPoint[];
   workouts?: SessionRecord[];

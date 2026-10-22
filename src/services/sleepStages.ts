@@ -148,8 +148,8 @@ export function calculateSleepStatsFromTimeline(
   const onset = sleepOnsetTimestamp || firstTime;
   const latencyMinutes = Math.max(0, Math.round((onset - firstTime) / 60000));
 
-  const bedtime = new Date(firstTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
-  const wakeTime = new Date(wakeTimestamp || lastTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+  const bedtime = new Date(firstTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+  const wakeTime = new Date(wakeTimestamp || lastTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
 
   return {
     hoursInBed,
@@ -225,6 +225,12 @@ export function generateRealisticOvernightSession(
     const wakeDate = new Date(bedDate);
     wakeDate.setDate(wakeDate.getDate() + (wakeHour <= bedHour ? 1 : 0));
     wakeDate.setHours(wakeHour, wakeMinute, 0, 0);
+
+    // If wakeDate lands in the future for a completed session, shift window back by 1 day
+    if (wakeDate.getTime() > now.getTime()) {
+      wakeDate.setDate(wakeDate.getDate() - 1);
+      bedDate.setDate(bedDate.getDate() - 1);
+    }
 
     startMs = bedDate.getTime();
     endMs = wakeDate.getTime();
@@ -337,4 +343,37 @@ export function generateRealisticOvernightSession(
     sleepOnsetTimestamp,
     wakeTimestamp,
   };
+}
+
+/**
+ * Formats a Unix timestamp or date string into strictly formatted 12-hour local time.
+ * e.g., "05:00 ص" to "02:00 م" in Arabic, or "05:00 AM" to "02:00 PM" in English.
+ */
+export function formatLocalTime12h(
+  timestampOrStr?: number | string | Date | null,
+  locale?: string
+): string {
+  if (!timestampOrStr) return '--';
+  const targetLocale = locale || [];
+  if (typeof timestampOrStr === 'number' || timestampOrStr instanceof Date) {
+    const d = new Date(timestampOrStr);
+    return isNaN(d.getTime()) ? '--' : d.toLocaleTimeString(targetLocale, { hour: '2-digit', minute: '2-digit', hour12: true });
+  }
+  const trimmed = String(timestampOrStr).trim();
+  if (trimmed.includes('AM') || trimmed.includes('PM') || trimmed.includes('ص') || trimmed.includes('م')) {
+    return trimmed;
+  }
+  if (trimmed.includes('T') || (trimmed.includes('-') && trimmed.includes(':'))) {
+    const d = new Date(trimmed);
+    return isNaN(d.getTime()) ? '--' : d.toLocaleTimeString(targetLocale, { hour: '2-digit', minute: '2-digit', hour12: true });
+  }
+  if (trimmed.includes(':')) {
+    const [h, m] = trimmed.split(':').map((s) => parseInt(s, 10));
+    if (!isNaN(h) && !isNaN(m)) {
+      const d = new Date();
+      d.setHours(h, m, 0, 0);
+      return d.toLocaleTimeString(targetLocale, { hour: '2-digit', minute: '2-digit', hour12: true });
+    }
+  }
+  return trimmed;
 }

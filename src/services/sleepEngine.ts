@@ -54,6 +54,10 @@ export class SleepEngine {
   private scoreState: WhoopSleepScoreState = 'SCORED';
   private statusMessage?: string;
 
+  // Active Baseline Cycle tracking (when yesterday's completed sleep serves as today's baseline until tonight's sleep)
+  private isPreviousSessionBaseline = false;
+  private sessionDateLabel: string | null = null;
+
   // Active Ingestion Source tracking for Health-Tech Diagnostics
   private activeSource: 'cloud_api' | 'ble' | 'reconciled' | 'manual' | 'cached' | 'fallback' = 'fallback';
   private lastIngestedTimestamp: number | null = null;
@@ -147,7 +151,7 @@ export class SleepEngine {
   private loadState(): void {
     try {
       const today = localDateKey();
-      const saved = localStorage.getItem(`whoop_sleep_session_${today}`);
+      const saved = typeof localStorage !== 'undefined' ? localStorage.getItem(`whoop_sleep_session_${today}`) : null;
       if (saved) {
         const parsed = JSON.parse(saved);
         this.sleepOnsetTimestamp = parsed.onset || null;
@@ -159,10 +163,12 @@ export class SleepEngine {
         if (parsed.statusMessage !== undefined) this.statusMessage = parsed.statusMessage;
         if (parsed.activeSource) this.activeSource = parsed.activeSource;
         if (parsed.lastIngestedTimestamp) this.lastIngestedTimestamp = parsed.lastIngestedTimestamp;
+        this.isPreviousSessionBaseline = false;
+        this.sessionDateLabel = today;
       }
 
-      // Fallback: check whoop_real_day_${today} or whoop_day_${today}
-      if (this.timeline.length === 0) {
+      // Fallback 1: check whoop_real_day_${today} or whoop_day_${today}
+      if (this.timeline.length === 0 && typeof localStorage !== 'undefined') {
         const rawDay = localStorage.getItem(`whoop_real_day_${today}`) || localStorage.getItem(`whoop_day_${today}`);
         if (rawDay) {
           const parsed = JSON.parse(rawDay);
@@ -173,6 +179,8 @@ export class SleepEngine {
             this.wakeTimestamp = parsed.sleepTimeline[parsed.sleepTimeline.length - 1]?.timestamp || null;
             this.activeSource = 'cached';
             this.lastIngestedTimestamp = parsed.timestamp || Date.now();
+            this.isPreviousSessionBaseline = false;
+            this.sessionDateLabel = today;
           } else if (asleepVal && Number(asleepVal) > 0) {
             const rhrBase = parsed.rhr || 54;
             const generated = generateRealisticOvernightSession(rhrBase, {
@@ -183,19 +191,99 @@ export class SleepEngine {
             this.wakeTimestamp = generated.wakeTimestamp;
             this.activeSource = 'cached';
             this.lastIngestedTimestamp = parsed.timestamp || Date.now();
+            this.isPreviousSessionBaseline = false;
+            this.sessionDateLabel = today;
           }
+        }
+      }
+
+      // Fallback 2 (Circadian Baseline Cycle): If user has not slept tonight yet,
+      // load the latest completed sleep session (e.g. yesterday 05:00 - 14:00) as the Active Baseline Cycle!
+      if (this.timeline.length === 0 && typeof localStorage !== 'undefined') {
+        const sessionKeys: string[] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && k.startsWith('whoop_sleep_session_')) {
+            sessionKeys.push(k);
+          }
+        }
+        sessionKeys.sort().reverse();
+        for (const k of sessionKeys) {
+          const raw = localStorage.getItem(k);
+          if (!raw) continue;
+          try {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed.timeline) && parsed.timeline.length > 0) {
+              const sessionDate = k.replace('whoop_sleep_session_', '');
+              this.timeline = parsed.timeline;
+              this.sleepOnsetTimestamp = parsed.onset || null;
+              this.wakeTimestamp = parsed.wake || null;
+              this.isSleeping = false;
+              this.accumulatedDebtHours = Number(parsed.accumulatedDebtHours || 0);
+              if (parsed.scoreState) this.scoreState = parsed.scoreState;
+              if (parsed.statusMessage !== undefined) this.statusMessage = parsed.statusMessage;
+              this.activeSource = parsed.activeSource || 'cached';
+              this.lastIngestedTimestamp = parsed.lastIngestedTimestamp || Date.now();
+              this.isPreviousSessionBaseline = sessionDate !== today;
+              this.sessionDateLabel = sessionDate;
+              break;
+            }
+          } catch {}
+        }
+      }
+
+      // Fallback 3: check previous whoop_real_day_* / whoop_day_* records
+      if (this.timeline.length === 0 && typeof localStorage !== 'undefined') {
+        const dayKeys: string[] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && (k.startsWith('whoop_real_day_') || k.startsWith('whoop_day_'))) {
+            dayKeys.push(k);
+          }
+        }
+        dayKeys.sort().reverse();
+        for (const k of dayKeys) {
+          const raw = localStorage.getItem(k);
+          if (!raw) continue;
+          try {
+            const parsed = JSON.parse(raw);
+            const asleepVal = parsed.hoursAsleep ?? parsed.sleepHours;
+            if (asleepVal && Number(asleepVal) > 0) {
+              const sessionDate = parsed.date || k.split('_').pop() || today;
+              if (Array.isArray(parsed.sleepTimeline) && parsed.sleepTimeline.length > 0) {
+                this.timeline = parsed.sleepTimeline;
+                this.sleepOnsetTimestamp = parsed.sleepTimeline[0]?.timestamp || null;
+                this.wakeTimestamp = parsed.sleepTimeline[parsed.sleepTimeline.length - 1]?.timestamp || null;
+              } else {
+                const rhrBase = parsed.rhr || 54;
+                const generated = generateRealisticOvernightSession(rhrBase, { rhrBaseline: rhrBase });
+                this.timeline = generated.timeline;
+                this.sleepOnsetTimestamp = generated.sleepOnsetTimestamp;
+                this.wakeTimestamp = generated.wakeTimestamp;
+              }
+              this.activeSource = 'cached';
+              this.lastIngestedTimestamp = parsed.timestamp || Date.now();
+              this.isPreviousSessionBaseline = sessionDate !== today;
+              this.sessionDateLabel = sessionDate;
+              break;
+            }
+          } catch {}
         }
       }
     } catch {
       this.timeline = [];
       this.isSleeping = false;
+      this.isPreviousSessionBaseline = false;
+      this.sessionDateLabel = null;
     }
   }
 
   public async restoreFromDb(): Promise<boolean> {
     try {
       const today = localDateKey();
-      if (this.timeline.length > 0) return true;
+      if (this.timeline.length > 0 && !this.isPreviousSessionBaseline) return true;
+
+      // 1. Check today's daily record
       const rec = await whoopDb.getDailyRecord(today);
       if (rec && rec.hoursAsleep && Number(rec.hoursAsleep) > 0) {
         if (Array.isArray(rec.sleepTimeline) && rec.sleepTimeline.length > 0) {
@@ -213,6 +301,50 @@ export class SleepEngine {
         }
         this.activeSource = 'cached';
         this.lastIngestedTimestamp = rec.timestamp || Date.now();
+        this.isPreviousSessionBaseline = false;
+        this.sessionDateLabel = today;
+        this.notify();
+        return true;
+      }
+
+      // 2. Check Dexie sleep_sessions table for latest completed session
+      const recentSessions = await whoopDb.getRecentSleepSessions(5);
+      if (recentSessions && recentSessions.length > 0) {
+        const latest = recentSessions[0];
+        if (latest.timeline && latest.timeline.length > 0) {
+          this.timeline = latest.timeline;
+          this.sleepOnsetTimestamp = latest.startTime;
+          this.wakeTimestamp = latest.endTime;
+          this.isPreviousSessionBaseline = latest.date !== today;
+          this.sessionDateLabel = latest.date;
+          this.activeSource = (latest.source as any) || 'cached';
+          this.lastIngestedTimestamp = latest.syncedAt || Date.now();
+          this.notify();
+          return true;
+        }
+      }
+
+      // 3. Fallback: check yesterday's daily record in Dexie
+      const yesterday = localDateKey(Date.now() - 86400000);
+      const yRec = await whoopDb.getDailyRecord(yesterday);
+      if (yRec && yRec.hoursAsleep && Number(yRec.hoursAsleep) > 0) {
+        if (Array.isArray(yRec.sleepTimeline) && yRec.sleepTimeline.length > 0) {
+          this.timeline = yRec.sleepTimeline;
+          this.sleepOnsetTimestamp = yRec.sleepTimeline[0]?.timestamp || null;
+          this.wakeTimestamp = yRec.sleepTimeline[yRec.sleepTimeline.length - 1]?.timestamp || null;
+        } else {
+          const rhrBase = yRec.rhr || 54;
+          const generated = generateRealisticOvernightSession(rhrBase, {
+            rhrBaseline: rhrBase,
+          });
+          this.timeline = generated.timeline;
+          this.sleepOnsetTimestamp = generated.sleepOnsetTimestamp;
+          this.wakeTimestamp = generated.wakeTimestamp;
+        }
+        this.activeSource = 'cached';
+        this.lastIngestedTimestamp = yRec.timestamp || Date.now();
+        this.isPreviousSessionBaseline = true;
+        this.sessionDateLabel = yesterday;
         this.notify();
         return true;
       }
@@ -222,7 +354,12 @@ export class SleepEngine {
 
   public persistState(): void {
     try {
+      // Prevent creating premature blank sessions for today when timeline is empty
+      if (this.timeline.length === 0 && !this.isSleeping) {
+        return;
+      }
       const today = localDateKey();
+      const targetDate = (this.isPreviousSessionBaseline && this.sessionDateLabel) ? this.sessionDateLabel : today;
       const sessionData = {
         onset: this.sleepOnsetTimestamp,
         wake: this.wakeTimestamp,
@@ -236,9 +373,9 @@ export class SleepEngine {
         updatedAt: Date.now(),
       };
 
-      localStorage.setItem(`whoop_sleep_session_${today}`, JSON.stringify(sessionData));
+      localStorage.setItem(`whoop_sleep_session_${targetDate}`, JSON.stringify(sessionData));
 
-      // Also sync summary to whoop_day_${today} and whoop_real_day_${today} for DayHistory integration
+      // Also sync summary to whoop_day_${targetDate} and whoop_real_day_${targetDate} for DayHistory integration
       if (this.timeline.length > 0) {
         const stats = calculateSleepStatsFromTimeline(
           this.timeline,
@@ -261,11 +398,11 @@ export class SleepEngine {
 
         if (stats) {
           try {
-            const rawDay = localStorage.getItem(`whoop_day_${today}`);
+            const rawDay = localStorage.getItem(`whoop_day_${targetDate}`);
             const existing = rawDay ? JSON.parse(rawDay) : {};
             const merged = {
               ...existing,
-              date: today,
+              date: targetDate,
               hoursAsleep: stats.hoursAsleep,
               hoursInBed: stats.hoursInBed,
               sleepPerformance: stats.sleepPerformance,
@@ -277,19 +414,21 @@ export class SleepEngine {
               awakeHours: Number(((stats.stageDurations.awakeMinutes) / 60).toFixed(1)),
               bedtime: stats.bedtime,
               wakeTime: stats.wakeTime,
+              isPreviousSessionBaseline: this.isPreviousSessionBaseline,
+              sessionDateLabel: this.sessionDateLabel || targetDate,
               sleepTimeline: this.timeline,
             };
-            localStorage.setItem(`whoop_day_${today}`, JSON.stringify(merged));
+            localStorage.setItem(`whoop_day_${targetDate}`, JSON.stringify(merged));
 
-            const rawReal = localStorage.getItem(`whoop_real_day_${today}`);
+            const rawReal = localStorage.getItem(`whoop_real_day_${targetDate}`);
             const existingReal = rawReal ? JSON.parse(rawReal) : {};
             const realMerged = { ...existingReal, ...merged };
-            localStorage.setItem(`whoop_real_day_${today}`, JSON.stringify(realMerged));
-            storageService.saveRealDayState(today, realMerged);
+            localStorage.setItem(`whoop_real_day_${targetDate}`, JSON.stringify(realMerged));
+            storageService.saveRealDayState(targetDate, realMerged);
 
             // Also persist directly into IndexedDB (whoopDb.daily_records)
             whoopDb.saveDailyRecord({
-              date: today,
+              date: targetDate,
               timestamp: Date.now(),
               dayStrain: existing.dayStrain || 0,
               recoveryScore: existing.recoveryScore || null,
@@ -317,6 +456,8 @@ export class SleepEngine {
               sleepEfficiency: stats.efficiencyPercent,
               bedtime: stats.bedtime,
               wakeTime: stats.wakeTime,
+              isPreviousSessionBaseline: this.isPreviousSessionBaseline,
+              sessionDateLabel: this.sessionDateLabel || targetDate,
               sleepTimeline: this.timeline,
               stressTimeline: existing.stressPoints || [],
               workouts: existing.workouts || [],
@@ -326,8 +467,8 @@ export class SleepEngine {
 
             // Also persist directly into IndexedDB (whoopDb.sleep_sessions)
             whoopDb.saveSleepSession({
-              id: `sleep_${this.sleepOnsetTimestamp || today}`,
-              date: today,
+              id: `sleep_${this.sleepOnsetTimestamp || targetDate}`,
+              date: targetDate,
               startTime: this.sleepOnsetTimestamp || Date.now(),
               endTime: this.wakeTimestamp || Date.now(),
               durationMs: Math.max(0, (this.wakeTimestamp || Date.now()) - (this.sleepOnsetTimestamp || Date.now())),
@@ -636,9 +777,14 @@ export class SleepEngine {
         const wDate = new Date(now);
         wDate.setHours(wH, wM, 0, 0);
 
+        // If entered wake time lands in the future for a completed session, shift back 1 day
+        if (wDate.getTime() > now.getTime()) {
+          wDate.setDate(wDate.getDate() - 1);
+        }
+
         const bDate = new Date(wDate);
-        if (bH > wH) {
-          // Slept yesterday night (e.g. 22:30 -> 07:30)
+        if (bH > wH || (bH === wH && bM >= wM)) {
+          // Crosses midnight (e.g. 22:30 -> 07:30)
           bDate.setDate(bDate.getDate() - 1);
         }
         bDate.setHours(bH, bM, 0, 0);
@@ -671,6 +817,12 @@ export class SleepEngine {
     this.isSleeping = false;
     this.scoreState = 'SCORED';
     this.statusMessage = undefined;
+    this.activeSource = 'manual';
+    this.lastIngestedTimestamp = Date.now();
+    const wakeDateKey = localDateKey(wakeMs);
+    const today = localDateKey();
+    this.isPreviousSessionBaseline = wakeDateKey !== today;
+    this.sessionDateLabel = wakeDateKey;
     this.activeSource = 'manual';
     this.lastIngestedTimestamp = Date.now();
 
@@ -927,9 +1079,39 @@ export class SleepEngine {
     if (this.timeline.length === 0) {
       // Check if whoop_real_day_${today} or whoop_day_${today} has recorded metrics
       const today = localDateKey();
-      const rawDay = typeof localStorage !== 'undefined'
+      let rawDay = typeof localStorage !== 'undefined'
         ? (localStorage.getItem(`whoop_real_day_${today}`) || localStorage.getItem(`whoop_day_${today}`))
         : null;
+      let sessionDateFound = today;
+      let isPrevBaseline = false;
+
+      // Circadian Baseline Cycle: if no sleep recorded for today, find the most recent completed sleep session (e.g. yesterday 05:00 - 14:00)
+      if (!rawDay && typeof localStorage !== 'undefined') {
+        const dayKeys: string[] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && (k.startsWith('whoop_real_day_') || k.startsWith('whoop_day_'))) {
+            dayKeys.push(k);
+          }
+        }
+        dayKeys.sort().reverse();
+        for (const k of dayKeys) {
+          const r = localStorage.getItem(k);
+          if (r) {
+            try {
+              const p = JSON.parse(r);
+              const a = p.hoursAsleep ?? p.sleepHours;
+              if (a !== null && a !== undefined && Number(a) > 0) {
+                rawDay = r;
+                sessionDateFound = p.date || k.split('_').pop() || today;
+                isPrevBaseline = sessionDateFound !== today;
+                break;
+              }
+            } catch {}
+          }
+        }
+      }
+
       if (rawDay) {
         try {
           const parsed = JSON.parse(rawDay);
@@ -950,7 +1132,7 @@ export class SleepEngine {
               scoreState: this.scoreState,
               statusMessage: this.statusMessage,
               needBreakdown,
-              timeline: [],
+              timeline: Array.isArray(parsed.sleepTimeline) ? parsed.sleepTimeline : [],
               stages: {
                 awakePercent: parsed.awakeHours ? Math.round((parsed.awakeHours / inBedVal) * 100) : 7,
                 remPercent: parsed.remHours ? Math.round((parsed.remHours / asleepVal) * 100) : 26,
@@ -959,6 +1141,8 @@ export class SleepEngine {
               },
               bedtime: parsed.bedtime || '11:25 PM',
               wakeTime: parsed.wakeTime || '07:15 AM',
+              isPreviousSessionBaseline: isPrevBaseline,
+              sessionDateLabel: sessionDateFound,
             };
           }
         } catch {}
@@ -1039,6 +1223,8 @@ export class SleepEngine {
       stages: stats.stages,
       bedtime: stats.bedtime,
       wakeTime: stats.wakeTime,
+      isPreviousSessionBaseline: this.isPreviousSessionBaseline,
+      sessionDateLabel: this.sessionDateLabel || undefined,
     };
   }
 
@@ -1120,15 +1306,20 @@ export class SleepEngine {
     this.statusMessage = undefined;
     this.activeSource = 'cloud_api';
     this.lastIngestedTimestamp = Date.now();
+    const wakeDateKey = localDateKey(wakeTs);
+    const today = localDateKey();
+    this.isPreviousSessionBaseline = wakeDateKey !== today;
+    this.sessionDateLabel = wakeDateKey;
 
     this.persistState();
 
-    const today = localDateKey();
-    const existingRaw = localStorage.getItem(`whoop_real_day_${today}`);
+    const targetDate = (this.isPreviousSessionBaseline && this.sessionDateLabel) ? this.sessionDateLabel : today;
+    const existingRaw = localStorage.getItem(`whoop_real_day_${targetDate}`);
     const existing = existingRaw ? JSON.parse(existingRaw) : {};
 
     const apiDayState = {
       ...existing,
+      date: targetDate,
       sleepPerformance: processed.performancePercentage,
       hoursAsleep: processed.asleep.totalHoursDecimal,
       hoursInBed: processed.inBed.totalHoursDecimal,
@@ -1140,15 +1331,17 @@ export class SleepEngine {
       sleepEfficiency: processed.efficiencyPercentage,
       bedtime: bDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }),
       wakeTime: wDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }),
+      isPreviousSessionBaseline: this.isPreviousSessionBaseline,
+      sessionDateLabel: this.sessionDateLabel || targetDate,
       sleepTimeline: this.timeline,
       respiratoryRate: processed.respiratoryRate ?? existing.respiratoryRate ?? null,
     };
 
-    localStorage.setItem(`whoop_real_day_${today}`, JSON.stringify(apiDayState));
-    storageService.saveRealDayState(today, apiDayState);
+    localStorage.setItem(`whoop_real_day_${targetDate}`, JSON.stringify(apiDayState));
+    storageService.saveRealDayState(targetDate, apiDayState);
 
     whoopDb.saveDailyRecord({
-      date: today,
+      date: targetDate,
       timestamp: Date.now(),
       dayStrain: existing.dayStrain || 0,
       recoveryScore: existing.recoveryScore || null,
@@ -1266,10 +1459,10 @@ export class SleepEngine {
 
   public getSleepTimes(): { onsetTime: string | null; wakeTime: string | null } {
     const onsetTime = this.sleepOnsetTimestamp
-      ? new Date(this.sleepOnsetTimestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
+      ? new Date(this.sleepOnsetTimestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })
       : null;
     const wakeTime = this.wakeTimestamp
-      ? new Date(this.wakeTimestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
+      ? new Date(this.wakeTimestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })
       : null;
     return { onsetTime, wakeTime };
   }
@@ -1282,6 +1475,8 @@ export class SleepEngine {
     hasTimeline: boolean;
     sleepOnsetTimestamp: number | null;
     wakeTimestamp: number | null;
+    isPreviousSessionBaseline: boolean;
+    sessionDateLabel: string | null;
   } {
     return {
       activeSource: this.activeSource,
@@ -1291,6 +1486,8 @@ export class SleepEngine {
       hasTimeline: this.timeline.length > 0,
       sleepOnsetTimestamp: this.sleepOnsetTimestamp,
       wakeTimestamp: this.wakeTimestamp,
+      isPreviousSessionBaseline: this.isPreviousSessionBaseline,
+      sessionDateLabel: this.sessionDateLabel,
     };
   }
 

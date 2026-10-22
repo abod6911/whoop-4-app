@@ -45,8 +45,11 @@ import {
   classifyEpoch,
   calculateSleepStatsFromTimeline,
   generateRealisticOvernightSession,
+  formatLocalTime12h,
   type EpochFeatures,
 } from '../src/services/sleepStages';
+import { spansNighttimeHours } from '../src/services/whoopBleEngine';
+import { localDateKey } from '../src/utils/dateKey';
 import type { WhoopSleepRecord, ProcessedWhoopSleep } from '../src/types/whoop';
 import {
   WHOOP_BASE_SERVICE_UUID,
@@ -657,6 +660,92 @@ async function runStep5Tests() {
   assert(storedSessionFound, 'Decoded sleep session persisted to storage');
 }
 
+
+// ============================================================================
+// STEP 6: Shift-Work Sleep & Circadian Window Architecture (05:00 to 14:00)
+// ============================================================================
+async function runStep6Tests() {
+  console.log(`\n${colors.bright}${colors.cyan}====================================================================${colors.reset}`);
+  console.log(`${colors.bright}${colors.cyan}STEP 6: Shift-Work Sleep & Circadian Baseline Architecture (05:00 - 14:00)${colors.reset}`);
+  console.log(`${colors.bright}${colors.cyan}====================================================================${colors.reset}`);
+
+  // Test 6.1: Local Timezone 12-Hour Bed/Wake Formatting
+  console.log(`\n${colors.yellow}[6.1] Strictly Formatted 12-Hour Local Time (AM/PM & ص/م):${colors.reset}`);
+  const sampleBedDate = new Date('2026-10-21T05:00:00');
+  const sampleWakeDate = new Date('2026-10-21T14:00:00');
+
+  const bedAr = formatLocalTime12h(sampleBedDate.getTime(), 'ar-u-nu-latn');
+  const wakeAr = formatLocalTime12h(sampleWakeDate.getTime(), 'ar-u-nu-latn');
+  const bedEn = formatLocalTime12h(sampleBedDate.getTime(), 'en-US');
+  const wakeEn = formatLocalTime12h(sampleWakeDate.getTime(), 'en-US');
+
+  assert(bedAr.includes('05:00') && bedAr.includes('ص'), `Arabic bedtime formatted as '05:00 ص' (Got: ${bedAr})`);
+  assert(wakeAr.includes('02:00') && wakeAr.includes('م'), `Arabic wakeTime formatted as '02:00 م' (Got: ${wakeAr})`);
+  assert(bedEn.includes('05:00') && bedEn.includes('AM'), `English bedtime formatted as '05:00 AM' (Got: ${bedEn})`);
+  assert(wakeEn.includes('02:00') && wakeEn.includes('PM'), `English wakeTime formatted as '02:00 PM' (Got: ${wakeEn})`);
+
+  // Test 6.2: Shift-Work 9-Hour Daytime Simulation (05:00 to 14:00)
+  console.log(`\n${colors.yellow}[6.2] Shift-Work 9-Hour Daytime Sleep Window (05:00 to 14:00):${colors.reset}`);
+  const shiftMetrics = sleepEngine.recordManualSleepWindow({
+    bedtime: '05:00',
+    wakeTime: '14:00',
+    rhrBaseline: 52,
+  });
+
+  assertNoNaN(shiftMetrics.hoursInBed, 'Shift hoursInBed');
+  assertNoNaN(shiftMetrics.hoursAsleep, 'Shift hoursAsleep');
+  assertNoNaN(shiftMetrics.sleepPerformance, 'Shift sleepPerformance');
+  assertNoNaN(shiftMetrics.efficiencyPercent, 'Shift efficiencyPercent');
+
+  assert(shiftMetrics.hoursInBed === 9.0, `hoursInBed evaluates to 9.0 hours exactly (Got: ${shiftMetrics.hoursInBed}h)`);
+  assert(
+    shiftMetrics.hoursAsleep !== null && shiftMetrics.hoursAsleep >= 8.5 && shiftMetrics.hoursAsleep <= 9.0,
+    `hoursAsleep evaluates to ~9.0h (Got: ${shiftMetrics.hoursAsleep}h)`
+  );
+  assert(shiftMetrics.sleepPerformance !== null && shiftMetrics.sleepPerformance >= 95, `sleepPerformance reflects 9.0h sleep demand (Got: ${shiftMetrics.sleepPerformance}%)`);
+  assert(shiftMetrics.efficiencyPercent !== null && shiftMetrics.efficiencyPercent >= 90, `efficiencyPercent is clinical quality (Got: ${shiftMetrics.efficiencyPercent}%)`);
+
+  // Verify stage breakdowns sum correctly
+  const { awakePercent, remPercent, lightPercent, deepPercent } = shiftMetrics.stages;
+  const stageSum = awakePercent + remPercent + lightPercent + deepPercent;
+  assert(stageSum >= 99 && stageSum <= 101, `All stage percentages sum to ~100% without leakage (Got: ${stageSum}%)`);
+  assert(deepPercent > 0, `Deep slow-wave sleep detected (Got: ${deepPercent}%)`);
+  assert(remPercent > 0, `REM sleep detected (Got: ${remPercent}%)`);
+  assert(lightPercent > 0, `Light sleep detected (Got: ${lightPercent}%)`);
+
+  // Verify bedtime and wakeTime in 12-hour format
+  assert(Boolean(shiftMetrics.bedtime && (shiftMetrics.bedtime.includes('05:00') || shiftMetrics.bedtime.includes('5:00'))), `Bedtime string formatted cleanly: ${shiftMetrics.bedtime}`);
+  assert(Boolean(shiftMetrics.wakeTime && (shiftMetrics.wakeTime.includes('02:00') || shiftMetrics.wakeTime.includes('2:00'))), `Wake time string formatted cleanly: ${shiftMetrics.wakeTime}`);
+
+  // Test 6.3: Shift-Work Disconnection Window Eligibility
+  console.log(`\n${colors.yellow}[6.3] Shift-Work & Daytime Window Eligibility in spansNighttimeHours:${colors.reset}`);
+  const shiftGapStart = sampleBedDate.getTime();
+  const shiftGapEnd = sampleWakeDate.getTime();
+  assert(spansNighttimeHours(shiftGapStart, shiftGapEnd), '05:00 to 14:00 (9h gap) qualifies as sleep session');
+
+  const afternoonStart = new Date('2026-10-21T13:00:00').getTime();
+  const afternoonEnd = new Date('2026-10-21T18:00:00').getTime();
+  assert(spansNighttimeHours(afternoonStart, afternoonEnd), 'Any continuous rest >= 4.0h qualifies as primary sleep regardless of daytime hours');
+
+  // Test 6.4: Active Baseline Cycle across Calendar Day Rollover
+  console.log(`\n${colors.yellow}[6.4] Active Baseline Cycle Preservation (Yesterday Sleep = Today Baseline):${colors.reset}`);
+  const currentMetrics = sleepEngine.getSleepMetrics({
+    name: 'ShiftWorker',
+    age: 32,
+    weightKg: 78,
+    heightCm: 182,
+    maxHr: 190,
+    restingHrBaseline: 52,
+    hrvBaseline: 65,
+    sleepNeedHours: 8.0,
+    gender: 'male',
+  }, 8.5);
+
+  assert(currentMetrics.hoursAsleep !== null && currentMetrics.hoursAsleep >= 8.5, `hoursAsleep is preserved (~9.0h) without premature blanking (Got: ${currentMetrics.hoursAsleep}h)`);
+  assert(currentMetrics.hoursInBed === 9.0, `hoursInBed is preserved as 9.0h (Got: ${currentMetrics.hoursInBed}h)`);
+  assert(currentMetrics.timeline !== undefined && currentMetrics.timeline.length > 0, `Hypnogram timeline retained across baseline cycle (${currentMetrics.timeline?.length} epochs)`);
+}
+
 // ============================================================================
 // MAIN EXECUTION
 // ============================================================================
@@ -671,6 +760,7 @@ async function main() {
     await runStep3Tests();
     await runStep4Tests();
     await runStep5Tests();
+    await runStep6Tests();
 
     console.log(`\n${colors.bright}${colors.cyan}====================================================================${colors.reset}`);
     console.log(`${colors.bright}VERIFICATION SUMMARY:${colors.reset}`);
@@ -683,7 +773,7 @@ async function main() {
       console.error(`\n${colors.red}${colors.bright}VERIFICATION FAILED with ${failedAssertions} errors.${colors.reset}\n`);
       process.exit(1);
     } else {
-      console.log(`\n${colors.green}${colors.bright}ALL 5 DIAGNOSTIC STEPS PASSED WITH 0 ERRORS! (100% HEALTHY)${colors.reset}\n`);
+      console.log(`\n${colors.green}${colors.bright}ALL 6 DIAGNOSTIC STEPS PASSED WITH 0 ERRORS! (100% HEALTHY)${colors.reset}\n`);
       process.exit(0);
     }
   } catch (err) {

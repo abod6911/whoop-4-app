@@ -246,19 +246,26 @@ export const SleepView: React.FC<SleepViewProps> = ({
 
   const formatTime12h = (timestampOrStr?: number | string | null): string => {
     if (!timestampOrStr) return '--';
+    const targetLocale = isRtl ? 'ar-u-nu-latn' : 'en-US';
     if (typeof timestampOrStr === 'number') {
-      return new Date(timestampOrStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+      return new Date(timestampOrStr).toLocaleTimeString(targetLocale, { hour: '2-digit', minute: '2-digit', hour12: true });
     }
     if (typeof timestampOrStr === 'string') {
       const trimmed = timestampOrStr.trim();
       if (trimmed.includes('AM') || trimmed.includes('PM') || trimmed.includes('ص') || trimmed.includes('م')) {
+        if (isRtl && (trimmed.includes('AM') || trimmed.includes('PM'))) {
+          return trimmed.replace(/AM/gi, 'ص').replace(/PM/gi, 'م');
+        }
+        if (!isRtl && (trimmed.includes('ص') || trimmed.includes('م'))) {
+          return trimmed.replace(/ص/g, 'AM').replace(/م/g, 'PM');
+        }
         return trimmed;
       }
       // ISO timestamp (contains T or date hyphen with :): parse directly with Date to convert UTC to user's local timezone
       if (trimmed.includes('T') || (trimmed.includes('-') && trimmed.includes(':'))) {
         const d = new Date(trimmed);
         if (!isNaN(d.getTime())) {
-          return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+          return d.toLocaleTimeString(targetLocale, { hour: '2-digit', minute: '2-digit', hour12: true });
         }
       }
       // 24-hour time string "HH:mm"
@@ -269,7 +276,7 @@ export const SleepView: React.FC<SleepViewProps> = ({
         if (!isNaN(h) && !isNaN(m)) {
           const d = new Date();
           d.setHours(h, m, 0, 0);
-          return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+          return d.toLocaleTimeString(targetLocale, { hour: '2-digit', minute: '2-digit', hour12: true });
         }
       }
     }
@@ -281,7 +288,7 @@ export const SleepView: React.FC<SleepViewProps> = ({
   const scheduleWake = timeline.length >= 2 ? formatTime12h(timeline[timeline.length - 1].timestamp) : formatTime12h(sleepData.wakeTime);
   const sleepScheduleText = (scheduleBed !== '--' && scheduleWake !== '--')
     ? `${scheduleBed} - ${scheduleWake}`
-    : (hoursAsleep !== null ? '11:30 PM - 07:05 AM' : (isRtl ? '11:25 م - 07:15 ص (تقدير ليلي)' : '11:25 PM - 07:15 AM (Estimated)'));
+    : (hoursAsleep !== null ? (isRtl ? '11:30 م - 07:05 ص' : '11:30 PM - 07:05 AM') : (isRtl ? '11:25 م - 07:15 ص (تقدير ليلي)' : '11:25 PM - 07:15 AM (Estimated)'));
 
   const isSyncing = Boolean(metadata?.isSyncing);
   const isConnected = Boolean(metadata?.connected);
@@ -462,6 +469,37 @@ export const SleepView: React.FC<SleepViewProps> = ({
             </button>
           </div>
         </div>
+
+        {/* Active Baseline Cycle Banner (Requirement 3: "آخر جلسة نوم مسجلة (Last Completed Sleep)") */}
+        {sleepData.isPreviousSessionBaseline && hoursAsleep !== null && (
+          <div className="p-4 rounded-2xl bg-gradient-to-r from-[#38BDF8]/20 via-[#16191E] to-[#12151A] border border-[#38BDF8]/40 text-start space-y-2 shadow-lg animate-in fade-in my-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-[#38BDF8]/20 border border-[#38BDF8]/30 flex items-center justify-center flex-shrink-0">
+                  <Moon className="w-4 h-4 text-[#38BDF8]" />
+                </div>
+                <div>
+                  <span className="text-xs font-black font-condensed text-white uppercase tracking-wider block">
+                    {isRtl ? 'آخر جلسة نوم مسجلة (Last Completed Sleep)' : 'Last Completed Sleep (Active Baseline Cycle)'}
+                  </span>
+                  <span className="text-[10px] text-zinc-400 font-mono">
+                    {isRtl
+                      ? `النوم المكتمل: ${sleepScheduleText} (${hoursAsleep} س)`
+                      : `Completed Sleep: ${sleepScheduleText} (${hoursAsleep} hrs)`}
+                  </span>
+                </div>
+              </div>
+              <span className="text-[9px] px-2 py-0.5 rounded-full bg-[#38BDF8]/20 text-[#38BDF8] border border-[#38BDF8]/30 font-mono font-bold uppercase">
+                {isRtl ? 'دورة نشطة' : 'ACTIVE BASELINE'}
+              </span>
+            </div>
+            <p className="text-[11px] text-zinc-300 font-sans leading-relaxed pt-0.5">
+              {isRtl
+                ? `تعتمد خوارزمية WHOOP آخر جلسة نوم مكتملة (${sleepScheduleText} - ${hoursAsleep} ساعات) كخط أساس بيولوجي للاستشفاء حتى موعد النوم القادم الليلة.`
+                : `WHOOP anchors your current recovery and readiness to your last completed session (${sleepScheduleText} - ${hoursAsleep} hrs) until tonight's sleep onset.`}
+            </p>
+          </div>
+        )}
 
         {/* PENDING_SCORE Graceful Status Card (Requirement 3: "جاري تحليل بيانات النوم") */}
         {sleepData.scoreState === 'PENDING_SCORE' && (

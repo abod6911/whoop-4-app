@@ -330,7 +330,9 @@ export class WhoopApiService {
    * - Identifies naps
    */
   public processSleepRecord(record: WhoopSleepRecord): ProcessedWhoopSleep {
-    const isNap = Boolean(record.nap);
+    const durationMs = record.start && record.end ? (new Date(record.end).getTime() - new Date(record.start).getTime()) : 0;
+    // Any continuous rest session >= 4 hours MUST be treated as Primary Sleep, not a fragmented nap
+    const isNap = Boolean(record.nap) && durationMs < 4 * 3600 * 1000;
     const scoreState: WhoopSleepScoreState = record.score_state || 'UNSCORABLE';
 
     // Handle PENDING_SCORE / UNSCORABLE states gracefully
@@ -495,8 +497,12 @@ export class WhoopApiService {
       return null;
     }
 
-    // Exclude naps (nap: false) to isolate primary overnight sleep session
-    const primarySleepRecords = records.filter((rec) => rec.nap === false);
+    // Isolate primary sleep: include records where nap === false OR duration >= 4.0 hours (supports shift work)
+    const primarySleepRecords = records.filter((rec) => {
+      if (rec.nap === false) return true;
+      const dur = rec.start && rec.end ? (new Date(rec.end).getTime() - new Date(rec.start).getTime()) : 0;
+      return dur >= 4 * 3600 * 1000;
+    });
 
     // Sort descending by start time to guarantee the latest overnight sleep session is selected
     primarySleepRecords.sort((a, b) => new Date(b.start).getTime() - new Date(a.start).getTime());
