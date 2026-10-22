@@ -458,7 +458,7 @@ export interface SleepSessionEntity {
   };
   restingHr: number;
   hrvRmssd: number;
-  source: 'ble' | 'flash_dump' | 'cloud_api' | 'manual' | 'reconciled' | 'cached' | 'fallback';
+  source: 'ble' | 'flash_dump' | 'cloud_api' | 'manual' | 'MANUAL_PRESET' | 'reconciled' | 'cached' | 'fallback';
   timeline: SleepStagePoint[];
   syncedAt: number;
 }

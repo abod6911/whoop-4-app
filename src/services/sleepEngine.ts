@@ -59,7 +59,7 @@ export class SleepEngine {
   private sessionDateLabel: string | null = null;
 
   // Active Ingestion Source tracking for Health-Tech Diagnostics
-  private activeSource: 'cloud_api' | 'ble' | 'reconciled' | 'manual' | 'cached' | 'fallback' = 'fallback';
+  private activeSource: 'cloud_api' | 'ble' | 'reconciled' | 'manual' | 'MANUAL_PRESET' | 'cached' | 'fallback' = 'fallback';
   private lastIngestedTimestamp: number | null = null;
 
   // Subscribers for instant UI reactivity
@@ -182,13 +182,11 @@ export class SleepEngine {
             this.isPreviousSessionBaseline = false;
             this.sessionDateLabel = today;
           } else if (asleepVal && Number(asleepVal) > 0) {
-            const rhrBase = parsed.rhr || 54;
-            const generated = generateRealisticOvernightSession(rhrBase, {
-              rhrBaseline: rhrBase,
-            });
-            this.timeline = generated.timeline;
-            this.sleepOnsetTimestamp = generated.sleepOnsetTimestamp;
-            this.wakeTimestamp = generated.wakeTimestamp;
+            // Strict Health-Tech Data Truth: If no real hypnogram timeline exists in storage,
+            // do NOT synthesize artificial stages in the background when disconnected.
+            this.timeline = [];
+            this.sleepOnsetTimestamp = null;
+            this.wakeTimestamp = null;
             this.activeSource = 'cached';
             this.lastIngestedTimestamp = parsed.timestamp || Date.now();
             this.isPreviousSessionBaseline = false;
@@ -255,11 +253,10 @@ export class SleepEngine {
                 this.sleepOnsetTimestamp = parsed.sleepTimeline[0]?.timestamp || null;
                 this.wakeTimestamp = parsed.sleepTimeline[parsed.sleepTimeline.length - 1]?.timestamp || null;
               } else {
-                const rhrBase = parsed.rhr || 54;
-                const generated = generateRealisticOvernightSession(rhrBase, { rhrBaseline: rhrBase });
-                this.timeline = generated.timeline;
-                this.sleepOnsetTimestamp = generated.sleepOnsetTimestamp;
-                this.wakeTimestamp = generated.wakeTimestamp;
+                // Do not synthesize artificial hypnogram stages automatically in the background
+                this.timeline = [];
+                this.sleepOnsetTimestamp = null;
+                this.wakeTimestamp = null;
               }
               this.activeSource = 'cached';
               this.lastIngestedTimestamp = parsed.timestamp || Date.now();
@@ -291,13 +288,10 @@ export class SleepEngine {
           this.sleepOnsetTimestamp = rec.sleepTimeline[0]?.timestamp || null;
           this.wakeTimestamp = rec.sleepTimeline[rec.sleepTimeline.length - 1]?.timestamp || null;
         } else {
-          const rhrBase = rec.rhr || 54;
-          const generated = generateRealisticOvernightSession(rhrBase, {
-            rhrBaseline: rhrBase,
-          });
-          this.timeline = generated.timeline;
-          this.sleepOnsetTimestamp = generated.sleepOnsetTimestamp;
-          this.wakeTimestamp = generated.wakeTimestamp;
+          // Do not generate synthetic hypnogram stages in background without real telemetry
+          this.timeline = [];
+          this.sleepOnsetTimestamp = null;
+          this.wakeTimestamp = null;
         }
         this.activeSource = 'cached';
         this.lastIngestedTimestamp = rec.timestamp || Date.now();
@@ -333,13 +327,10 @@ export class SleepEngine {
           this.sleepOnsetTimestamp = yRec.sleepTimeline[0]?.timestamp || null;
           this.wakeTimestamp = yRec.sleepTimeline[yRec.sleepTimeline.length - 1]?.timestamp || null;
         } else {
-          const rhrBase = yRec.rhr || 54;
-          const generated = generateRealisticOvernightSession(rhrBase, {
-            rhrBaseline: rhrBase,
-          });
-          this.timeline = generated.timeline;
-          this.sleepOnsetTimestamp = generated.sleepOnsetTimestamp;
-          this.wakeTimestamp = generated.wakeTimestamp;
+          // Do not generate synthetic hypnogram stages in background without real telemetry
+          this.timeline = [];
+          this.sleepOnsetTimestamp = null;
+          this.wakeTimestamp = null;
         }
         this.activeSource = 'cached';
         this.lastIngestedTimestamp = yRec.timestamp || Date.now();
@@ -817,14 +808,12 @@ export class SleepEngine {
     this.isSleeping = false;
     this.scoreState = 'SCORED';
     this.statusMessage = undefined;
-    this.activeSource = 'manual';
+    this.activeSource = 'MANUAL_PRESET';
     this.lastIngestedTimestamp = Date.now();
     const wakeDateKey = localDateKey(wakeMs);
     const today = localDateKey();
     this.isPreviousSessionBaseline = wakeDateKey !== today;
     this.sessionDateLabel = wakeDateKey;
-    this.activeSource = 'manual';
-    this.lastIngestedTimestamp = Date.now();
 
     this.persistState();
 
@@ -1468,7 +1457,7 @@ export class SleepEngine {
   }
 
   public getDiagnosticInfo(): {
-    activeSource: 'cloud_api' | 'ble' | 'reconciled' | 'manual' | 'cached' | 'fallback';
+    activeSource: 'cloud_api' | 'ble' | 'reconciled' | 'manual' | 'MANUAL_PRESET' | 'cached' | 'fallback';
     scoreState: WhoopSleepScoreState;
     lastIngestedTimestamp: number | null;
     timelineEpochCount: number;
@@ -1491,37 +1480,85 @@ export class SleepEngine {
     };
   }
 
-  public resetSleepSession(): void {
+  /**
+   * Resets and purges mock/preset sleep data from memory, localStorage, and IndexedDB.
+   * Returns gauges to standby (--) until physical BLE hardware syncs.
+   */
+  public async clearSleepData(): Promise<void> {
     this.timeline = [];
     this.samples = [];
     this.currentEpochSamples = [];
     this.isSleeping = false;
     this.sleepOnsetTimestamp = null;
     this.wakeTimestamp = null;
+    this.scoreState = 'SCORED';
+    this.statusMessage = undefined;
+    this.activeSource = 'fallback';
+    this.lastIngestedTimestamp = null;
+    this.isPreviousSessionBaseline = false;
+    this.sessionDateLabel = null;
 
     const today = localDateKey();
-    try {
-      localStorage.removeItem(`whoop_sleep_session_${today}`);
-      const rawDay = localStorage.getItem(`whoop_day_${today}`);
-      if (rawDay) {
-        const parsed = JSON.parse(rawDay);
-        delete parsed.hoursAsleep;
-        delete parsed.hoursInBed;
-        delete parsed.sleepPerformance;
-        delete parsed.sleepEfficiency;
-        delete parsed.sleepTimeline;
-        delete parsed.deepHours;
-        delete parsed.remHours;
-        delete parsed.lightHours;
-        delete parsed.awakeHours;
-        delete parsed.bedtime;
-        delete parsed.wakeTime;
-        localStorage.setItem(`whoop_day_${today}`, JSON.stringify(parsed));
+    if (typeof localStorage !== 'undefined') {
+      try {
+        localStorage.removeItem('whoop_sleep_state');
+        localStorage.removeItem(`whoop_sleep_session_${today}`);
+
+        const keysToRemove: string[] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && k.startsWith('whoop_sleep_session_')) {
+            keysToRemove.push(k);
+          }
+        }
+        keysToRemove.forEach((k) => localStorage.removeItem(k));
+
+        const rawDay = localStorage.getItem(`whoop_real_day_${today}`);
+        if (rawDay) {
+          const parsed = JSON.parse(rawDay);
+          parsed.hoursAsleep = null;
+          parsed.sleepHours = null;
+          parsed.sleepPerformance = null;
+          parsed.sleepEfficiency = null;
+          parsed.sleepTimeline = [];
+          localStorage.setItem(`whoop_real_day_${today}`, JSON.stringify(parsed));
+        }
+
+        const rawOldDay = localStorage.getItem(`whoop_day_${today}`);
+        if (rawOldDay) {
+          const parsed = JSON.parse(rawOldDay);
+          delete parsed.hoursAsleep;
+          delete parsed.hoursInBed;
+          delete parsed.sleepPerformance;
+          delete parsed.sleepEfficiency;
+          delete parsed.sleepTimeline;
+          localStorage.setItem(`whoop_day_${today}`, JSON.stringify(parsed));
+        }
+      } catch (err) {
+        console.warn('[SleepEngine] Notice clearing localStorage sleep state:', err);
       }
-    } catch {}
+    }
+
+    try {
+      await whoopDb.clearAllSleepSessions();
+      const dailyRec = await whoopDb.getDailyRecord(today);
+      if (dailyRec) {
+        dailyRec.hoursAsleep = 0;
+        dailyRec.sleepPerformance = 0;
+        dailyRec.sleepTimeline = [];
+        await whoopDb.saveDailyRecord(dailyRec);
+      }
+    } catch (e) {
+      console.warn('[SleepEngine] Notice clearing IndexedDB sleep records:', e);
+    }
 
     this.persistState();
     this.notify();
+    console.log('[SleepEngine] ✓ Purged all mock/preset sleep data. State returned to standby (--).');
+  }
+
+  public resetSleepSession(): void {
+    this.clearSleepData().catch(() => {});
   }
 }
 

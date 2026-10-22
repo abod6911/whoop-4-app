@@ -823,6 +823,7 @@ export class WhoopBleEngine {
   private handleDisconnected(): void {
     console.log('WHOOP 4.0 Strap Disconnected');
     this.lastDisconnectedTimestamp = Date.now();
+    pedometerEngine.setLiveCadence(0);
     try {
       localStorage.setItem('whoop_last_disconnected_timestamp', String(this.lastDisconnectedTimestamp));
       localStorage.setItem('whoop_last_seen_timestamp', String(this.lastDisconnectedTimestamp));
@@ -922,23 +923,7 @@ export class WhoopBleEngine {
 
       await new Promise((r) => setTimeout(r, 600));
 
-      // Reconcile any accumulated offline steps from strap if gap occurred
-      const lastDisconnect = this.lastDisconnectedTimestamp || 0;
-      if (lastDisconnect > 0) {
-        const gapMin = Math.round((Date.now() - lastDisconnect) / 60000);
-        if (gapMin >= 5) {
-          const estimatedOfflineSteps = Math.min(6000, Math.round(gapMin * 45));
-          if (estimatedOfflineSteps > 150) {
-            pedometerEngine.addOfflineStepDelta(estimatedOfflineSteps, 'imu_hardware');
-            this.metadata.syncStatusText = `تمت مزامنة الخطوات المسجلة أثناء عدم الاتصال (+${estimatedOfflineSteps.toLocaleString()} خطوة)`;
-            notificationEngine.notify({
-              type: 'strain',
-              title: 'تمت مزامنة الخطوات بعد إعادة الاتصال',
-              message: `تمت مزامنة الخطوات المسجلة أثناء عدم الاتصال (+${estimatedOfflineSteps.toLocaleString()} خطوة)`,
-            });
-          }
-        }
-      }
+      // Reconcile physical offline steps: strictly preserve hardware values without synthesizing fake steps
 
       this.metadata.syncProgress = 95;
       this.metadata.syncStatusText = 'جاري إنهاء المزامنة... (95%)';
@@ -1905,9 +1890,24 @@ export class WhoopBleEngine {
   private parseRscPacket(data: DataView): void {
     if (data.byteLength < 4) return;
     try {
+      const flags = data.getUint8(0);
+      const isStridePresent = (flags & 0x01) !== 0;
+      const isTotalDistancePresent = (flags & 0x02) !== 0;
+
       const cadence = data.getUint8(3); // Instantaneous cadence (SPM)
-      if (cadence > 0) {
-        pedometerEngine.recordSteps(1, Date.now(), 'imu_hardware');
+      pedometerEngine.setLiveCadence(cadence);
+
+      let offset = 4;
+      if (isStridePresent && data.byteLength >= offset + 2) {
+        offset += 2;
+      }
+
+      if (isTotalDistancePresent && data.byteLength >= offset + 4) {
+        // Standard RSC Total Distance (uint32 in 1/10 meters) or cumulative hardware strides/steps
+        const cumulativeSteps = data.getUint32(offset, true);
+        if (cumulativeSteps > 0) {
+          pedometerEngine.reconcileCumulativeHardwareSteps(cumulativeSteps);
+        }
       }
     } catch { /* ignore */ }
   }

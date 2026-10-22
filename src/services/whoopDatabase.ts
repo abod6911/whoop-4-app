@@ -190,6 +190,22 @@ export class WhoopPulseDatabase extends Dexie {
     }
   }
 
+  public async clearAllSleepSessions(): Promise<void> {
+    try {
+      await this.sleep_sessions.clear();
+    } catch (e) {
+      console.warn('[WhoopDatabase] Notice clearing sleep sessions in IndexedDB:', e);
+    }
+  }
+
+  public async deleteSleepSession(id: string): Promise<void> {
+    try {
+      await this.sleep_sessions.delete(id);
+    } catch (e) {
+      console.warn('[WhoopDatabase] Notice deleting sleep session from IndexedDB:', e);
+    }
+  }
+
   // --- Full Backup: JSON Export ---
   public async exportDatabaseToJson(): Promise<string> {
     const profiles = await this.user_profile.toArray();

@@ -478,7 +478,7 @@ async function runStep4Tests() {
   assert(manualSleep.hoursInBed === 9, `hoursInBed matches confirmed 9.0 hours exactly (Got: ${manualSleep.hoursInBed}h)`);
   assert(manualSleep.hoursAsleep !== null && manualSleep.hoursAsleep >= 8.0, `hoursAsleep reflects clinical net sleep (${manualSleep.hoursAsleep}h)`);
   const manualDiag = sleepEngine.getDiagnosticInfo();
-  assert(manualDiag.activeSource === 'manual', `Diagnostic source switches to 'manual' (Got: ${manualDiag.activeSource})`);
+  assert(manualDiag.activeSource === 'MANUAL_PRESET' || manualDiag.activeSource === 'manual', `Diagnostic source switches to 'MANUAL_PRESET' (Got: ${manualDiag.activeSource})`);
 
   // Test 4.5: Timezone Bed/Wake Verification (Zero UTC Drift)
   console.log(`\n${colors.yellow}[4.5] Local Timezone Bed/Wake Offset Verification:${colors.reset}`);

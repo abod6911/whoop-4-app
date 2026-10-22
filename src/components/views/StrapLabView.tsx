@@ -311,53 +311,6 @@ export const StrapLabView: React.FC<StrapLabViewProps> = ({
               <span>{isRtl ? 'حزمة خطوة حية (+1)' : 'Live Step Packet (+1)'}</span>
             </button>
 
-            {/* Step Burst +50 */}
-            <button
-              onClick={() => {
-                pedometerEngine.simulateStepBurst(50);
-                setCommandFeedback(isRtl ? '✓ تمت إضافة 50 خطوة' : '✓ +50 Steps Added');
-                setTimeout(() => setCommandFeedback(null), 2500);
-              }}
-              className="py-2.5 px-3 rounded-xl bg-[#16191E] border border-white/10 hover:border-[#00F0FF]/40 text-white flex items-center justify-center gap-1.5 active:scale-95 transition-all"
-            >
-              <Footprints className="w-3.5 h-3.5 text-[#00F0FF]" />
-              <span>+50 {isRtl ? 'خطوة' : 'Steps'}</span>
-            </button>
-
-            {/* Continuous Walk Toggle */}
-            <button
-              onClick={() => {
-                const active = pedometerEngine.toggleContinuousWalk();
-                setCommandFeedback(
-                  active
-                    ? isRtl
-                      ? '✓ تم بدء محاكاة المشي الحي (112 خ/د)'
-                      : '✓ Continuous walk active (112 spm)'
-                    : isRtl
-                    ? '✓ تم إيقاف المشي'
-                    : '✓ Walk stopped'
-                );
-                setTimeout(() => setCommandFeedback(null), 2500);
-              }}
-              className={`py-2.5 px-3 rounded-xl border flex items-center justify-center gap-1.5 active:scale-95 transition-all ${
-                pedometerEngine.isWalkSimulationActive
-                  ? 'bg-[#16EC06]/20 border-[#16EC06] text-[#16EC06]'
-                  : 'bg-[#16191E] border-white/10 text-white hover:border-zinc-600'
-              }`}
-            >
-              {pedometerEngine.isWalkSimulationActive ? (
-                <>
-                  <Pause className="w-3.5 h-3.5 text-[#16EC06]" />
-                  <span>{isRtl ? 'إيقاف المشي' : 'Stop Walk'}</span>
-                </>
-              ) : (
-                <>
-                  <Play className="w-3.5 h-3.5 text-[#16EC06]" />
-                  <span>{isRtl ? 'مشي مستمر (112 خ/د)' : 'Simulate Walk'}</span>
-                </>
-              )}
-            </button>
-
             {/* Zero-Mock Reset to 0 */}
             <button
               onClick={() => {
@@ -369,24 +322,6 @@ export const StrapLabView: React.FC<StrapLabViewProps> = ({
             >
               <RotateCcw className="w-3.5 h-3.5 text-zinc-400" />
               <span>{isRtl ? 'إعادة ضبط (0)' : 'Reset (0)'}</span>
-            </button>
-
-            {/* Primary Offline Step Catch-up Reconnection Simulation */}
-            <button
-              onClick={async () => {
-                setCommandFeedback(isRtl ? 'جاري محاكاة إعادة الاتصال ومزامنة خطوات عدم الاتصال...' : 'Simulating offline steps catch-up sync...');
-                const credited = await whoopBleEngine.simulateOfflineStepReconnection(2000, 35);
-                setCommandFeedback(
-                  isRtl
-                    ? `✓ تمت مزامنة +${credited.toLocaleString()} خطوة مسجلة بدون اتصال`
-                    : `✓ Offline synced: +${credited.toLocaleString()} steps`
-                );
-                setTimeout(() => setCommandFeedback(null), 3500);
-              }}
-              className="py-3 px-4 rounded-xl bg-gradient-to-r from-[#00F0FF]/20 via-[#16EC06]/15 to-[#00F0FF]/20 border border-[#00F0FF]/40 hover:border-[#16EC06] text-white flex items-center justify-center gap-2 active:scale-95 transition-all shadow-[0_0_20px_rgba(0,240,255,0.15)] font-black uppercase tracking-wider text-xs font-condensed col-span-2"
-            >
-              <RefreshCw className="w-4 h-4 text-[#00F0FF]" />
-              <span>{isRtl ? 'محاكاة مزامنة خطوات عدم الاتصال (+2,000 خطوة)' : 'Simulate Offline Steps Catch-Up (+2,000 Steps)'}</span>
             </button>
           </div>
         </div>

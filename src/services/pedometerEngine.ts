@@ -28,12 +28,10 @@ export class PedometerEngine {
 
   // HR-Inference Model State
   private lastHrTickTime = Date.now();
-  private accumulatedStepFraction = 0;
   private activeSeconds = 0;
   private subscribers = new Set<(state: PedometerState) => void>();
   // Motion listener state
   private isMotionListenerActive = false;
-  private walkInterval: any = null;
   public isWalkSimulationActive = false;
 
   constructor() {
@@ -124,13 +122,8 @@ export class PedometerEngine {
   }
 
   public reloadForUser(): void {
-    if (this.walkInterval) {
-      clearInterval(this.walkInterval);
-      this.walkInterval = null;
-      this.isWalkSimulationActive = false;
-    }
+    this.isWalkSimulationActive = false;
     this.cadence = 0;
-    this.accumulatedStepFraction = 0;
     this.activeSeconds = 0;
     this.recentStepTimestamps = [];
     this.loadPersistedSteps();
@@ -239,8 +232,8 @@ export class PedometerEngine {
     this.pruneCadenceWindow(timestamp);
   }
 
-  // --- 2. Activity Time Tracker & Hybrid Heart-Rate Cadence Fallback ---
-  public ingestHeartRate(bpm: number, zone: number, timestamp = Date.now(), onWrist = true, rhrBase = 60): void {
+  // --- 2. Activity Time Tracker (Zero Fake HR-to-Step Ingestion) ---
+  public ingestHeartRate(bpm: number, zone: number, timestamp = Date.now(), onWrist = true, _rhrBase = 60): void {
     if (!onWrist || !bpm || bpm <= 0) {
       if (!onWrist && this.cadence > 0) {
         this.cadence = 0;
@@ -256,50 +249,18 @@ export class PedometerEngine {
       this.activeSeconds += elapsedSec;
     }
 
-    // Hybrid Ingestion Fallback:
-    // If the strap's proprietary IMU stream is quiet or obstructed by browser BLE limitations,
-    // and the strap reports heart rate consistent with active bipedal locomotion,
-    // calculate steps continuously using WHOOP standard human gait equations.
-    const walkThreshold = Math.min(68, Math.max(55, rhrBase + 6));
-    const isImuRecent = this.source === 'imu_hardware' && (timestamp - this.lastStepTimestamp < 2500);
-    if (!isImuRecent && bpm >= walkThreshold) {
-      let inferredCadence = 0;
-      if (bpm < 78) {
-        // Light stroll / domestic movement (75 - 92 SPM)
-        inferredCadence = 75 + Math.round(((bpm - walkThreshold) / Math.max(1, 78 - walkThreshold)) * 17);
-      } else if (bpm < 95) {
-        // Moderate continuous walking (93 - 112 SPM)
-        inferredCadence = 93 + Math.round(((bpm - 78) / 17) * 19);
-      } else if (bpm < 118) {
-        // Brisk walking / power walk (113 - 130 SPM)
-        inferredCadence = 113 + Math.round(((bpm - 95) / 23) * 17);
-      } else if (bpm < 145) {
-        // Jogging / slow run (132 - 152 SPM)
-        inferredCadence = 132 + Math.round(((bpm - 118) / 27) * 20);
-      } else if (bpm < 165) {
-        // Running (154 - 168 SPM)
-        inferredCadence = 154 + Math.round(((bpm - 145) / 20) * 14);
-      } else {
-        // Fast running / sprinting (170 - 185 SPM)
-        inferredCadence = 170 + Math.round(Math.min(1.0, (bpm - 165) / 25) * 15);
-      }
-
-      const stepsPerSec = inferredCadence / 60;
-      this.accumulatedStepFraction += stepsPerSec * elapsedSec;
-
-      if (this.accumulatedStepFraction >= 1.0) {
-        const wholeSteps = Math.floor(this.accumulatedStepFraction);
-        this.accumulatedStepFraction -= wholeSteps;
-        this.cadence = inferredCadence;
-        this.recordSteps(wholeSteps, timestamp, 'activity_inference');
-      }
-    } else if (!isImuRecent && bpm < walkThreshold) {
-      // Sedentary / seated / resting: cadence smoothly resets
-      if (this.cadence > 0 && timestamp - this.lastStepTimestamp > 2500) {
-        this.cadence = 0;
-        this.notifySubscribers();
-      }
+    // STRICT HEALTH-TECH SPEC:
+    // Physical steps must come strictly from hardware IMU peak detection or RSC cumulative packets.
+    // We strictly DO NOT synthesize artificial steps from Heart Rate.
+    if (timestamp - this.lastStepTimestamp > 3000 && this.cadence > 0) {
+      this.cadence = 0;
+      this.notifySubscribers();
     }
+  }
+
+  public setLiveCadence(cadence: number): void {
+    this.cadence = Math.max(0, Math.round(cadence));
+    this.notifySubscribers();
   }
 
   public recordSteps(
@@ -355,24 +316,9 @@ export class PedometerEngine {
   public toggleContinuousWalk(forceActive?: boolean): boolean {
     const nextState = forceActive !== undefined ? forceActive : !this.isWalkSimulationActive;
     this.isWalkSimulationActive = nextState;
-
-    if (this.walkInterval) {
-      clearInterval(this.walkInterval);
-      this.walkInterval = null;
-    }
-
-    if (nextState) {
-      this.cadence = 112;
-      this.source = 'imu_hardware';
-      // Real-time walking simulator: pulses steps immediately per tick without artificial catch-up queues
-      this.walkInterval = setInterval(() => {
-        this.recordSteps(2, Date.now(), 'imu_hardware');
-      }, 1000);
-    } else {
+    if (!nextState) {
       this.cadence = 0;
-      this.notifySubscribers(this.steps);
     }
-
     this.notifySubscribers(this.steps);
     return this.isWalkSimulationActive;
   }
@@ -473,7 +419,6 @@ export class PedometerEngine {
   public resetTodaySteps(): void {
     this.steps = 0;
     this.cadence = 0;
-    this.accumulatedStepFraction = 0;
     this.activeSeconds = 0;
     this.recentStepTimestamps = [];
     this.persistSteps();

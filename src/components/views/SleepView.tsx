@@ -21,6 +21,7 @@ import {
   X,
   SlidersHorizontal,
   ChevronDown,
+  RotateCcw,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -116,6 +117,11 @@ export const SleepView: React.FC<SleepViewProps> = ({
     } else {
       sleepEngine.activateRealSleepCalculation();
     }
+  };
+
+  const handleClearSleepData = async () => {
+    setIsSyncToolsOpen(false);
+    await sleepEngine.clearSleepData();
   };
 
   const handleInlineTokenSync = async () => {
@@ -335,12 +341,14 @@ export const SleepView: React.FC<SleepViewProps> = ({
                   diagnosticInfo.activeSource === 'cloud_api' ? 'bg-[#16EC06] shadow-[0_0_8px_#16EC06]' :
                   diagnosticInfo.activeSource === 'ble' ? 'bg-[#38BDF8] shadow-[0_0_8px_#38BDF8]' :
                   diagnosticInfo.activeSource === 'reconciled' ? 'bg-[#C084FC] shadow-[0_0_8px_#C084FC]' :
+                  diagnosticInfo.activeSource === 'MANUAL_PRESET' ? 'bg-amber-400 shadow-[0_0_8px_#f59e0b]' :
                   diagnosticInfo.activeSource === 'manual' ? 'bg-[#FFDE00] shadow-[0_0_8px_#FFDE00]' : 'bg-zinc-500'
                 }`} />
                 <span className="font-bold text-white uppercase text-[10px]">
                   {diagnosticInfo.activeSource === 'cloud_api' ? 'Cloud API v1' :
                    diagnosticInfo.activeSource === 'ble' ? 'Bluetooth BLE' :
                    diagnosticInfo.activeSource === 'reconciled' ? 'Nocturnal Gap' :
+                   diagnosticInfo.activeSource === 'MANUAL_PRESET' ? 'Manual Preset' :
                    diagnosticInfo.activeSource === 'manual' ? 'Instant Calc' :
                    diagnosticInfo.activeSource === 'cached' ? 'IndexedDB Cache' : 'Fallback / Standby'}
                 </span>
@@ -526,6 +534,19 @@ export const SleepView: React.FC<SleepViewProps> = ({
                         </div>
                       </div>
                     </button>
+
+                    <button
+                      onClick={handleClearSleepData}
+                      className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl hover:bg-rose-500/10 text-rose-400 hover:text-rose-300 text-xs font-condensed font-bold transition-colors border-t border-white/5 mt-1 pt-1.5"
+                    >
+                      <RotateCcw className="w-4 h-4 text-rose-400 flex-shrink-0" />
+                      <div className="flex-1 text-start">
+                        <div>{isRtl ? 'تصفير بيانات النوم (مسح المحاكاة)' : 'Reset / Clear Sleep Data'}</div>
+                        <div className="text-[10px] text-zinc-500 font-sans font-normal">
+                          {isRtl ? 'حذف الجلسات اليدوية والعودة لوضع الانتظار (--)' : 'Purge manual sessions & return to --'}
+                        </div>
+                      </div>
+                    </button>
                   </div>
                 </>
               )}
@@ -569,14 +590,42 @@ export const SleepView: React.FC<SleepViewProps> = ({
                   </div>
                 </div>
               </div>
-              <span className="text-[9px] px-2 py-0.5 rounded-full bg-[#38BDF8]/20 text-[#38BDF8] border border-[#38BDF8]/30 font-mono font-bold uppercase flex-shrink-0">
-                {isRtl ? 'دورة نشطة' : 'ACTIVE BASELINE'}
-              </span>
+              {diagnosticInfo.activeSource === 'MANUAL_PRESET' ? (
+                <span className="text-[9px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 font-mono font-bold uppercase flex-shrink-0">
+                  {isRtl ? 'جلسة يدوية' : 'MANUAL WINDOW'}
+                </span>
+              ) : (
+                <span className="text-[9px] px-2 py-0.5 rounded-full bg-[#38BDF8]/20 text-[#38BDF8] border border-[#38BDF8]/30 font-mono font-bold uppercase flex-shrink-0">
+                  {isRtl ? 'دورة نشطة' : 'ACTIVE BASELINE'}
+                </span>
+              )}
             </div>
             <p className="text-[11px] text-zinc-300 font-sans leading-relaxed pt-0.5">
               {isRtl
                 ? `تعتمد خوارزمية WHOOP آخر جلسة نوم مكتملة كخط أساس بيولوجي للاستشفاء (${hoursAsleep} ساعات) حتى موعد النوم القادم الليلة.`
                 : `WHOOP anchors your current recovery to your last completed session (${hoursAsleep} hrs) until tonight's sleep onset.`}
+            </p>
+          </div>
+        )}
+
+        {/* MANUAL_PRESET Transparency Banner */}
+        {diagnosticInfo.activeSource === 'MANUAL_PRESET' && hoursAsleep !== null && (
+          <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-start space-y-1.5 shadow-lg animate-in fade-in my-2">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse flex-shrink-0" />
+                <span className="text-xs font-black font-condensed text-amber-300 uppercase tracking-wider truncate">
+                  {isRtl ? 'جلسة يدوية / Manual Window' : 'Manual Sleep Window'}
+                </span>
+              </div>
+              <span className="text-[9px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 font-mono font-bold uppercase flex-shrink-0">
+                MANUAL PRESET
+              </span>
+            </div>
+            <p className="text-[11px] text-zinc-300 font-sans leading-relaxed">
+              {isRtl
+                ? 'تم تسجيل هذه الجلسة يدوياً عبر المستخدم وليست مستخرجة مباشرة من حساسات السوار الحيوية.'
+                : 'This session was recorded as a manual window and does not represent direct sensor telemetry.'}
             </p>
           </div>
         )}
