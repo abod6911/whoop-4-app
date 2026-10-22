@@ -18,6 +18,10 @@ export class WhoopPulseDatabase extends Dexie {
   workouts!: Table<WorkoutEntity, string>;
   sleep_sessions!: Table<SleepSessionEntity, string>;
 
+  // Debounced step persistence to avoid excessive IndexedDB I/O during brisk walking
+  private pendingStepsUpdate: { steps: number; cadence: number } | null = null;
+  private stepsDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+
   constructor() {
     super('WhoopPulseProductionDB');
     this.version(1).stores({
@@ -117,7 +121,32 @@ export class WhoopPulseDatabase extends Dexie {
     return record.date;
   }
 
-  public async updateTodaySteps(steps: number, cadence = 0): Promise<void> {
+  public async updateTodaySteps(steps: number, cadence = 0, immediate = false): Promise<void> {
+    this.pendingStepsUpdate = { steps, cadence };
+
+    if (immediate) {
+      await this.flushPendingSteps();
+      return;
+    }
+
+    if (!this.stepsDebounceTimer) {
+      this.stepsDebounceTimer = setTimeout(() => {
+        this.stepsDebounceTimer = null;
+        this.flushPendingSteps().catch(() => {});
+      }, 5000); // 5-second debounce window to prevent excessive I/O during brisk walking
+    }
+  }
+
+  public async flushPendingSteps(): Promise<void> {
+    if (this.stepsDebounceTimer) {
+      clearTimeout(this.stepsDebounceTimer);
+      this.stepsDebounceTimer = null;
+    }
+    if (!this.pendingStepsUpdate) return;
+
+    const { steps, cadence } = this.pendingStepsUpdate;
+    this.pendingStepsUpdate = null;
+
     try {
       const today = localDateKey();
       const existing = await this.daily_records.get(today);

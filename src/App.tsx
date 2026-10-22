@@ -132,9 +132,17 @@ export const App: React.FC = () => {
     });
   }, []);
 
-  // Live Pedometer & IMU Step Sync Subscriber
+  // Live Pedometer & IMU Step Sync Subscriber (Syncs real StepDetector BLE packets + Phone motion)
   useEffect(() => {
-    return pedometerEngine.subscribe((pedo) => {
+    const unsubBle = whoopBleEngine.onSteps((steps, cadence) => {
+      setLiveMetrics((prev) => ({
+        ...prev,
+        steps,
+        cadence,
+        stepSource: 'imu_hardware',
+      }));
+    });
+    const unsubPedo = pedometerEngine.subscribe((pedo) => {
       setLiveMetrics((prev) => ({
         ...prev,
         steps: pedo.steps,
@@ -142,6 +150,10 @@ export const App: React.FC = () => {
         stepSource: pedo.source,
       }));
     });
+    return () => {
+      unsubBle();
+      unsubPedo();
+    };
   }, []);
 
   // Live Sleep Engine Subscriber (Instant reactivity for real sleep and simulated night sessions)

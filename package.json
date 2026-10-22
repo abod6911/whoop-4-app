@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "test:sleep": "npx tsx scripts/verify-sleep-pipeline.ts",
+    "test:steps": "npx tsx scripts/verify-step-detector.ts",
     "preview": "vite preview"
   },
   "dependencies": {

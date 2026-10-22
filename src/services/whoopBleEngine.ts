@@ -13,6 +13,7 @@ import { storageService } from './StorageService';
 import { whoopDb } from './whoopDatabase';
 import { notificationEngine } from './notificationEngine';
 import { pedometerEngine } from './pedometerEngine';
+import { stepDetector, StepDetector } from './StepDetector';
 import { biometricEngine } from '../utils/biometricEngine';
 import { sleepEngine } from './sleepEngine';
 import { calculateSleepStatsFromTimeline, generateRealisticOvernightSession } from './sleepStages';
@@ -100,6 +101,7 @@ export type MetadataCallback = (meta: DeviceMetadata) => void;
 export type PacketCallback = (packet: RawBlePacket) => void;
 export type GattTreeCallback = (services: GattServiceInfo[]) => void;
 export type ErrorCallback = (error: string) => void;
+export type StepsCallback = (steps: number, cadence: number) => void;
 
 // --- Reverse-Engineered WHOOP 4.0 Protocol & OpenStrap Framing ---
 export {
@@ -150,6 +152,10 @@ export class WhoopBleEngine {
   private onPacketCallbacks: Set<PacketCallback> = new Set();
   private onGattTreeCallbacks: Set<GattTreeCallback> = new Set();
   private onErrorCallbacks: Set<ErrorCallback> = new Set();
+  private onStepsCallbacks: Set<StepsCallback> = new Set();
+
+  // StepDetector DSP Engine Singleton
+  public readonly stepDetector: StepDetector = stepDetector;
 
   // Real Hardware Metadata (initial: Disconnected State)
   private metadata: DeviceMetadata = {
@@ -221,6 +227,14 @@ export class WhoopBleEngine {
     if (typeof window !== 'undefined') {
       this.checkPermittedDevices().catch(() => {});
     }
+
+    // Initialize StepDetector with today's persisted steps from whoopDatabase
+    const todayKey = localDateKey();
+    whoopDb.getDailyRecord(todayKey).then((record) => {
+      if (record && typeof record.steps === 'number' && record.steps > 0) {
+        this.stepDetector.setSteps(record.steps);
+      }
+    }).catch(() => {});
   }
 
   public isSupported(): boolean {
@@ -332,6 +346,22 @@ export class WhoopBleEngine {
   public onError(cb: ErrorCallback): () => void {
     this.onErrorCallbacks.add(cb);
     return () => this.onErrorCallbacks.delete(cb);
+  }
+
+  public onSteps(cb: StepsCallback): () => void {
+    this.onStepsCallbacks.add(cb);
+    cb(this.stepDetector.getSteps(), this.stepDetector.getCadence());
+    return () => this.onStepsCallbacks.delete(cb);
+  }
+
+  private emitSteps(steps: number, cadence: number): void {
+    this.onStepsCallbacks.forEach((cb) => {
+      try {
+        cb(steps, cadence);
+      } catch (err) {
+        console.error('[WhoopBleEngine] Steps callback error:', err);
+      }
+    });
   }
 
   private emitMetadata(): void {
@@ -823,7 +853,9 @@ export class WhoopBleEngine {
   private handleDisconnected(): void {
     console.log('WHOOP 4.0 Strap Disconnected');
     this.lastDisconnectedTimestamp = Date.now();
+    whoopDb.flushPendingSteps().catch(() => {});
     pedometerEngine.setLiveCadence(0);
+    this.emitSteps(this.stepDetector.getSteps(), 0);
     try {
       localStorage.setItem('whoop_last_disconnected_timestamp', String(this.lastDisconnectedTimestamp));
       localStorage.setItem('whoop_last_seen_timestamp', String(this.lastDisconnectedTimestamp));
@@ -1294,7 +1326,11 @@ export class WhoopBleEngine {
 
   // --- Developer Tool: Test Live Step Packet (+1 Step) ---
   public testLiveStepPacket(): void {
+    const next = this.stepDetector.getSteps() + 1;
+    this.stepDetector.setSteps(next);
     pedometerEngine.testLiveStepPacket();
+    whoopDb.updateTodaySteps(next, this.stepDetector.getCadence());
+    this.emitSteps(next, this.stepDetector.getCadence());
   }
 
   // --- Dynamic Battery & Charging State Detection Engine ---
@@ -1712,7 +1748,10 @@ export class WhoopBleEngine {
             } else if (pType === 0x06 && pData.byteLength >= 5) {
               // Cumulative hardware steps counter characteristic / payload
               const hwSteps = pData.getUint32(1, true);
+              this.stepDetector.setSteps(hwSteps);
               pedometerEngine.reconcileCumulativeHardwareSteps(hwSteps);
+              whoopDb.updateTodaySteps(hwSteps, this.stepDetector.getCadence(), true);
+              this.emitSteps(hwSteps, this.stepDetector.getCadence());
             } else if (pType === 0x01 && pData.byteLength >= 7) {
               // Accelerometer IMU frame
               const rawX = pData.getInt16(1, true);
@@ -1731,7 +1770,17 @@ export class WhoopBleEngine {
               const gZ = rawZ / scale;
               const motionDelta = Math.abs(Math.sqrt(gX * gX + gY * gY + gZ * gZ) - 1.0);
 
-              pedometerEngine.ingestRawAccel(gX, gY, gZ, Date.now(), this.metadata.onWrist !== false);
+              if (this.metadata.connected && this.metadata.onWrist !== false) {
+                const isStep = this.stepDetector.processSample({ x: gX, y: gY, z: gZ, timestamp: Date.now() });
+                if (isStep) {
+                  const steps = this.stepDetector.getSteps();
+                  const cadence = this.stepDetector.getCadence();
+                  pedometerEngine.setDailySteps(steps, 'imu_hardware');
+                  pedometerEngine.setLiveCadence(cadence);
+                  whoopDb.updateTodaySteps(steps, cadence);
+                  this.emitSteps(steps, cadence);
+                }
+              }
               sleepEngine.ingestMotion(motionDelta);
             } else if (pType === 0x02 && pData.byteLength >= 9) {
               // Raw PPG optical stream: red/IR modulation ratio parsing
@@ -1775,7 +1824,17 @@ export class WhoopBleEngine {
           const motionDelta = Math.abs(gMag - 1.0);
 
           if (gMag >= 0.1 && gMag <= 10.0) {
-            pedometerEngine.ingestRawAccel(gX, gY, gZ, Date.now(), this.metadata.onWrist !== false);
+            if (this.metadata.connected && this.metadata.onWrist !== false) {
+              const isStep = this.stepDetector.processSample({ x: gX, y: gY, z: gZ, timestamp: Date.now() });
+              if (isStep) {
+                const steps = this.stepDetector.getSteps();
+                const cadence = this.stepDetector.getCadence();
+                pedometerEngine.setDailySteps(steps, 'imu_hardware');
+                pedometerEngine.setLiveCadence(cadence);
+                whoopDb.updateTodaySteps(steps, cadence);
+                this.emitSteps(steps, cadence);
+              }
+            }
             sleepEngine.ingestMotion(motionDelta);
           }
 
@@ -1845,7 +1904,10 @@ export class WhoopBleEngine {
         // Standard RSC Total Distance (uint32 in 1/10 meters) or cumulative hardware strides/steps
         const cumulativeSteps = data.getUint32(offset, true);
         if (cumulativeSteps > 0) {
+          this.stepDetector.setSteps(cumulativeSteps);
           pedometerEngine.reconcileCumulativeHardwareSteps(cumulativeSteps);
+          whoopDb.updateTodaySteps(cumulativeSteps, cadence, true);
+          this.emitSteps(cumulativeSteps, cadence);
         }
       }
     } catch { /* ignore */ }

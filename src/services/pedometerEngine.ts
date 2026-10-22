@@ -1,6 +1,7 @@
 import { localDateKey } from '../utils/dateKey';
 import { storageService } from './StorageService';
 import { whoopDb } from './whoopDatabase';
+import { stepDetector } from './StepDetector';
 
 export interface PedometerState {
   steps: number;
@@ -105,6 +106,7 @@ export class PedometerEngine {
     this.steps = sanitized;
     this.lastStepTimestamp = Date.now();
     this.source = source;
+    stepDetector.setSteps(sanitized);
     this.persistSteps();
     this.notifySubscribers(this.steps);
   }
@@ -145,6 +147,7 @@ export class PedometerEngine {
       if (recorded > 0) {
         this.steps = recorded;
         this.source = 'imu_hardware';
+        stepDetector.setSteps(recorded);
         return;
       }
       const raw = localStorage.getItem(this.getStepStorageKey()) || localStorage.getItem(`whoop_steps_${todayKey}`);
@@ -152,6 +155,7 @@ export class PedometerEngine {
         const parsed = JSON.parse(raw);
         this.steps = typeof parsed.steps === 'number' && parsed.steps >= 0 ? parsed.steps : 0;
         this.source = parsed.source || 'imu_hardware';
+        stepDetector.setSteps(this.steps);
       }
 
       // Asynchronously check IndexedDB whoopDb.daily_records for persistence across page reloads
@@ -159,6 +163,7 @@ export class PedometerEngine {
         if (rec && typeof rec.steps === 'number' && rec.steps > this.steps) {
           this.steps = rec.steps;
           this.source = 'imu_hardware';
+          stepDetector.setSteps(rec.steps);
           this.notifySubscribers(this.steps);
         }
       }).catch(() => {});
@@ -193,51 +198,20 @@ export class PedometerEngine {
 
     this.source = 'imu_hardware';
 
-    // 1. Vector Magnitude: A_mag = sqrt(x^2 + y^2 + z^2)
-    const magnitude = Math.sqrt(x * x + y * y + z * z);
-    this.accelWindow.push(magnitude);
-    if (this.accelWindow.length > this.windowSize) {
-      this.accelWindow.shift();
-    }
-
-    // 2. Dynamic Threshold calculation (rolling mean + adaptive factor)
-    if (this.accelWindow.length >= 6) {
-      const sum = this.accelWindow.reduce((a, b) => a + b, 0);
-      const mean = sum / this.accelWindow.length;
-      const variance = this.accelWindow.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / this.accelWindow.length;
-      const stdDev = Math.sqrt(variance);
-
-      // Adaptive threshold for human wrist / arm locomotion: 0.04g to 0.30g above baseline
-      const adaptiveCandidate = mean + Math.max(0.04, stdDev * 0.45);
-      this.dynamicThreshold = Math.min(1.30, Math.max(1.05, adaptiveCandidate));
-
-      // 3. Peak detection within strict physiological human cadence window:
-      // Min interval: 400ms (2.5 Hz = max 150 spm bipedal locomotion)
-      // Max interval: 1250ms (0.8 Hz = min ~48 spm strolling locomotion)
-      // Rejects high-frequency mechanical vibration (<400ms) or disconnected noise.
-      const currentIndex = this.accelWindow.length - 2;
-      if (currentIndex > 0) {
-        const prev = this.accelWindow[currentIndex - 1];
-        const curr = this.accelWindow[currentIndex];
-        const next = this.accelWindow[currentIndex + 1];
-
-        const interval = timestamp - this.lastPeakTime;
-        const isNewStreak = this.lastPeakTime === 0 || interval > this.maxStepIntervalMs;
-        const isValidCadenceWindow = interval >= this.minStepIntervalMs && interval <= this.maxStepIntervalMs;
-
-        if (
-          curr > prev &&
-          curr > next &&
-          curr >= this.dynamicThreshold &&
-          (isNewStreak || isValidCadenceWindow)
-        ) {
-          this.recordStep(timestamp);
-          this.lastPeakTime = timestamp;
-        }
+    const isStep = stepDetector.processSample({ x, y, z, timestamp });
+    if (isStep) {
+      this.steps = stepDetector.getSteps();
+      this.cadence = stepDetector.getCadence();
+      this.lastStepTimestamp = timestamp;
+      this.persistSteps();
+      this.notifySubscribers(this.steps);
+    } else {
+      const currentCadence = stepDetector.getCadence();
+      if (currentCadence !== this.cadence) {
+        this.cadence = currentCadence;
+        this.notifySubscribers(this.steps);
       }
     }
-
-    this.pruneCadenceWindow(timestamp);
   }
 
   // --- 2. Activity Time Tracker (Zero Fake HR-to-Step Ingestion) ---
@@ -307,6 +281,7 @@ export class PedometerEngine {
   // Developer Tool: Test Live Step Packet (+1 Step)
   public testLiveStepPacket(): void {
     this.recordSteps(1, Date.now(), 'imu_hardware');
+    stepDetector.setSteps(this.steps);
     this.cadence = Math.max(104, this.cadence || 110);
     this.notifySubscribers();
   }
@@ -334,6 +309,7 @@ export class PedometerEngine {
       this.steps = target;
       this.lastStepTimestamp = Date.now();
       this.source = 'imu_hardware';
+      stepDetector.setSteps(target);
       this.persistSteps();
       this.notifySubscribers(this.steps);
       return Math.max(0, delta);
@@ -393,6 +369,7 @@ export class PedometerEngine {
     this.cadence = 0;
     this.activeSeconds = 0;
     this.recentStepTimestamps = [];
+    stepDetector.reset();
     this.persistSteps();
     this.notifySubscribers(this.steps);
   }
