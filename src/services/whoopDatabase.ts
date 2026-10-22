@@ -1,4 +1,5 @@
 import Dexie, { type Table } from 'dexie';
+import { localDateKey } from '../utils/dateKey';
 import type {
   UserProfileEntity,
   RealtimeTelemetryEntity,
@@ -114,6 +115,43 @@ export class WhoopPulseDatabase extends Dexie {
   public async saveDailyRecord(record: DailyRecordEntity): Promise<string> {
     await this.daily_records.put(record);
     return record.date;
+  }
+
+  public async updateTodaySteps(steps: number, cadence = 0): Promise<void> {
+    try {
+      const today = localDateKey();
+      const existing = await this.daily_records.get(today);
+      if (existing) {
+        existing.steps = steps;
+        existing.cadence = cadence;
+        await this.daily_records.put(existing);
+      } else {
+        await this.daily_records.put({
+          date: today,
+          timestamp: Date.now(),
+          dayStrain: 0,
+          recoveryScore: null,
+          recoveryCategory: 'calibrating',
+          activeCalories: 0,
+          bmrCalories: 0,
+          totalCalories: 0,
+          steps,
+          cadence,
+          rhr: null,
+          hrv: null,
+          skinTempDelta: null,
+          spO2Avg: null,
+          sleepPerformance: null,
+          hoursAsleep: null,
+          hoursInBed: null,
+          sleepNeedHours: 8.0,
+          stressAvg: null,
+          zoneSeconds: {},
+        });
+      }
+    } catch (e) {
+      console.warn('[WhoopDatabase] Notice updating daily steps:', e);
+    }
   }
 
   public async getDailyRecord(date: string): Promise<DailyRecordEntity | undefined> {

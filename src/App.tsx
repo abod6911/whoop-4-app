@@ -973,6 +973,7 @@ export const App: React.FC = () => {
                     setShareCardType(type);
                     setIsShareCardOpen(true);
                   }}
+                  isStrapConnected={metadata.connected}
                 />
               )}
             </>

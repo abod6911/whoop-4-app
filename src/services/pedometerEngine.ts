@@ -1,5 +1,6 @@
 import { localDateKey } from '../utils/dateKey';
 import { storageService } from './StorageService';
+import { whoopDb } from './whoopDatabase';
 
 export interface PedometerState {
   steps: number;
@@ -12,7 +13,7 @@ export interface PedometerState {
 export class PedometerEngine {
   private steps = 0;
   private cadence = 0;
-  private source: 'imu_hardware' | 'activity_inference' = 'activity_inference';
+  private source: 'imu_hardware' | 'activity_inference' = 'imu_hardware';
   private lastStepTimestamp = 0;
   private recentStepTimestamps: number[] = [];
   private processedEpochs = new Set<string>();
@@ -21,18 +22,16 @@ export class PedometerEngine {
   private accelWindow: number[] = [];
   private readonly windowSize = 50; // ~1-2 seconds of accelerometer data
   private lastPeakTime = 0;
-  // Human rhythmic locomotion: 0.8 Hz (1250 ms) to 3.33 Hz (300 ms)
-  private readonly minStepIntervalMs = 300; // 3.33 Hz (~200 steps/min max human bipedal cadence)
+  // Human rhythmic locomotion: 0.8 Hz (1250 ms) to 2.5 Hz (400 ms)
+  private readonly minStepIntervalMs = 400; // 2.5 Hz (~150 steps/min max human bipedal cadence)
   private readonly maxStepIntervalMs = 1250; // 0.8 Hz (~48 steps/min min human strolling cadence)
   private dynamicThreshold = 1.15; // in G's
 
-  // HR-Inference Model State
+  // HR & Motion State
   private lastHrTickTime = Date.now();
   private activeSeconds = 0;
   private subscribers = new Set<(state: PedometerState) => void>();
-  // Motion listener state
   private isMotionListenerActive = false;
-  public isWalkSimulationActive = false;
 
   constructor() {
     this.loadPersistedSteps();
@@ -122,7 +121,6 @@ export class PedometerEngine {
   }
 
   public reloadForUser(): void {
-    this.isWalkSimulationActive = false;
     this.cadence = 0;
     this.activeSeconds = 0;
     this.recentStepTimestamps = [];
@@ -154,10 +152,16 @@ export class PedometerEngine {
         const parsed = JSON.parse(raw);
         this.steps = typeof parsed.steps === 'number' && parsed.steps >= 0 ? parsed.steps : 0;
         this.source = parsed.source || 'imu_hardware';
-      } else {
-        this.steps = 0;
-        this.persistSteps();
       }
+
+      // Asynchronously check IndexedDB whoopDb.daily_records for persistence across page reloads
+      whoopDb.getDailyRecord(todayKey).then((rec) => {
+        if (rec && typeof rec.steps === 'number' && rec.steps > this.steps) {
+          this.steps = rec.steps;
+          this.source = 'imu_hardware';
+          this.notifySubscribers(this.steps);
+        }
+      }).catch(() => {});
     } catch {
       this.steps = 0;
     }
@@ -167,6 +171,7 @@ export class PedometerEngine {
     try {
       const todayKey = this.getTodayKey();
       storageService.saveRecordedSteps(todayKey, this.steps, this.source);
+      whoopDb.updateTodaySteps(this.steps, this.cadence).catch(() => {});
     } catch {}
   }
 
@@ -206,22 +211,25 @@ export class PedometerEngine {
       const adaptiveCandidate = mean + Math.max(0.04, stdDev * 0.45);
       this.dynamicThreshold = Math.min(1.30, Math.max(1.05, adaptiveCandidate));
 
-      // 3. Peak detection with dynamic debounce window (220ms - 300ms)
+      // 3. Peak detection within strict physiological human cadence window:
+      // Min interval: 400ms (2.5 Hz = max 150 spm bipedal locomotion)
+      // Max interval: 1250ms (0.8 Hz = min ~48 spm strolling locomotion)
+      // Rejects high-frequency mechanical vibration (<400ms) or disconnected noise.
       const currentIndex = this.accelWindow.length - 2;
       if (currentIndex > 0) {
         const prev = this.accelWindow[currentIndex - 1];
         const curr = this.accelWindow[currentIndex];
         const next = this.accelWindow[currentIndex + 1];
 
-        const debounceMs = this.cadence > 130 ? 220 : 280;
         const interval = timestamp - this.lastPeakTime;
-        const isNewStreak = this.lastPeakTime === 0 || interval > 2500;
+        const isNewStreak = this.lastPeakTime === 0 || interval > this.maxStepIntervalMs;
+        const isValidCadenceWindow = interval >= this.minStepIntervalMs && interval <= this.maxStepIntervalMs;
 
         if (
           curr > prev &&
           curr > next &&
           curr >= this.dynamicThreshold &&
-          (isNewStreak || interval >= debounceMs)
+          (isNewStreak || isValidCadenceWindow)
         ) {
           this.recordStep(timestamp);
           this.lastPeakTime = timestamp;
@@ -303,26 +311,6 @@ export class PedometerEngine {
     this.notifySubscribers();
   }
 
-  // Simulator for hardware lab & live demonstration
-  public simulateStepBurst(count = 50): void {
-    this.steps += count;
-    this.cadence = 114;
-    this.lastStepTimestamp = Date.now();
-    this.source = 'imu_hardware';
-    this.persistSteps();
-    this.notifySubscribers(this.steps);
-  }
-
-  public toggleContinuousWalk(forceActive?: boolean): boolean {
-    const nextState = forceActive !== undefined ? forceActive : !this.isWalkSimulationActive;
-    this.isWalkSimulationActive = nextState;
-    if (!nextState) {
-      this.cadence = 0;
-    }
-    this.notifySubscribers(this.steps);
-    return this.isWalkSimulationActive;
-  }
-
   public getState(): PedometerState {
     return {
       steps: this.steps,
@@ -398,22 +386,6 @@ export class PedometerEngine {
     this.source = source;
     this.persistSteps();
     this.notifySubscribers(this.steps);
-  }
-
-  /**
-   * Reconnect after outdoor walk without phone: commits full bulk delta immediately
-   */
-  public simulateOfflineWalkReconnection(additionalSteps = 2000): number {
-    this.steps += Math.round(additionalSteps);
-    this.lastStepTimestamp = Date.now();
-    this.source = 'imu_hardware';
-    this.persistSteps();
-    this.notifySubscribers(this.steps);
-    return additionalSteps;
-  }
-
-  public reconcileOfflineSteps(additionalSteps = 2000): number {
-    return this.simulateOfflineWalkReconnection(additionalSteps);
   }
 
   public resetTodaySteps(): void {

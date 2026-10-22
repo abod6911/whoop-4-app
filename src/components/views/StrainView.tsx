@@ -39,6 +39,7 @@ interface StrainViewProps {
   isWorkoutActive: boolean;
   workoutElapsedSec: number;
   onOpenShareCard?: (type: 'recovery' | 'strain' | 'activity') => void;
+  isStrapConnected?: boolean;
 }
 
 export const StrainView: React.FC<StrainViewProps> = ({
@@ -51,6 +52,7 @@ export const StrainView: React.FC<StrainViewProps> = ({
   isWorkoutActive,
   workoutElapsedSec,
   onOpenShareCard,
+  isStrapConnected = false,
 }) => {
   const { t, isRtl, dayNames } = useLanguage();
   const [selectedSport, setSelectedSport] = useState('Running');
@@ -221,25 +223,36 @@ export const StrainView: React.FC<StrainViewProps> = ({
           <div className="py-2.5 flex items-center justify-between text-xs font-condensed font-bold">
             <div className="flex items-center gap-2.5 text-zinc-300">
               <motion.div
-                animate={{
+                animate={isStrapConnected && metrics.cadence > 0 ? {
                   y: [0, -2.5, 0],
                   scale: [1, 1.1, 1],
-                }}
+                } : {}}
                 transition={{
                   duration: 1.1,
-                  repeat: Infinity,
+                  repeat: isStrapConnected && metrics.cadence > 0 ? Infinity : 0,
                   ease: 'easeInOut',
                 }}
-                className="w-7 h-7 rounded-lg bg-[#00A3FF]/15 border border-[#00A3FF]/30 flex items-center justify-center text-[#00A3FF] shadow-sm shadow-[#00A3FF]/20"
+                className={`w-7 h-7 rounded-lg flex items-center justify-center shadow-sm transition-colors ${
+                  isStrapConnected
+                    ? 'bg-[#00A3FF]/15 border border-[#00A3FF]/30 text-[#00A3FF] shadow-[#00A3FF]/20'
+                    : 'bg-zinc-800/40 border border-white/5 text-zinc-500'
+                }`}
               >
                 <Footprints className="w-3.5 h-3.5 stroke-[2.2]" />
               </motion.div>
               <div className="flex items-center gap-1.5">
                 <span className="uppercase text-white tracking-wider">{t('steps')}</span>
-                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-[#16EC06]/15 text-[#16EC06] border border-[#16EC06]/30 font-mono font-bold flex items-center gap-1">
-                  <span className="w-1 h-1 rounded-full bg-[#16EC06] animate-ping" />
-                  {isRtl ? 'حساس IMU مباشر' : 'IMU LIVE'}
-                </span>
+                {isStrapConnected ? (
+                  <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-[#16EC06]/15 text-[#16EC06] border border-[#16EC06]/30 font-mono font-bold flex items-center gap-1">
+                    <span className={`w-1 h-1 rounded-full bg-[#16EC06] ${metrics.cadence > 0 ? 'animate-ping' : ''}`} />
+                    {metrics.cadence > 0 ? (isRtl ? 'حساس IMU نشط' : 'IMU ACTIVE') : (isRtl ? 'حساس IMU متصل' : 'IMU LIVE')}
+                  </span>
+                ) : (
+                  <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-zinc-800/80 text-zinc-400 border border-white/5 font-mono font-bold flex items-center gap-1">
+                    <span className="w-1 h-1 rounded-full bg-zinc-600" />
+                    {isRtl ? 'غير متصل' : 'OFFLINE'}
+                  </span>
+                )}
               </div>
             </div>
             <div className="text-end">
@@ -247,7 +260,9 @@ export const StrainView: React.FC<StrainViewProps> = ({
                 <AnimatedStepCounter value={metrics.steps || 0} />
               </span>
               <span className="text-[10px] text-zinc-400 font-mono block" dir="ltr">
-                {metrics.cadence > 0 ? `${metrics.cadence} spm` : (isRtl ? '0 spm • خامل' : '0 spm • Resting')}
+                {isStrapConnected
+                  ? (metrics.cadence > 0 ? `${metrics.cadence} spm` : (isRtl ? '0 spm • خامل' : '0 spm • Resting'))
+                  : (isRtl ? 'آخر إجمالي محفوظ' : 'Last Persisted')}
               </span>
             </div>
           </div>

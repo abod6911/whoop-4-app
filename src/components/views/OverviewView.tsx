@@ -935,20 +935,22 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                 animate={isStepPulsing ? {
                   scale: [1, 1.25, 1],
                   rotate: [0, -10, 10, 0],
-                } : {
+                } : (metadata.connected && metrics.cadence > 0 ? {
                   y: [0, -3.5, 0],
                   scale: [1, 1.08, 1],
                   rotate: [0, -3, 3, 0],
-                }}
+                } : {})}
                 transition={{
                   duration: isStepPulsing ? 0.4 : 1.2,
-                  repeat: isStepPulsing ? 1 : Infinity,
+                  repeat: isStepPulsing ? 1 : (metadata.connected && metrics.cadence > 0 ? Infinity : 0),
                   ease: 'easeInOut',
                 }}
                 className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors shadow-md ${
                   isStepPulsing
                     ? 'bg-[#16EC06]/30 border-2 border-[#16EC06] text-white shadow-[#16EC06]/50'
-                    : 'bg-[#16EC06]/15 border border-[#16EC06]/30 text-[#16EC06] shadow-[#16EC06]/20'
+                    : (metadata.connected
+                        ? 'bg-[#16EC06]/15 border border-[#16EC06]/30 text-[#16EC06] shadow-[#16EC06]/20'
+                        : 'bg-zinc-800/40 border border-white/5 text-zinc-500')
                 }`}
               >
                 <Footprints className="w-5 h-5 stroke-[2.2]" />
@@ -960,11 +962,12 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                   </span>
                   {metadata.connected ? (
                     <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-[#16EC06]/15 border border-[#16EC06]/30 text-[9px] font-mono font-bold text-[#16EC06]">
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#16EC06] animate-ping" />
-                      {isRtl ? 'مزامنة حية' : 'LIVE'}
+                      <span className={`w-1.5 h-1.5 rounded-full bg-[#16EC06] ${metrics.cadence > 0 ? 'animate-ping' : ''}`} />
+                      {metrics.cadence > 0 ? (isRtl ? 'حركة حية' : 'ACTIVE') : (isRtl ? 'مزامنة حية' : 'LIVE')}
                     </span>
                   ) : (
                     <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-zinc-800 border border-white/5 text-[9px] font-mono font-bold text-zinc-500">
+                      <span className="w-1.5 h-1.5 rounded-full bg-zinc-600" />
                       {isRtl ? 'غير متصل' : 'OFFLINE'}
                     </span>
                   )}
@@ -990,7 +993,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                   </span>
                 </div>
                 <div className="text-[11px] font-bold font-condensed text-zinc-400 tracking-wide mt-0.5">
-                  {isRtl ? 'الخطوات المنجزة' : 'COMPLETED STEPS'}
+                  {metadata.connected ? (isRtl ? 'الخطوات المنجزة' : 'COMPLETED STEPS') : (isRtl ? 'آخر إجمالي محفوظ' : 'LAST PERSISTED')}
                 </div>
               </div>
               <ChevronRight className={`w-4 h-4 text-zinc-500 group-hover:text-white transition-colors ${isRtl ? 'rotate-180' : ''}`} />

@@ -1297,67 +1297,6 @@ export class WhoopBleEngine {
     pedometerEngine.testLiveStepPacket();
   }
 
-  // --- Simulate Offline Reconnection (+2,000 Steps / 35m Outdoor Walk) ---
-  public async simulateOfflineStepReconnection(
-    additionalSteps = 2000,
-    walkDurationMinutes = 35
-  ): Promise<number> {
-    try {
-      this.metadata.connected = true;
-      this.metadata.connecting = false;
-      this.metadata.onWrist = true;
-      this.metadata.isSyncing = true;
-      this.metadata.syncProgress = 15;
-      this.metadata.syncStatusText = 'جاري استرداد حزم الخطوات أثناء انقطاع الاتصال... (15%)';
-      this.emitMetadata();
-      await new Promise((r) => setTimeout(r, 400));
-
-      this.metadata.syncProgress = 50;
-      this.metadata.syncStatusText = `جاري معالجة إيقاع الحركة (${Math.round(additionalSteps / walkDurationMinutes)} خ/د) ومطابقة الخطوات... (50%)`;
-      this.emitMetadata();
-      await new Promise((r) => setTimeout(r, 550));
-
-      // Reconcile steps in pedometer engine & IndexedDB/storageService
-      const credited = pedometerEngine.simulateOfflineWalkReconnection(additionalSteps);
-
-      this.metadata.syncProgress = 85;
-      this.metadata.syncStatusText = 'جاري تحديث السجل اليومي وسعرات الحركة... (85%)';
-      this.emitMetadata();
-      await new Promise((r) => setTimeout(r, 450));
-
-      this.metadata.syncProgress = 100;
-      this.metadata.syncStatusText = `تمت مزامنة الخطوات المسجلة أثناء عدم الاتصال (+${credited.toLocaleString()} خطوة)`;
-      this.emitMetadata();
-
-      try {
-        localStorage.setItem('whoop_last_synced_timestamp', String(Date.now()));
-      } catch {}
-
-      notificationEngine.notify({
-        type: 'strain',
-        title: 'تمت مزامنة الخطوات بعد إعادة الاتصال',
-        message: `تمت مزامنة الخطوات المسجلة أثناء عدم الاتصال (+${credited.toLocaleString()} خطوة)`,
-      });
-
-      setTimeout(() => {
-        if (this.metadata.isSyncing) {
-          this.metadata.isSyncing = false;
-          this.metadata.syncProgress = undefined;
-          this.metadata.syncStatusText = undefined;
-          this.emitMetadata();
-        }
-      }, 3500);
-
-      return credited;
-    } catch {
-      this.metadata.isSyncing = false;
-      this.metadata.syncProgress = undefined;
-      this.metadata.syncStatusText = undefined;
-      this.emitMetadata();
-      return 0;
-    }
-  }
-
   // --- Dynamic Battery & Charging State Detection Engine ---
   public updateBatteryState(level: number, isChargingDirect?: boolean): void {
     const now = Date.now();
