@@ -29,6 +29,7 @@ interface SleepPreset {
 
 const PRESETS: SleepPreset[] = [
   { label: '9.0h (10:30 PM - 07:30 AM)', labelAr: '9.0 ساعات (10:30 م - 07:30 ص)', hours: 9.0, bed: '22:30', wake: '07:30' },
+  { label: '9.0h Shift (05:00 AM - 02:00 PM)', labelAr: '9.0 ساعات وردية (05:00 ص - 02:00 م)', hours: 9.0, bed: '05:00', wake: '14:00' },
   { label: '8.5h (11:00 PM - 07:30 AM)', labelAr: '8.5 ساعات (11:00 م - 07:30 ص)', hours: 8.5, bed: '23:00', wake: '07:30' },
   { label: '8.0h (11:00 PM - 07:00 AM)', labelAr: '8.0 ساعات (11:00 م - 07:00 ص)', hours: 8.0, bed: '23:00', wake: '07:00' },
   { label: '7.5h (11:30 PM - 07:00 AM)', labelAr: '7.5 ساعات (11:30 م - 07:00 ص)', hours: 7.5, bed: '23:30', wake: '07:00' },

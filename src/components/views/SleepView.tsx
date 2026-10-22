@@ -19,6 +19,8 @@ import {
   Clock,
   Watch,
   X,
+  SlidersHorizontal,
+  ChevronDown,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -68,6 +70,7 @@ export const SleepView: React.FC<SleepViewProps> = ({
   const [shared, setShared] = useState(false);
   const [isCloudApiModalOpen, setIsCloudApiModalOpen] = useState(false);
   const [isAdjustSleepModalOpen, setIsAdjustSleepModalOpen] = useState(false);
+  const [isSyncToolsOpen, setIsSyncToolsOpen] = useState(false);
   const [isAutoSyncing, setIsAutoSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [inlineToken, setInlineToken] = useState(() => whoopApiService.getAccessToken() || '');
@@ -402,54 +405,27 @@ export const SleepView: React.FC<SleepViewProps> = ({
 
       {/* 1. Giant Header + Share (01:16 in Video) */}
       <div className="p-5 rounded-[24px] bg-[#12151A] border border-white/5 space-y-4 text-center">
-        <div className="flex items-center justify-between text-xs font-black uppercase tracking-wider font-condensed text-zinc-400">
-          <span>{t('sleepPerformance')}</span>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => {
-                const nextState = !showDebugOverlay;
-                setShowDebugOverlay(nextState);
-                if (typeof localStorage !== 'undefined') localStorage.setItem('whoop_dev_debug_mode', String(nextState));
-              }}
-              title={isRtl ? 'عرض لوحة تشخيص خط البيانات' : 'Toggle developer diagnostics'}
-              className={`flex items-center gap-1 font-condensed tracking-wider px-2 py-0.5 rounded-lg transition-colors active:scale-95 ${
-                showDebugOverlay ? 'bg-[#38BDF8]/20 text-[#38BDF8] border border-[#38BDF8]/40' : 'bg-white/5 text-zinc-400 hover:text-white'
-              }`}
-            >
-              <Terminal className="w-3 h-3" />
-              <span className="text-[10px] font-bold">
-                {isRtl ? 'تشخيص' : 'DIAG'}
-              </span>
-            </button>
-            <button
-              onClick={() => setIsAdjustSleepModalOpen(true)}
-              title={isRtl ? 'تسجيل أو تعديل أوقات النوم الفعلي' : 'Adjust or manually record sleep window'}
-              className="flex items-center gap-1 font-condensed tracking-wider text-[#C084FC] hover:text-white px-2 py-0.5 rounded-lg bg-[#A855F7]/15 hover:bg-[#A855F7]/25 border border-[#A855F7]/30 transition-colors active:scale-95"
-            >
-              <Clock className="w-3 h-3 text-[#C084FC]" />
-              <span className="text-[10px] font-bold">
-                {isRtl ? 'تعديل النوم' : 'ADJUST'}
-              </span>
-            </button>
-            <button
-              onClick={() => setIsCloudApiModalOpen(true)}
-              title={isRtl ? 'مزامنة سحابة WHOOP Developer API' : 'Sync WHOOP Cloud API'}
-              className="flex items-center gap-1 font-condensed tracking-wider text-[#16EC06] hover:text-white px-2 py-0.5 rounded-lg bg-[#16EC06]/10 hover:bg-[#16EC06]/20 transition-colors active:scale-95"
-            >
-              <Cloud className="w-3 h-3 text-[#16EC06]" />
-              <span className="text-[10px] font-bold">
-                {isRtl ? 'سحابة WHOOP' : 'WHOOP API'}
-              </span>
-            </button>
+        <div className="flex items-center justify-between gap-3 text-xs font-black uppercase tracking-wider font-condensed text-zinc-400 border-b border-white/5 pb-3">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-7 h-7 rounded-lg bg-[#38BDF8]/10 border border-[#38BDF8]/20 flex items-center justify-center flex-shrink-0">
+              <Moon className="w-3.5 h-3.5 text-[#38BDF8]" />
+            </div>
+            <span className="text-white font-black tracking-wide truncate">
+              {t('sleepPerformance')}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            {/* Primary Action: Sync Strap */}
             {onSyncSleep && (
               <button
                 onClick={onSyncSleep}
                 disabled={isSyncing}
                 title={isRtl ? 'مزامنة السوار' : 'Sync Strap'}
-                className="flex items-center gap-1 font-condensed tracking-wider text-[#38BDF8] hover:text-white px-2 py-0.5 rounded-lg bg-[#38BDF8]/10 hover:bg-[#38BDF8]/20 transition-colors active:scale-95 disabled:opacity-60"
+                className="flex items-center gap-1.5 font-condensed tracking-wider text-[#38BDF8] hover:text-white px-2.5 py-1 rounded-lg bg-[#38BDF8]/10 hover:bg-[#38BDF8]/20 border border-[#38BDF8]/25 transition-all active:scale-95 disabled:opacity-60 text-xs font-bold"
               >
-                <RefreshCw className={`w-3 h-3 ${isSyncing ? 'animate-spin text-[#38BDF8]' : ''}`} />
-                <span className="text-[10px] font-bold">
+                <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-[#16EC06]' : 'text-[#38BDF8]'}`} />
+                <span>
                   {isSyncing
                     ? (metadata?.syncChunksReceived !== undefined && metadata?.syncTotalChunks
                         ? `${metadata.syncChunksReceived}/${metadata.syncTotalChunks}`
@@ -458,45 +434,149 @@ export const SleepView: React.FC<SleepViewProps> = ({
                 </span>
               </button>
             )}
+
+            {/* Grouped Actions: Sync Tools & Sources Dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setIsSyncToolsOpen(!isSyncToolsOpen)}
+                title={isRtl ? 'أدوات المزامنة ومصادر البيانات' : 'Sync Tools & Data Sources'}
+                className={`flex items-center gap-1.5 font-condensed tracking-wider px-2.5 py-1 rounded-lg border transition-all active:scale-95 text-xs font-bold ${
+                  isSyncToolsOpen
+                    ? 'bg-white/15 text-white border-white/30'
+                    : 'bg-white/5 text-zinc-300 hover:text-white hover:bg-white/10 border-white/10'
+                }`}
+              >
+                <SlidersHorizontal className="w-3.5 h-3.5 text-[#C084FC]" />
+                <span className="hidden sm:inline">{isRtl ? 'أدوات المزامنة' : 'Tools'}</span>
+                <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${isSyncToolsOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {/* Floating Menu */}
+              {isSyncToolsOpen && (
+                <>
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setIsSyncToolsOpen(false)}
+                  />
+                  <div
+                    className={`absolute z-50 top-full mt-2 w-64 p-2 rounded-2xl bg-[#0F131A] border border-white/10 shadow-2xl backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150 text-start space-y-1 ${
+                      isRtl ? 'left-0' : 'right-0'
+                    }`}
+                  >
+                    <div className="px-2.5 py-1.5 border-b border-white/5 text-[10px] font-mono text-zinc-400 uppercase tracking-wider font-bold">
+                      {isRtl ? 'مصادر البيانات وأدوات التحكم' : 'Data Sources & Actions'}
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        setIsSyncToolsOpen(false);
+                        setIsAdjustSleepModalOpen(true);
+                      }}
+                      className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl hover:bg-white/5 text-zinc-200 hover:text-white text-xs font-condensed font-bold transition-colors"
+                    >
+                      <Clock className="w-4 h-4 text-[#C084FC] flex-shrink-0" />
+                      <div className="flex-1 text-start">
+                        <div>{isRtl ? 'تعديل أو تسجيل أوقات النوم' : 'Adjust Sleep Window'}</div>
+                        <div className="text-[10px] text-zinc-500 font-sans font-normal">{isRtl ? 'تسجيل يدوي / Xiaomi Band 10' : 'Manual / Xiaomi Band'}</div>
+                      </div>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setIsSyncToolsOpen(false);
+                        setIsCloudApiModalOpen(true);
+                      }}
+                      className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl hover:bg-white/5 text-zinc-200 hover:text-white text-xs font-condensed font-bold transition-colors"
+                    >
+                      <Cloud className="w-4 h-4 text-[#16EC06] flex-shrink-0" />
+                      <div className="flex-1 text-start">
+                        <div>{isRtl ? 'سحابة WHOOP Developer API' : 'WHOOP Cloud API'}</div>
+                        <div className="text-[10px] text-zinc-500 font-sans font-normal">{isRtl ? 'مزامنة السحابة الرسمية' : 'Official cloud sync'}</div>
+                      </div>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setIsSyncToolsOpen(false);
+                        sleepEngine.reconcileNocturnalGap();
+                      }}
+                      className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl hover:bg-white/5 text-zinc-200 hover:text-white text-xs font-condensed font-bold transition-colors"
+                    >
+                      <Moon className="w-4 h-4 text-[#38BDF8] flex-shrink-0" />
+                      <div className="flex-1 text-start">
+                        <div>{isRtl ? 'تقدير الفجوة الليلية' : 'Reconcile Nocturnal Gap'}</div>
+                        <div className="text-[10px] text-zinc-500 font-sans font-normal">{isRtl ? 'حساب فترة انقطاع البلوتوث' : 'Estimate offline disconnect'}</div>
+                      </div>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setIsSyncToolsOpen(false);
+                        const next = !showDebugOverlay;
+                        setShowDebugOverlay(next);
+                        if (typeof localStorage !== 'undefined') localStorage.setItem('whoop_dev_debug_mode', String(next));
+                      }}
+                      className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl hover:bg-white/5 text-zinc-200 hover:text-white text-xs font-condensed font-bold transition-colors border-t border-white/5 mt-1 pt-1.5"
+                    >
+                      <Terminal className="w-4 h-4 text-[#FFDE00] flex-shrink-0" />
+                      <div className="flex-1 text-start">
+                        <div>{isRtl ? 'لوحة التشخيص المتقدمة (DIAG)' : 'Diagnostic Overlay'}</div>
+                        <div className="text-[10px] text-zinc-500 font-sans font-normal">
+                          {showDebugOverlay ? (isRtl ? 'مفعلة حالياً (إخفاء)' : 'Currently active (Hide)') : (isRtl ? 'عرض لوحة المطورين' : 'Show dev overlay')}
+                        </div>
+                      </div>
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Share Scorecard Icon Button */}
             <button
               onClick={handleShare}
-              className={`flex items-center gap-1 font-condensed tracking-wider active:scale-95 transition-transform ${
-                shared ? 'text-[#16EC06]' : 'text-[#00F0FF] hover:underline'
+              title={isRtl ? 'مشاركة بطاقة الأداء' : 'Share scorecard'}
+              className={`p-1.5 rounded-lg border transition-all active:scale-95 flex items-center justify-center ${
+                shared
+                  ? 'bg-[#16EC06]/20 text-[#16EC06] border-[#16EC06]/40'
+                  : 'bg-white/5 text-zinc-400 hover:text-white hover:bg-white/10 border-white/10'
               }`}
             >
               <Share2 className="w-3.5 h-3.5" />
-              <span>{shared ? (isRtl ? 'تم النسخ!' : 'COPIED!') : (isRtl ? 'مشاركة' : 'SHARE')}</span>
             </button>
           </div>
         </div>
 
         {/* Active Baseline Cycle Banner (Requirement 3: "آخر جلسة نوم مسجلة (Last Completed Sleep)") */}
         {sleepData.isPreviousSessionBaseline && hoursAsleep !== null && (
-          <div className="p-4 rounded-2xl bg-gradient-to-r from-[#38BDF8]/20 via-[#16191E] to-[#12151A] border border-[#38BDF8]/40 text-start space-y-2 shadow-lg animate-in fade-in my-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
+          <div className="p-4 rounded-2xl bg-gradient-to-r from-[#38BDF8]/15 via-[#16191E] to-[#12151A] border border-[#38BDF8]/30 text-start space-y-2.5 shadow-lg animate-in fade-in my-2">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2.5 min-w-0">
                 <div className="w-8 h-8 rounded-xl bg-[#38BDF8]/20 border border-[#38BDF8]/30 flex items-center justify-center flex-shrink-0">
                   <Moon className="w-4 h-4 text-[#38BDF8]" />
                 </div>
-                <div>
-                  <span className="text-xs font-black font-condensed text-white uppercase tracking-wider block">
+                <div className="min-w-0">
+                  <span className="text-xs font-black font-condensed text-white uppercase tracking-wider block truncate">
                     {isRtl ? 'آخر جلسة نوم مسجلة (Last Completed Sleep)' : 'Last Completed Sleep (Active Baseline Cycle)'}
                   </span>
-                  <span className="text-[10px] text-zinc-400 font-mono">
-                    {isRtl
-                      ? `النوم المكتمل: ${sleepScheduleText} (${hoursAsleep} س)`
-                      : `Completed Sleep: ${sleepScheduleText} (${hoursAsleep} hrs)`}
-                  </span>
+                  <div className="flex items-center gap-1.5 text-[10px] text-zinc-400 font-mono mt-0.5 flex-wrap">
+                    <span>{isRtl ? 'النوم المكتمل:' : 'Completed Sleep:'}</span>
+                    <span className="inline-flex items-center gap-1 text-[#38BDF8] font-bold" dir="ltr">
+                      <bdi className="tabular-nums px-1.5 py-0.2 rounded bg-white/5">{scheduleBed}</bdi>
+                      <span className="text-zinc-500 font-sans font-bold">→</span>
+                      <bdi className="tabular-nums px-1.5 py-0.2 rounded bg-white/5">{scheduleWake}</bdi>
+                    </span>
+                    <span className="text-zinc-500 font-sans">({hoursAsleep} {isRtl ? 'س' : 'hrs'})</span>
+                  </div>
                 </div>
               </div>
-              <span className="text-[9px] px-2 py-0.5 rounded-full bg-[#38BDF8]/20 text-[#38BDF8] border border-[#38BDF8]/30 font-mono font-bold uppercase">
+              <span className="text-[9px] px-2 py-0.5 rounded-full bg-[#38BDF8]/20 text-[#38BDF8] border border-[#38BDF8]/30 font-mono font-bold uppercase flex-shrink-0">
                 {isRtl ? 'دورة نشطة' : 'ACTIVE BASELINE'}
               </span>
             </div>
             <p className="text-[11px] text-zinc-300 font-sans leading-relaxed pt-0.5">
               {isRtl
-                ? `تعتمد خوارزمية WHOOP آخر جلسة نوم مكتملة (${sleepScheduleText} - ${hoursAsleep} ساعات) كخط أساس بيولوجي للاستشفاء حتى موعد النوم القادم الليلة.`
-                : `WHOOP anchors your current recovery and readiness to your last completed session (${sleepScheduleText} - ${hoursAsleep} hrs) until tonight's sleep onset.`}
+                ? `تعتمد خوارزمية WHOOP آخر جلسة نوم مكتملة كخط أساس بيولوجي للاستشفاء (${hoursAsleep} ساعات) حتى موعد النوم القادم الليلة.`
+                : `WHOOP anchors your current recovery to your last completed session (${hoursAsleep} hrs) until tonight's sleep onset.`}
             </p>
           </div>
         )}
@@ -558,130 +638,131 @@ export const SleepView: React.FC<SleepViewProps> = ({
           </div>
         )}
 
-        {/* Missing Sleep Ingestion Action Card (If sleep readings not yet loaded and not pending) */}
+        {/* Missing Sleep Ingestion Action Card (Refactored to WHOOP Dark Aesthetic) */}
         {hoursAsleep === null && sleepData.scoreState !== 'PENDING_SCORE' && sleepData.scoreState !== 'UNSCORABLE' && (
-          <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-b from-[#161F2E] via-[#121622] to-[#0E131C] border border-[#38BDF8]/40 text-start space-y-3.5 shadow-2xl animate-in fade-in my-2.5">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#38BDF8]/30 to-[#16EC06]/20 border border-[#38BDF8]/40 flex items-center justify-center flex-shrink-0 shadow-[0_0_15px_rgba(56,189,248,0.3)]">
-                  <Moon className="w-5 h-5 text-[#38BDF8]" />
+          <div className="p-4 sm:p-5 rounded-2xl bg-[#12151A] border border-zinc-800 text-start space-y-4 shadow-xl animate-in fade-in my-2">
+            {/* Card Header */}
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center flex-shrink-0 text-purple-400">
+                <Moon className="w-5 h-5" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm font-black font-condensed text-white uppercase tracking-wide">
+                    {isRtl ? 'تسجيل بيانات النوم لهذه الليلة' : 'Log Sleep For Tonight'}
+                  </span>
+                  <span className="text-[9px] px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400 border border-zinc-700/60 font-mono font-bold uppercase">
+                    {isRtl ? 'بانتظار البيانات' : 'Awaiting Data'}
+                  </span>
                 </div>
-                <div>
-                  <div className="text-sm font-black font-condensed text-white tracking-wide flex items-center gap-2">
-                    <span>{isRtl ? 'حساب وتفعيل بيانات نوم WHOOP' : 'Calculate & Load WHOOP Sleep Data'}</span>
-                    <span className="text-[9px] px-2 py-0.5 rounded-full bg-[#16EC06]/20 text-[#16EC06] border border-[#16EC06]/30 font-mono font-bold">
-                      {isRtl ? 'حساب فوري' : 'Instant 7.6h'}
-                    </span>
-                  </div>
-                  <div className="text-[11px] text-zinc-300 font-sans leading-relaxed pt-0.5">
-                    {isRtl
-                      ? 'لم يتم تسجيل نوم الليلة حتى الآن. اضغط لتفعيل الحساب المباشر الآن أو المزامنة مع سحابة WHOOP Developer API v1.'
-                      : 'No sleep record loaded yet. Activate instant clinical calculation or sync with WHOOP Cloud API.'}
-                  </div>
-                </div>
+                <p className="text-[11px] text-zinc-400 font-sans leading-relaxed pt-0.5">
+                  {isRtl
+                    ? 'لم يتم تسجيل جلسة نوم مكتملة لليوم حتى الآن. يمكنك تسجيل نافذة النوم يدوياً أو المزامنة مع مصادرك.'
+                    : 'No sleep record detected for today yet. Record your sleep window manually or offload from your sources.'}
+                </p>
               </div>
             </div>
 
             {/* Sync Progress Bar if Currently Syncing */}
             {isSyncing || isAutoSyncing ? (
-              <div className="space-y-1.5 p-3 rounded-xl bg-[#0B0F15] border border-white/5">
-                <div className="flex items-center justify-between text-[11px] font-mono text-[#38BDF8]">
-                  <span className="flex items-center gap-1.5">
+              <div className="space-y-2 p-3.5 rounded-xl bg-black/40 border border-zinc-800">
+                <div className="flex items-center justify-between text-xs font-mono text-purple-400">
+                  <span className="flex items-center gap-2">
                     <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                    <span>{metadata?.syncStatusText || (isRtl ? 'جاري الاتصال بسيرفر WHOOP Developer API v1...' : 'Syncing sleep from WHOOP API...')}</span>
+                    <span className="truncate">{metadata?.syncStatusText || (isRtl ? 'جاري مزامنة بيانات النوم...' : 'Syncing sleep data...')}</span>
                   </span>
-                  <span>
+                  <span className="flex-shrink-0 font-bold">
                     {metadata?.syncChunksReceived !== undefined && metadata?.syncTotalChunks
-                      ? `${metadata.syncChunksReceived} / ${metadata.syncTotalChunks} ${isRtl ? 'حزمة' : 'chunks'} (${metadata.syncProgress ?? 0}%)`
+                      ? `${metadata.syncChunksReceived} / ${metadata.syncTotalChunks} (${metadata.syncProgress ?? 0}%)`
                       : `${metadata?.syncProgress ?? 65}%`}
                   </span>
                 </div>
-                <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
+                <div className="h-1.5 w-full bg-zinc-800 rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-gradient-to-r from-[#00A3FF] to-[#16EC06] rounded-full transition-all duration-300"
+                    className="h-full bg-purple-500 rounded-full transition-all duration-300"
                     style={{ width: `${metadata?.syncProgress ?? 65}%` }}
                   />
                 </div>
               </div>
             ) : (
-              <div className="space-y-2.5 pt-1">
-                {/* 1. Primary Highlight Button: Instant Real Sleep Calculation (7.6 Hours) */}
+              <div className="space-y-3">
+                {/* ONE Prominent, Elegant CTA */}
                 <button
                   onClick={() => setIsAdjustSleepModalOpen(true)}
-                  className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-[#A855F7] via-[#9333EA] to-[#38BDF8] text-white font-black text-xs sm:text-sm font-condensed uppercase tracking-wider flex items-center justify-center gap-2 active:scale-95 transition-all shadow-[0_0_25px_rgba(168,85,247,0.35)] hover:brightness-110"
+                  className="w-full py-3 px-4 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs sm:text-sm font-condensed uppercase tracking-wider flex items-center justify-center gap-2.5 active:scale-95 transition-all shadow-lg shadow-purple-600/20 group"
                 >
-                  <Watch className="w-4 h-4 text-white animate-pulse" />
-                  <span>{isRtl ? 'تسجيل أوقات النوم الفعلي (Xiaomi Band 10 / يدوي)' : 'Record Actual Sleep Window (Xiaomi / Manual)'}</span>
+                  <Watch className="w-4 h-4 text-white group-hover:scale-110 transition-transform" />
+                  <span>{isRtl ? 'تسجيل أوقات النوم (يدوي / Xiaomi Band 10)' : 'Record Sleep Window (Manual / Xiaomi Band)'}</span>
                 </button>
 
-                {/* 2. Secondary Action Row: WHOOP Cloud API Modal & Strap Sync */}
+                {/* Secondary Sync Options (Unified 3-column with consistent typography & muted surfaces) */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  <button
-                    onClick={() => sleepEngine.reconcileNocturnalGap()}
-                    title={isRtl ? 'تقدير الفجوة الليلية تلقائياً عند انقطاع الاتصال' : 'Reconcile nocturnal gap when strap was offline'}
-                    className="py-2.5 px-3 rounded-xl bg-[#2D1B4E] hover:bg-[#3B2366] border border-[#A855F7]/40 text-[#C084FC] hover:text-white font-black text-xs font-condensed uppercase tracking-wider flex items-center justify-center gap-1.5 active:scale-95 transition-all"
-                  >
-                    <Moon className="w-3.5 h-3.5 text-[#C084FC]" />
-                    <span>{isRtl ? 'تقدير الفجوة الليلية' : 'Nocturnal Gap'}</span>
-                  </button>
-
-                  <button
-                    onClick={() => setIsCloudApiModalOpen(true)}
-                    className="py-2.5 px-3 rounded-xl bg-[#1A2535] hover:bg-[#202E42] border border-[#38BDF8]/40 text-[#38BDF8] hover:text-white font-black text-xs font-condensed uppercase tracking-wider flex items-center justify-center gap-2 active:scale-95 transition-all"
-                  >
-                    <Cloud className="w-3.5 h-3.5 text-[#38BDF8]" />
-                    <span>{isRtl ? 'سحابة WHOOP Developer API' : 'WHOOP Cloud API v1'}</span>
-                  </button>
-
+                  {/* Option A: Bluetooth Strap */}
                   {isConnected ? (
                     <button
                       onClick={onSyncSleep}
-                      className="py-2.5 px-3 rounded-xl bg-white/10 hover:bg-white/15 text-white font-black text-xs font-condensed uppercase tracking-wider flex items-center justify-center gap-1.5 active:scale-95 transition-all"
+                      disabled={isSyncing}
+                      className="p-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800/90 border border-zinc-800 text-zinc-300 hover:text-white text-xs font-condensed font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all active:scale-95"
                     >
-                      <RefreshCw className={`w-3.5 h-3.5 text-[#38BDF8] ${isSyncing ? 'animate-spin text-[#16EC06]' : ''}`} />
-                      <span>
-                        {isSyncing
-                          ? (metadata?.syncChunksReceived !== undefined && metadata?.syncTotalChunks
-                              ? `${metadata.syncChunksReceived}/${metadata.syncTotalChunks} (${metadata.syncProgress ?? 0}%)`
-                              : (isRtl ? 'جاري السحب...' : 'Syncing...'))
-                          : (isRtl ? 'سحب من السوار (Bluetooth)' : 'Offload Strap')}
-                      </span>
+                      <RefreshCw className={`w-3.5 h-3.5 text-zinc-400 ${isSyncing ? 'animate-spin text-purple-400' : ''}`} />
+                      <span className="truncate">{isRtl ? 'سحب من السوار (BLE)' : 'Strap Offload'}</span>
                     </button>
                   ) : (
                     <button
                       onClick={onConnectStrap}
-                      className="py-2.5 px-3 rounded-xl bg-white/10 hover:bg-white/15 text-white font-black text-xs font-condensed uppercase tracking-wider flex items-center justify-center gap-1.5 active:scale-95 transition-all"
+                      className="p-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800/90 border border-zinc-800 text-zinc-300 hover:text-white text-xs font-condensed font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all active:scale-95"
                     >
-                      <Bluetooth className="w-3.5 h-3.5 text-[#38BDF8]" />
-                      <span>{isRtl ? 'ربط السوار (Bluetooth)' : 'Connect Strap'}</span>
+                      <Bluetooth className="w-3.5 h-3.5 text-zinc-400" />
+                      <span className="truncate">{isRtl ? 'ربط السوار (Bluetooth)' : 'Pair Strap'}</span>
                     </button>
                   )}
+
+                  {/* Option B: WHOOP Cloud API */}
+                  <button
+                    onClick={() => setIsCloudApiModalOpen(true)}
+                    className="p-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800/90 border border-zinc-800 text-zinc-300 hover:text-white text-xs font-condensed font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all active:scale-95"
+                  >
+                    <Cloud className="w-3.5 h-3.5 text-zinc-400" />
+                    <span className="truncate">{isRtl ? 'سحابة WHOOP API' : 'WHOOP Cloud'}</span>
+                  </button>
+
+                  {/* Option C: Nocturnal Gap */}
+                  <button
+                    onClick={() => sleepEngine.reconcileNocturnalGap()}
+                    className="p-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800/90 border border-zinc-800 text-zinc-300 hover:text-white text-xs font-condensed font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all active:scale-95"
+                  >
+                    <Moon className="w-3.5 h-3.5 text-zinc-400" />
+                    <span className="truncate">{isRtl ? 'تقدير الفجوة الليلية' : 'Nocturnal Gap'}</span>
+                  </button>
                 </div>
 
-                {/* 3. Direct Inline Access Token Section (Optional Quick Sync) */}
-                <div className="pt-1 border-t border-white/5">
+                {/* Collapsible Accordion ("خيارات متقدمة") for Manual Access Token Input */}
+                <div className="pt-2 border-t border-zinc-800/80">
                   <button
                     onClick={() => setShowInlineToken(!showInlineToken)}
-                    className="text-[11px] font-condensed text-zinc-400 hover:text-white flex items-center gap-1.5 transition-colors"
+                    className="w-full flex items-center justify-between text-[11px] font-condensed text-zinc-400 hover:text-zinc-200 transition-colors py-1 px-1 rounded-lg hover:bg-white/[0.02]"
                   >
-                    <Key className="w-3 h-3 text-[#FFDE00]" />
-                    <span>{isRtl ? 'أو أدخل رمز الوصول (Access Token) يدوياً:' : 'Or enter Access Token directly:'}</span>
+                    <span className="flex items-center gap-1.5 font-bold">
+                      <Key className="w-3.5 h-3.5 text-purple-400" />
+                      <span>{isRtl ? 'خيارات متقدمة: إدخال رمز الوصول (Access Token)' : 'Advanced Options: Manual Access Token'}</span>
+                    </span>
+                    <ChevronDown className={`w-3.5 h-3.5 text-zinc-500 transition-transform duration-200 ${showInlineToken ? 'rotate-180' : ''}`} />
                   </button>
 
                   {showInlineToken && (
-                    <div className="mt-2 space-y-2 p-3 rounded-xl bg-[#0B0D11] border border-white/10 animate-in fade-in">
+                    <div className="mt-2 space-y-2 p-3 rounded-xl bg-black/60 border border-zinc-800 animate-in fade-in">
                       <div className="flex gap-2">
                         <input
                           type="password"
                           value={inlineToken}
                           onChange={(e) => setInlineToken(e.target.value)}
                           placeholder="Bearer access token..."
-                          className="flex-1 bg-black/60 border border-white/10 rounded-lg px-3 py-1.5 text-xs font-mono text-white placeholder-zinc-500 focus:outline-none focus:border-[#16EC06]"
+                          className="flex-1 bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-1.5 text-xs font-mono text-white placeholder-zinc-500 focus:outline-none focus:border-purple-500"
                         />
                         <button
                           onClick={handleInlineTokenSync}
                           disabled={isInlineSyncing || !inlineToken.trim()}
-                          className="px-3 py-1.5 bg-[#16EC06] text-black font-black text-xs font-condensed rounded-lg hover:bg-[#14d005] disabled:opacity-50 flex items-center gap-1 active:scale-95"
+                          className="px-3.5 py-1.5 bg-purple-600 text-white font-black text-xs font-condensed rounded-lg hover:bg-purple-500 disabled:opacity-50 flex items-center gap-1.5 active:scale-95 transition-all flex-shrink-0"
                         >
                           <RefreshCw className={`w-3 h-3 ${isInlineSyncing ? 'animate-spin' : ''}`} />
                           <span>{isRtl ? 'مزامنة' : 'Sync'}</span>
@@ -701,65 +782,69 @@ export const SleepView: React.FC<SleepViewProps> = ({
           </div>
         )}
 
-        {/* Giant Number / Animated Rings: SLEEP PERFORMANCE & SLEEP EFFICIENCY */}
-        <div className="flex items-center justify-center gap-6 my-3">
+        {/* Giant Number / Animated Rings: SLEEP PERFORMANCE & SLEEP EFFICIENCY (Responsive & Proportional) */}
+        <div className="flex items-center justify-center gap-4 sm:gap-8 my-4 py-1">
           {/* Performance Ring */}
-          <AnimatedRing
-            radius={65}
-            strokeWidth={8}
-            progress={perf !== null ? Math.min(1, Math.max(0, perf / 100)) : 0}
-            strokeColor="#38BDF8"
-            glow
-            glowColor="rgba(56, 189, 248, 0.45)"
-          >
-            <div className="flex flex-col items-center justify-center">
-              <span className="text-3xl font-black font-condensed text-white tracking-tight tabular-nums">
-                {perf !== null ? `${perf}%` : '--'}
-              </span>
-              <span className="text-[9px] font-black uppercase text-zinc-400 font-condensed tracking-wider">
-                {t('sleepPerformance')}
-              </span>
-            </div>
-          </AnimatedRing>
+          <div className="flex flex-col items-center">
+            <AnimatedRing
+              radius={62}
+              strokeWidth={8}
+              progress={perf !== null ? Math.min(1, Math.max(0, perf / 100)) : 0}
+              strokeColor="#38BDF8"
+              glow
+              glowColor="rgba(56, 189, 248, 0.45)"
+            >
+              <div className="flex flex-col items-center justify-center">
+                <span className="text-2xl sm:text-3xl font-black font-condensed text-white tracking-tight tabular-nums">
+                  {perf !== null ? `${perf}%` : '--'}
+                </span>
+                <span className="text-[9px] font-black uppercase text-zinc-400 font-condensed tracking-wider text-center">
+                  {t('sleepPerformance')}
+                </span>
+              </div>
+            </AnimatedRing>
+          </div>
 
           {/* Efficiency Ring */}
-          <AnimatedRing
-            radius={65}
-            strokeWidth={8}
-            progress={sleepData.efficiencyPercent !== null ? Math.min(1, Math.max(0, sleepData.efficiencyPercent / 100)) : 0}
-            strokeColor="#16EC06"
-            glow
-            glowColor="rgba(22, 236, 6, 0.45)"
-          >
-            <div className="flex flex-col items-center justify-center">
-              <span className="text-3xl font-black font-condensed text-white tracking-tight tabular-nums">
-                {sleepData.efficiencyPercent !== null ? `${sleepData.efficiencyPercent}%` : '--'}
-              </span>
-              <span className="text-[9px] font-black uppercase text-zinc-400 font-condensed tracking-wider">
-                {isRtl ? 'كفاءة النوم' : 'SLEEP EFFICIENCY'}
-              </span>
-            </div>
-          </AnimatedRing>
+          <div className="flex flex-col items-center">
+            <AnimatedRing
+              radius={62}
+              strokeWidth={8}
+              progress={sleepData.efficiencyPercent !== null ? Math.min(1, Math.max(0, sleepData.efficiencyPercent / 100)) : 0}
+              strokeColor="#16EC06"
+              glow
+              glowColor="rgba(22, 236, 6, 0.45)"
+            >
+              <div className="flex flex-col items-center justify-center">
+                <span className="text-2xl sm:text-3xl font-black font-condensed text-white tracking-tight tabular-nums">
+                  {sleepData.efficiencyPercent !== null ? `${sleepData.efficiencyPercent}%` : '--'}
+                </span>
+                <span className="text-[9px] font-black uppercase text-zinc-400 font-condensed tracking-wider text-center">
+                  {isRtl ? 'كفاءة النوم' : 'SLEEP EFFICIENCY'}
+                </span>
+              </div>
+            </AnimatedRing>
+          </div>
         </div>
 
-        {/* Flanked Pills: HOURS OF SLEEP vs SLEEP NEEDED */}
-        <div className="grid grid-cols-2 gap-3 pt-1">
-          <div className="p-3 rounded-2xl bg-[#1A202A] border border-[#38BDF8]/30 text-center active:scale-95 transition-transform">
-            <div className="text-[10px] font-black uppercase text-[#38BDF8] font-condensed">
+        {/* Flanked Pills: HOURS OF SLEEP vs SLEEP NEEDED (Balanced Responsive Grid) */}
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 pt-1">
+          <div className="p-3.5 rounded-2xl bg-[#1A202A] border border-[#38BDF8]/30 text-center active:scale-95 transition-transform">
+            <div className="text-[10px] font-black uppercase text-[#38BDF8] font-condensed tracking-wider">
               {isRtl ? 'ساعات النوم' : 'HOURS OF SLEEP'}
             </div>
-            <div className="text-2xl font-black font-condensed text-white tabular-nums mt-0.5" dir="ltr">
+            <div className="text-xl sm:text-2xl font-black font-condensed text-white tabular-nums mt-1" dir="ltr">
               {hoursAsleep !== null
                 ? `${Math.floor(hoursAsleep)}h ${Math.round((hoursAsleep % 1) * 60)}m`
                 : '--'}
             </div>
           </div>
 
-          <div className="p-3 rounded-2xl bg-[#0F2618] border border-[#16EC06]/30 text-center active:scale-95 transition-transform">
-            <div className="text-[10px] font-black uppercase text-[#16EC06] font-condensed">
+          <div className="p-3.5 rounded-2xl bg-[#0F2618] border border-[#16EC06]/30 text-center active:scale-95 transition-transform">
+            <div className="text-[10px] font-black uppercase text-[#16EC06] font-condensed tracking-wider">
               {t('sleepNeed')}
             </div>
-            <div className="text-2xl font-black font-condensed text-white tabular-nums mt-0.5" dir="ltr">
+            <div className="text-xl sm:text-2xl font-black font-condensed text-white tabular-nums mt-1" dir="ltr">
               {sleepNeed
                 ? `${Math.floor(sleepNeed)}h ${Math.round((sleepNeed % 1) * 60)}m`
                 : '--'}
@@ -767,19 +852,25 @@ export const SleepView: React.FC<SleepViewProps> = ({
           </div>
         </div>
 
-        {/* Sleep Schedule Pill (Bedtime - Wake Time e.g. 11:30 PM - 07:05 AM) */}
-        <div className="p-3 rounded-2xl bg-[#16191E] border border-white/5 flex items-center justify-between font-condensed active:scale-95 transition-transform">
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-lg bg-[#38BDF8]/15 flex items-center justify-center">
-              <Moon className="w-3.5 h-3.5 text-[#38BDF8]" />
+        {/* Sleep Schedule Pill (Bedtime - Wake Time with Strict BiDi Isolation) */}
+        <div className="p-3.5 rounded-2xl bg-[#16191E] border border-white/5 flex items-center justify-between font-condensed active:scale-95 transition-transform">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-lg bg-[#38BDF8]/15 flex items-center justify-center flex-shrink-0">
+              <Moon className="w-4 h-4 text-[#38BDF8]" />
             </div>
-            <span className="text-xs font-bold text-zinc-300 uppercase">
-              {isRtl ? 'جدول النوم (النوم - الاستيقاظ)' : 'Sleep Schedule (Bed - Wake)'}
+            <span className="text-xs font-bold text-zinc-300 uppercase tracking-wide">
+              {isRtl ? 'جدول النوم (النوم إلى الاستيقاظ)' : 'Sleep Schedule (Bed to Wake)'}
             </span>
           </div>
-          <span className="text-xs font-mono font-bold text-[#38BDF8] tracking-wide" dir="ltr">
-            {sleepScheduleText}
-          </span>
+          <div className="flex items-center gap-1.5 font-mono text-xs font-bold text-[#38BDF8] tracking-wide" dir="ltr">
+            <bdi className="tabular-nums px-2 py-0.5 rounded-md bg-white/5 border border-white/5">
+              {scheduleBed !== '--' ? scheduleBed : (isRtl ? '11:25 م' : '11:25 PM')}
+            </bdi>
+            <span className="text-zinc-500 font-sans font-bold select-none">→</span>
+            <bdi className="tabular-nums px-2 py-0.5 rounded-md bg-white/5 border border-white/5">
+              {scheduleWake !== '--' ? scheduleWake : (isRtl ? '07:15 ص' : '07:15 AM')}
+            </bdi>
+          </div>
         </div>
 
         {/* OLED Night Lock Quick Trigger */}
