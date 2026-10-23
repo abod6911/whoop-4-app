@@ -280,10 +280,13 @@ export class PedometerEngine {
 
   // Developer Tool: Test Live Step Packet (+1 Step)
   public testLiveStepPacket(): void {
-    this.recordSteps(1, Date.now(), 'imu_hardware');
-    stepDetector.setSteps(this.steps);
-    this.cadence = Math.max(104, this.cadence || 110);
-    this.notifySubscribers();
+    stepDetector.recordManualStep();
+    this.steps = stepDetector.getSteps();
+    this.cadence = stepDetector.getCadence();
+    this.lastStepTimestamp = Date.now();
+    this.source = 'imu_hardware';
+    this.persistSteps();
+    this.notifySubscribers(this.steps);
   }
 
   public getState(): PedometerState {

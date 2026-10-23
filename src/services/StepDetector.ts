@@ -24,10 +24,13 @@ export class StepDetector {
   private cadence: number = 0; // Steps per minute (SPM)
 
   // Filter & Detection Constants
-  private readonly ALPHA: number = 0.25;
-  private readonly MIN_THRESHOLD_G: number = 1.22;
-  private readonly MIN_REFRACTORY_MS: number = 240; // ~250 SPM sprint ceiling
-  private readonly MAX_REFRACTORY_MS: number = 1200; // ~50 SPM slow stroll floor
+  public readonly ALPHA: number = 0.35; // Responsive smoothing factor (prevents over-dampening fast transitions)
+  public readonly MIN_THRESHOLD: number = 1.12; // Relaxed acceleration threshold to capture subtle wrist swings
+  public readonly MIN_THRESHOLD_G: number = 1.12; // Backwards-compatibility alias
+  public readonly MIN_STEP_INTERVAL_MS: number = 220; // 220 ms refractory window (~272 SPM sprint ceiling)
+  public readonly MIN_REFRACTORY_MS: number = 220; // Backwards-compatibility alias
+  public readonly MAX_STEP_INTERVAL_MS: number = 1400; // 1400 ms (~43 SPM slow stroll window)
+  public readonly MAX_REFRACTORY_MS: number = 1400; // Backwards-compatibility alias
 
   // DSP Internal State
   private smoothedSVM: number = 0;
@@ -124,6 +127,21 @@ export class StepDetector {
       this.lastStepTimestamp = Date.now();
       this.notifySubscribers();
     }
+  }
+
+  /**
+   * Diagnostic manual step trigger for hardware lab or UI testing.
+   * Directly increments cumulative steps and sets realistic walking cadence.
+   */
+  public recordManualStep(timestamp = Date.now()): void {
+    this.steps++;
+    this.lastStepTimestamp = timestamp;
+    this.recentStepTimestamps.push(timestamp);
+    this.pruneCadenceWindow(timestamp);
+    if (this.cadence === 0) {
+      this.cadence = 108; // Natural walking cadence baseline for manual test triggers
+    }
+    this.notifySubscribers();
   }
 
   /**

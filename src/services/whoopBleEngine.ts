@@ -731,6 +731,8 @@ export class WhoopBleEngine {
           }
         );
         console.log('[Native BLE] Subscribed to WHOOP CMD characteristic');
+        // Send Wake & Stream trigger command to CMD_TO_STRAP immediately after subscribing to notifications
+        await this.enableImuStream();
       } catch (e) {
         console.warn('[Native BLE] Failed subscribing to WHOOP CMD:', e);
       }
@@ -1326,11 +1328,13 @@ export class WhoopBleEngine {
 
   // --- Developer Tool: Test Live Step Packet (+1 Step) ---
   public testLiveStepPacket(): void {
-    const next = this.stepDetector.getSteps() + 1;
-    this.stepDetector.setSteps(next);
-    pedometerEngine.testLiveStepPacket();
-    whoopDb.updateTodaySteps(next, this.stepDetector.getCadence());
-    this.emitSteps(next, this.stepDetector.getCadence());
+    this.stepDetector.recordManualStep();
+    const steps = this.stepDetector.getSteps();
+    const cadence = this.stepDetector.getCadence();
+    pedometerEngine.setDailySteps(steps, 'imu_hardware');
+    pedometerEngine.setLiveCadence(cadence);
+    whoopDb.updateTodaySteps(steps, cadence, true);
+    this.emitSteps(steps, cadence);
   }
 
   // --- Dynamic Battery & Charging State Detection Engine ---
@@ -1653,11 +1657,56 @@ export class WhoopBleEngine {
         const cmdChar = await gen4Service.getCharacteristic(WHOOP_CMD_TO_STRAP_UUID).catch(() => null);
         if (cmdChar) {
           this.activeCharacteristics.set(WHOOP_CMD_TO_STRAP_UUID, cmdChar);
+          // Send Wake & Stream trigger command to CMD_TO_STRAP immediately after subscribing to notifications
+          await this.enableImuStream();
         }
       } catch { /* ignore */ }
     } catch (e) {
       console.warn('Could not initialize Gen4 Proprietary Service:', e);
     }
+  }
+
+  // --- Accelerometer Raw Byte Unpacking & Scaling (Nordic IMU 16-bit Little Endian) ---
+  private lastImuLogTimestamp = 0;
+
+  private logImuRaw(xG: number, yG: number, zG: number, rawMagnitude: number): void {
+    const now = Date.now();
+    if (now - this.lastImuLogTimestamp >= 2000) {
+      this.lastImuLogTimestamp = now;
+      console.log(`[IMU Raw] X: ${xG.toFixed(2)} G, Y: ${yG.toFixed(2)} G, Z: ${zG.toFixed(2)} G | Mag: ${rawMagnitude.toFixed(2)} G`);
+    }
+  }
+
+  private decodeAccelG(rawX: number, rawY: number, rawZ: number): { xG: number; yG: number; zG: number; rawMagnitude: number } {
+    const rawMag = Math.sqrt(rawX * rawX + rawY * rawY + rawZ * rawZ);
+    // Nordic IMU typically outputs 16-bit signed integers (Little Endian).
+    // Scale divisor for +/- 2G / +/- 4G range: 2048 LSB = 1.0 G
+    let scale = 2048.0;
+
+    if (rawMag > 14000) {
+      scale = 16384.0;
+    } else if (rawMag > 7000) {
+      scale = 8192.0;
+    } else if (rawMag > 3500) {
+      scale = 4096.0;
+    } else if (rawMag > 800) {
+      scale = 2048.0;
+    } else if (rawMag > 500) {
+      scale = 1000.0;
+    } else if (rawMag > 5 && rawMag < 25) {
+      scale = 9.80665;
+    } else if (rawMag > 0 && rawMag <= 5) {
+      scale = 1.0;
+    }
+
+    const xG = rawX / scale;
+    const yG = rawY / scale;
+    const zG = rawZ / scale;
+    const rawMagnitude = Math.sqrt(xG * xG + yG * yG + zG * zG);
+
+    this.logImuRaw(xG, yG, zG, rawMagnitude);
+
+    return { xG, yG, zG, rawMagnitude };
   }
 
   // --- Parse Proprietary Frame (Header 0xAA, Type, Payload) ---
@@ -1757,21 +1806,11 @@ export class WhoopBleEngine {
               const rawX = pData.getInt16(1, true);
               const rawY = pData.getInt16(3, true);
               const rawZ = pData.getInt16(5, true);
-              const rawMag = Math.sqrt(rawX * rawX + rawY * rawY + rawZ * rawZ);
-              let scale = 4096.0;
-              if (rawMag > 10000) scale = 16384.0;
-              else if (rawMag > 5000) scale = 8192.0;
-              else if (rawMag > 2000) scale = 4096.0;
-              else if (rawMag > 500) scale = 1000.0;
-              else if (rawMag > 0 && rawMag < 10) scale = 1.0;
-
-              const gX = rawX / scale;
-              const gY = rawY / scale;
-              const gZ = rawZ / scale;
-              const motionDelta = Math.abs(Math.sqrt(gX * gX + gY * gY + gZ * gZ) - 1.0);
+              const { xG, yG, zG, rawMagnitude } = this.decodeAccelG(rawX, rawY, rawZ);
+              const motionDelta = Math.abs(rawMagnitude - 1.0);
 
               if (this.metadata.connected && this.metadata.onWrist !== false) {
-                const isStep = this.stepDetector.processSample({ x: gX, y: gY, z: gZ, timestamp: Date.now() });
+                const isStep = this.stepDetector.processSample({ x: xG, y: yG, z: zG, timestamp: Date.now() });
                 if (isStep) {
                   const steps = this.stepDetector.getSteps();
                   const cadence = this.stepDetector.getCadence();
@@ -1809,23 +1848,12 @@ export class WhoopBleEngine {
           const rawX = data.getInt16(0, true);
           const rawY = data.getInt16(2, true);
           const rawZ = data.getInt16(4, true);
-          const rawMag = Math.sqrt(rawX * rawX + rawY * rawY + rawZ * rawZ);
-          let scale = 4096.0;
-          if (rawMag > 10000) scale = 16384.0;
-          else if (rawMag > 5000) scale = 8192.0;
-          else if (rawMag > 2000) scale = 4096.0;
-          else if (rawMag > 500) scale = 1000.0;
-          else if (rawMag > 0 && rawMag < 10) scale = 1.0;
+          const { xG, yG, zG, rawMagnitude } = this.decodeAccelG(rawX, rawY, rawZ);
+          const motionDelta = Math.abs(rawMagnitude - 1.0);
 
-          const gX = rawX / scale;
-          const gY = rawY / scale;
-          const gZ = rawZ / scale;
-          const gMag = Math.sqrt(gX * gX + gY * gY + gZ * gZ);
-          const motionDelta = Math.abs(gMag - 1.0);
-
-          if (gMag >= 0.1 && gMag <= 10.0) {
+          if (rawMagnitude >= 0.1 && rawMagnitude <= 10.0) {
             if (this.metadata.connected && this.metadata.onWrist !== false) {
-              const isStep = this.stepDetector.processSample({ x: gX, y: gY, z: gZ, timestamp: Date.now() });
+              const isStep = this.stepDetector.processSample({ x: xG, y: yG, z: zG, timestamp: Date.now() });
               if (isStep) {
                 const steps = this.stepDetector.getSteps();
                 const cadence = this.stepDetector.getCadence();
@@ -2074,6 +2102,25 @@ export class WhoopBleEngine {
     }
   }
 
+  // --- Hardware Sensor Wake & IMU Accelerometer Stream Command (0x25, 0x02, 0x01) ---
+  public async enableImuStream(): Promise<void> {
+    console.log('[WHOOP 4.0] Dispatching Hardware Sensor Wake & IMU Accelerometer Stream Trigger (0x25, 0x02, 0x01)...');
+    try {
+      // 1. Direct raw opcode: 0x25 (Telemetry Stream Control), 0x02 (IMU stream), 0x01 (Enable continuous)
+      const imuRawPayload = new Uint8Array([0x25, 0x02, 0x01]);
+      await this.sendRawBuffer(imuRawPayload).catch(() => {});
+      // 2. OpenStrap 0xAA binary framing
+      await this.sendRawBuffer(encodeWhoopFrame(imuRawPayload)).catch(() => {});
+      // 3. Alternate firmware opcode: 0x23, 0x07, 0x01
+      const altPayload = new Uint8Array([0x23, 0x07, 0x01]);
+      await this.sendRawBuffer(altPayload).catch(() => {});
+      await this.sendRawBuffer(encodeWhoopFrame(altPayload)).catch(() => {});
+      console.log('[WHOOP 4.0] ✓ Hardware Accelerometer IMU stream activation sent to CMD_TO_STRAP');
+    } catch (e) {
+      console.warn('[WHOOP 4.0] IMU stream wake notice:', e);
+    }
+  }
+
   // --- Auto-Wake Optical PPG Sensor & Enable Real-Time HR Stream Sequence ---
   public async wakeSensorAndEnableLiveStream(): Promise<void> {
     console.log('[WHOOP 4.0] Executing Full Sensor Activation Handshake Sequence...');
@@ -2103,10 +2150,8 @@ export class WhoopBleEngine {
       await this.sendRawBuffer(new Uint8Array([0xaa, 0x04, 0x00, 0x23, 0x06, 0x01])).catch(() => {});
       await delay(250);
 
-      // 5. Enable IMU Accelerometer Motion Stream ([0x23, 0x07, 0x01])
-      const imuPayload = new Uint8Array([0x23, 0x07, 0x01]);
-      await this.sendRawBuffer(encodeWhoopFrame(imuPayload)).catch(() => {});
-      await this.sendRawBuffer(new Uint8Array([0xaa, 0x04, 0x00, 0x23, 0x07, 0x01])).catch(() => {});
+      // 5. Enable IMU Accelerometer Motion Stream (Opcode 0x25, 0x02, 0x01 & 0x23, 0x07, 0x01)
+      await this.enableImuStream();
       await delay(250);
 
       // 6. Also trigger legacy 0x11 Realtime Stream command

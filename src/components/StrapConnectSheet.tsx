@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import type { DeviceMetadata } from '../types/whoop';
 import { whoopBleEngine } from '../services/whoopBleEngine';
 import {
@@ -12,6 +12,11 @@ import {
   AlertTriangle,
   Copy,
   ExternalLink,
+  Battery,
+  BatteryFull,
+  BatteryMedium,
+  BatteryLow,
+  Sparkles,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -48,17 +53,92 @@ export const StrapConnectSheet: React.FC<StrapConnectSheetProps> = ({
   const [isBusy, setIsBusy] = useState(false);
   const [liveSteps, setLiveSteps] = useState(() => pedometerEngine.getState().steps);
 
+  // Synchronous BLE state subscription for reactive instant updates
+  const [liveBattery, setLiveBattery] = useState<number | null>(() => {
+    const meta = whoopBleEngine.getMetadata();
+    return meta.batteryLevel ?? metadata.batteryLevel ?? null;
+  });
+  const [liveIsCharging, setLiveIsCharging] = useState<boolean>(() => {
+    const meta = whoopBleEngine.getMetadata();
+    return meta.isCharging ?? metadata.isCharging ?? false;
+  });
+
   useEffect(() => {
     return pedometerEngine.subscribe((state) => {
       setLiveSteps(state.steps);
     });
   }, []);
 
+  // Sync state if props change
+  useEffect(() => {
+    if (metadata.batteryLevel !== null && metadata.batteryLevel !== undefined) {
+      setLiveBattery(metadata.batteryLevel);
+    }
+    if (metadata.isCharging !== undefined) {
+      setLiveIsCharging(metadata.isCharging);
+    }
+  }, [metadata.batteryLevel, metadata.isCharging]);
+
+  // Subscribe directly to whoopBleEngine for instant event propagation
+  useEffect(() => {
+    const unsubBat = whoopBleEngine.onBattery((level) => {
+      setLiveBattery(level);
+    });
+    const unsubMeta = whoopBleEngine.onMetadata((meta) => {
+      if (meta.batteryLevel !== null && meta.batteryLevel !== undefined) {
+        setLiveBattery(meta.batteryLevel);
+      }
+      if (meta.isCharging !== undefined) {
+        setLiveIsCharging(meta.isCharging);
+      }
+    });
+
+    if (metadata.connected) {
+      whoopBleEngine.sendRequestBatteryTemp().catch(() => {});
+    }
+
+    return () => {
+      unsubBat();
+      unsubMeta();
+    };
+  }, [metadata.connected]);
+
   const isBleSupported = whoopBleEngine.isSupported();
   const isConnected = metadata.connected;
+  const isCharging = liveIsCharging || metadata.isCharging;
+  const displayBattery = isConnected ? (liveBattery ?? metadata.batteryLevel ?? null) : null;
 
-  const displayBattery = isConnected && metadata.batteryLevel !== null ? metadata.batteryLevel : null;
-  const hasPermitted = permittedDevices.length > 0;
+  // Calculated remaining runtime for WHOOP 4.0 (~4.5 days on full charge)
+  const batteryRemainingText = useMemo(() => {
+    if (!isConnected || displayBattery === null) {
+      return isRtl ? 'غير متصل' : 'Disconnected';
+    }
+    if (isCharging) {
+      return isRtl ? 'جاري الشحن الآن ⚡' : 'Charging Now ⚡';
+    }
+    const hoursRemaining = Math.max(1, Math.round((displayBattery / 100) * 105));
+    const daysRemaining = Math.round((hoursRemaining / 24) * 10) / 10;
+    if (daysRemaining >= 1.5) {
+      const days = Math.round(daysRemaining);
+      return isRtl
+        ? `متبقي حوالي ${days} ${days === 2 ? 'يومين' : days <= 10 ? 'أيام' : 'يوم'}`
+        : `About ${days} days left`;
+    } else if (daysRemaining >= 1.0) {
+      return isRtl ? 'متبقي حوالي يوم واحد' : 'About 1 day left';
+    } else {
+      return isRtl
+        ? `متبقي حوالي ${hoursRemaining} ساعة`
+        : `About ${hoursRemaining} hours left`;
+    }
+  }, [isConnected, displayBattery, isCharging, isRtl]);
+
+  const batteryColor = useMemo(() => {
+    if (isCharging) return '#00F0FF';
+    if (displayBattery === null) return '#52525B';
+    if (displayBattery <= 20) return '#FF3344';
+    if (displayBattery <= 40) return '#FF9900';
+    return '#16EC06';
+  }, [isCharging, displayBattery]);
 
   const handleCopyUrl = () => {
     if (typeof navigator !== 'undefined' && navigator.clipboard) {
@@ -74,7 +154,7 @@ export const StrapConnectSheet: React.FC<StrapConnectSheetProps> = ({
       try {
         await whoopBleEngine.triggerStrapVibration('pulse');
         await whoopBleEngine.sendRequestBatteryTemp();
-        setActionFeedback('✓ Strap Haptic Confirmed');
+        setActionFeedback(isRtl ? '✓ تم تأكيد استجابة السوار اللمسية' : '✓ Strap Haptic Confirmed');
         setTimeout(() => setActionFeedback(null), 2500);
       } catch {
         // ignore
@@ -141,10 +221,10 @@ export const StrapConnectSheet: React.FC<StrapConnectSheetProps> = ({
         onClose={onClose}
         className="h-[92vh] max-h-[92vh] bg-gradient-to-b from-[#1A1F26] via-[#12161C] to-[#080A0D] flex flex-col p-0 overflow-hidden border-t border-white/10 select-none"
       >
-        {/* Top Header - Strictly locked to dir="ltr" with NO bottom border and NO subheader */}
+        {/* Top Header Navigation: Tabs & Close Button */}
         <div
           dir="ltr"
-          className="pt-6 pl-6 pr-6 flex items-center justify-between flex-shrink-0 z-20"
+          className="pt-5 pb-3 px-6 flex items-center justify-between flex-shrink-0 z-20 border-b border-white/5"
         >
           <div className="flex items-center gap-8">
             {/* STATUS Tab */}
@@ -198,76 +278,240 @@ export const StrapConnectSheet: React.FC<StrapConnectSheetProps> = ({
         {/* Tab Body */}
         <div className="flex-1 overflow-hidden flex flex-col relative">
           {activeTab === 'status' ? (
-            /* TAB 1: STATUS - 1:1 Official WHOOP 4.0 Hardware Stage (Locked dir="ltr") */
-            <div dir="ltr" className="relative flex-1 w-full h-full overflow-hidden select-none">
-              {/* Full-Bleed Left & Bottom Hero Strap */}
-              <div
-                className="absolute -left-6 top-[20%] w-[86%] max-w-[355px] pointer-events-auto cursor-pointer z-10 select-none"
-                onClick={handleTapStrap}
-                title="Tap to trigger strap vibration or connect"
-              >
-                <TransparentHardwareImage
-                  src="/whoop-hero-transparent.png"
-                  alt="WHOOP 4.0 3D Strap"
-                  className="w-full h-auto drop-shadow-[0_25px_50px_rgba(0,0,0,0.85)]"
-                />
-              </div>
-
-              {/* Exact Right-Side Spine (right-6) */}
-              {/* 1. Top-Right Pod Thumbnail */}
-              <div className="absolute top-[24%] right-6 z-20 flex justify-center w-[44px]">
-                <TransparentHardwareImage
-                  src="/whoop-thumb-transparent.png"
-                  alt="WHOOP Pod Icon"
-                  className="w-[44px] h-[54px] object-contain drop-shadow-md"
-                />
-              </div>
-
-              {/* 2. Upper-Middle Right: Single Solid Blue Circle */}
-              <div className="absolute top-[44%] right-6 z-20 flex justify-center w-[44px]">
-                <div className="w-2.5 h-2.5 rounded-full bg-[#1D6CA8] shadow-sm shadow-[#1D6CA8]/60" />
-              </div>
-
-              {/* 3. Lower-Middle Right: Two Vertically Overlapping Translucent Circles */}
-              <div className="absolute top-[61%] right-6 z-20 flex flex-col items-center w-[44px]">
-                <div className="w-5 h-5 rounded-full bg-[#0E4A8A]/60 shadow-sm" />
-                <div className="w-5 h-5 rounded-full bg-[#2A313C]/70 -mt-2.5 shadow-sm" />
-              </div>
-
-              {/* 4. Bottom-Right Battery Readout & Tall Vertical Green Bar */}
-              <div className="absolute bottom-12 right-6 z-20 flex items-end select-none">
-                {/* Left of bar: Digits and WHOOP 4.0 */}
-                <div className="text-right flex flex-col items-end mr-3">
-                  <div className="flex items-baseline font-normal leading-none tracking-tight text-white tabular-nums">
-                    <span className="text-[52px] font-normal leading-none tracking-tight text-white tabular-nums">
-                      {displayBattery !== null ? displayBattery : '--'}
+            /* TAB 1: STATUS - Refactored Apple/WHOOP Design System (Structured Flexbox/Grid, zero broken absolutes) */
+            <div className="flex-1 flex flex-col justify-between p-6 bg-[#0B0D10] text-white overflow-y-auto">
+              {/* Top: Clean Connection State Badge */}
+              <div className="flex justify-center items-center">
+                {isConnected ? (
+                  <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#16EC06]/10 border border-[#16EC06]/30 shadow-[0_0_20px_rgba(22,236,6,0.18)] text-[#16EC06] text-xs font-mono font-bold tracking-wider">
+                    <span className="relative flex h-2.5 w-2.5">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#16EC06] opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#16EC06]"></span>
                     </span>
-                    {displayBattery !== null && (
-                      <span className="text-[20px] font-bold text-white ml-0.5">%</span>
-                    )}
+                    <span>{isRtl ? '🟢 متصل | WHOOP 4.0' : '🟢 CONNECTED | WHOOP 4.0'}</span>
                   </div>
-                  <div className="text-[12px] font-medium tracking-[0.06em] text-[#5C6470] uppercase mt-1">
-                    {isConnected ? 'WHOOP 4.0' : (isRtl ? 'غير متصل' : 'DISCONNECTED')}
+                ) : (
+                  <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 text-zinc-400 text-xs font-mono font-medium tracking-wider">
+                    <span className="w-2 h-2 rounded-full bg-zinc-600" />
+                    <span>{isRtl ? '⚪ غير متصل | Disconnected' : '⚪ DISCONNECTED | WHOOP 4.0'}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Center: Hero Showcase (WHOOP 4.0 Hardware) */}
+              <div className="relative flex flex-col items-center justify-center my-auto py-2">
+                {/* Subtle Radial Gradient Glow Backdrop */}
+                <div
+                  className="absolute w-[280px] h-[220px] rounded-full pointer-events-none transition-all duration-700"
+                  style={{
+                    background: isConnected
+                      ? 'radial-gradient(ellipse at center, rgba(22,236,6,0.12) 0%, rgba(0,163,255,0.03) 50%, transparent 70%)'
+                      : 'radial-gradient(ellipse at center, rgba(255,255,255,0.04) 0%, transparent 70%)',
+                    filter: 'blur(20px)',
+                  }}
+                />
+
+                <div
+                  onClick={handleTapStrap}
+                  className="relative z-10 cursor-pointer active:scale-95 transition-all duration-300 max-w-[250px] sm:max-w-[280px] w-full group flex flex-col items-center"
+                  title={
+                    isConnected
+                      ? (isRtl ? 'انقر لاختبار الاهتزاز وتحديث البطارية' : 'Tap to test haptics & refresh battery')
+                      : (isRtl ? 'انقر لربط السوار' : 'Tap to pair strap')
+                  }
+                >
+                  <TransparentHardwareImage
+                    src="/whoop-hero-transparent.png"
+                    alt="WHOOP 4.0 3D Strap"
+                    className="w-full h-auto drop-shadow-[0_25px_45px_rgba(0,0,0,0.85)] group-hover:scale-105 transition-transform duration-300"
+                  />
+                  <span className="text-[10px] text-zinc-500 font-mono tracking-wider mt-2 group-hover:text-zinc-300 transition-colors">
+                    {isConnected
+                      ? (isRtl ? 'انقر للاختبار اللمسي والاهتزاز' : 'Tap for Haptic Pulse')
+                      : (isRtl ? 'انقر لاقتران السوار' : 'Tap to Pair')}
+                  </span>
+                </div>
+              </div>
+
+              {/* Dual Battery Telemetry Cards (Strap & Battery Pack) */}
+              <div className="space-y-3.5 my-2">
+                <div className="grid grid-cols-2 gap-3.5 w-full">
+                  {/* Card 1: Strap Battery Card */}
+                  <div className="bg-[#12161D] border border-white/10 hover:border-white/20 rounded-2xl p-4 flex flex-col justify-between relative overflow-hidden transition-all shadow-md">
+                    {isCharging && (
+                      <div className="absolute top-0 right-0 w-24 h-24 bg-[#16EC06]/10 rounded-full blur-xl pointer-events-none" />
+                    )}
+
+                    <div>
+                      <div className="flex items-center justify-between text-zinc-400 mb-2">
+                        <span className="text-[11px] font-condensed font-bold tracking-wider uppercase">
+                          {isRtl ? 'بطارية السوار' : 'Strap Battery'}
+                        </span>
+                        {isCharging ? (
+                          <Zap className="w-3.5 h-3.5 text-[#16EC06] animate-pulse" />
+                        ) : displayBattery === null ? (
+                          <Battery className="w-3.5 h-3.5 text-zinc-600" />
+                        ) : displayBattery <= 20 ? (
+                          <BatteryLow className="w-3.5 h-3.5 text-[#FF3344]" />
+                        ) : displayBattery <= 50 ? (
+                          <BatteryMedium className="w-3.5 h-3.5 text-amber-400" />
+                        ) : (
+                          <BatteryFull className="w-3.5 h-3.5 text-[#16EC06]" />
+                        )}
+                      </div>
+
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-3xl font-black font-condensed tracking-tight text-white tabular-nums">
+                          {displayBattery !== null ? displayBattery : '--'}
+                        </span>
+                        {displayBattery !== null && (
+                          <span className="text-sm font-bold text-zinc-400">%</span>
+                        )}
+                      </div>
+
+                      {/* Visual Battery Meter: Sleek horizontal progress bar */}
+                      <div className="w-full h-2 rounded-full bg-white/10 overflow-hidden my-2.5">
+                        <motion.div
+                          className="h-full rounded-full transition-all duration-700"
+                          style={{
+                            width: `${displayBattery !== null ? Math.min(100, Math.max(4, displayBattery)) : 0}%`,
+                            backgroundColor: batteryColor,
+                          }}
+                          initial={false}
+                          animate={{
+                            width: `${displayBattery !== null ? Math.min(100, Math.max(4, displayBattery)) : 0}%`,
+                          }}
+                          transition={{ duration: 0.6, ease: 'easeOut' }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="text-[11px] font-medium text-zinc-400 truncate mt-1">
+                      {batteryRemainingText}
+                    </div>
+                  </div>
+
+                  {/* Card 2: Battery Pack Card (Wireless Charger) */}
+                  <div className="bg-[#12161D] border border-white/10 hover:border-white/20 rounded-2xl p-4 flex flex-col justify-between relative overflow-hidden transition-all shadow-md">
+                    <div>
+                      <div className="flex items-center justify-between text-zinc-400 mb-2">
+                        <span className="text-[11px] font-condensed font-bold tracking-wider uppercase">
+                          {isRtl ? 'حزمة الشحن' : 'Battery Pack'}
+                        </span>
+                        <span
+                          className={`w-2 h-2 rounded-full ${
+                            isCharging ? 'bg-[#16EC06] shadow-sm shadow-[#16EC06]' : 'bg-zinc-600'
+                          }`}
+                        />
+                      </div>
+
+                      <div className="flex items-center gap-3 my-1">
+                        <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/5 flex items-center justify-center p-1 flex-shrink-0">
+                          <TransparentHardwareImage
+                            src="/whoop-thumb-transparent.png"
+                            alt="WHOOP Battery Pack"
+                            className="w-full h-full object-contain drop-shadow"
+                          />
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-xs font-black font-condensed text-white truncate">
+                            {isCharging
+                              ? (isRtl ? 'متصل ويشحن السوار ⚡' : 'Attached & Charging ⚡')
+                              : (isRtl ? 'حزمة لاسلكية' : 'Wireless Slide-On')}
+                          </span>
+                          <span className="text-[10px] text-zinc-400 font-medium truncate">
+                            {isCharging
+                              ? (isRtl ? 'شحن لاسلكي مستمر' : 'Continuous Wireless Transfer')
+                              : (isRtl ? 'غير مركب / منفصل' : 'Detached / Ready')}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="text-[11px] font-medium text-zinc-400 truncate mt-2">
+                      {isCharging ? (
+                        <span className="text-[#16EC06] font-bold">
+                          {isRtl ? 'شاحن WHOOP 4.0 المقاوم للماء' : 'Waterproof Charger Active'}
+                        </span>
+                      ) : (
+                        <span className="text-zinc-500">
+                          {isRtl ? 'جاهز للتركيب بالانزلاق' : 'Slide-on Waterproof Pack'}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
 
-                {/* Right of number: Tall, slim vertical progress bar centered on the spine axis */}
-                <div className="w-[44px] flex justify-center">
-                  <div className="w-[4.5px] h-[145px] rounded-full bg-[#262B33] overflow-hidden flex flex-col justify-end">
-                    <motion.div
-                      className="w-full rounded-full transition-all duration-700"
-                      style={{
-                        backgroundColor: '#22E600',
-                        height: displayBattery !== null ? `${Math.min(100, Math.max(4, displayBattery))}%` : '0%',
-                      }}
-                      initial={false}
-                      animate={{
-                        height: displayBattery !== null ? `${Math.min(100, Math.max(4, displayBattery))}%` : '0%',
-                      }}
-                      transition={{ duration: 0.7, ease: 'easeOut' }}
-                    />
+                {/* Real-time Streaming Bar (when connected) */}
+                {isConnected && (
+                  <div className="py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#0D3528]/80 via-[#0B2538]/80 to-[#0D3528]/80 border border-[#16EC06]/30 backdrop-blur-md flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 4, repeat: Infinity, ease: 'linear' }}
+                        className="text-[#16EC06] flex items-center justify-center"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5 stroke-[2.2]" />
+                      </motion.div>
+                      <div>
+                        <div className="text-xs font-black font-condensed text-white">
+                          {isRtl ? 'مزامنة ونشاط مستمر من الساعة' : 'Continuous Watch Sync'}
+                        </div>
+                        <div className="text-[10px] text-[#16EC06] font-mono flex items-center gap-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#16EC06] animate-ping" />
+                          <span>25 Hz • {isRtl ? 'بث فوري مباشر' : 'Real-time Stream'}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="text-end">
+                      <span className="text-sm font-black font-condensed text-white tabular-nums">
+                        <AnimatedStepCounter value={liveSteps} />
+                      </span>
+                      <span className="text-[9px] text-zinc-400 block font-condensed -mt-0.5">
+                        {isRtl ? 'خطوة' : 'STEPS'}
+                      </span>
+                    </div>
                   </div>
-                </div>
+                )}
+              </div>
+
+              {/* Action Dock: Bottom CTA Bar */}
+              <div className="w-full pt-2">
+                {!isConnected ? (
+                  <button
+                    onClick={() => onConnectBle('filtered')}
+                    className="w-full py-4 px-6 rounded-2xl bg-[#181B20] hover:bg-[#20242B] border border-white/10 hover:border-[#16EC06]/40 text-white font-condensed font-black text-sm uppercase tracking-wider flex items-center justify-center gap-3 transition-all active:scale-[0.98] shadow-xl group"
+                  >
+                    <Bluetooth className="w-4 h-4 text-[#00A3FF] group-hover:scale-110 transition-transform" />
+                    <span>
+                      {isRtl
+                        ? 'ربط السوار الآن (Pair WHOOP 4.0)'
+                        : 'PAIR WHOOP 4.0 NOW'}
+                    </span>
+                  </button>
+                ) : (
+                  <div className="flex items-center gap-2.5">
+                    <button
+                      onClick={handleTapStrap}
+                      disabled={isBusy}
+                      className="flex-1 py-3.5 px-4 rounded-xl bg-white/10 hover:bg-white/15 border border-white/10 text-white text-xs font-condensed font-bold tracking-wider uppercase transition-all active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-40"
+                    >
+                      <Vibrate className="w-4 h-4 text-[#16EC06]" />
+                      <span>{isRtl ? 'اختبار الاهتزاز' : 'Test Haptic'}</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        onDisconnectBle();
+                        onClose();
+                      }}
+                      className="py-3.5 px-4 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-[#FF4555] border border-rose-500/20 text-xs font-condensed font-bold tracking-wider uppercase transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                    >
+                      <BluetoothOff className="w-4 h-4" />
+                      <span>{isRtl ? 'قطع الاتصال' : 'Disconnect'}</span>
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Action feedback toast */}
@@ -277,70 +521,13 @@ export const StrapConnectSheet: React.FC<StrapConnectSheetProps> = ({
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
-                    className="absolute bottom-4 left-6 z-20 py-1.5 px-3 rounded-full bg-white/10 backdrop-blur-md text-xs font-mono text-[#1EEB00] border border-white/10"
+                    className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 py-2 px-4 rounded-full bg-black/90 backdrop-blur-md text-xs font-mono text-[#1EEB00] border border-white/20 shadow-2xl flex items-center gap-2"
                   >
-                    {actionFeedback}
+                    <Sparkles className="w-3.5 h-3.5 text-[#1EEB00]" />
+                    <span>{actionFeedback}</span>
                   </motion.div>
                 )}
               </AnimatePresence>
-
-              {/* Live Active Streaming Bar when Connected (image_7.png upgrade) */}
-              {isConnected && (
-                <div className="absolute bottom-4 left-6 right-6 flex justify-center z-20">
-                  <div className="w-full max-w-[360px] py-2.5 px-4 rounded-2xl bg-gradient-to-r from-[#0D3528]/95 via-[#0B2538]/95 to-[#0D3528]/95 border border-[#16EC06]/40 backdrop-blur-md shadow-[0_0_25px_rgba(22,236,6,0.3)] flex items-center justify-between animate-pulse-subtle">
-                    <div className="flex items-center gap-2.5">
-                      <motion.div
-                        animate={{ rotate: 360 }}
-                        transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
-                        className="text-[#16EC06] flex items-center justify-center"
-                      >
-                        <RefreshCw className="w-4 h-4 stroke-[2.2]" />
-                      </motion.div>
-                      <div className="text-start">
-                        <div className="text-xs font-black font-condensed tracking-wide text-white">
-                          {isRtl ? 'مزامنة ونشاط مستمر من الساعة' : 'Continuous Watch Sync'}
-                        </div>
-                        <div className="text-[10px] text-[#16EC06] font-mono flex items-center gap-1.5 mt-0.5">
-                          <span className="w-1.5 h-1.5 rounded-full bg-[#16EC06] animate-ping" />
-                          <span>25 Hz • {isRtl ? 'بث فوري مباشر' : 'Real-time Stream'}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <div className="text-end">
-                        <span className="text-sm font-black font-condensed text-white tabular-nums">
-                          <AnimatedStepCounter value={liveSteps} />
-                        </span>
-                        <span className="text-[9px] text-zinc-400 block font-condensed -mt-1">
-                          {isRtl ? 'خطوة' : 'STEPS'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Clean bottom connect pill (ONLY when disconnected) */}
-              {!isConnected && (
-                <div className="absolute bottom-4 left-6 right-6 flex justify-center z-20">
-                  <button
-                    onClick={() => onConnectBle('filtered')}
-                    className="px-5 py-2.5 rounded-full bg-white/10 hover:bg-white/15 border border-white/15 text-white text-xs font-condensed font-bold tracking-wider uppercase backdrop-blur-md active:scale-95 transition-all flex items-center gap-2 shadow-lg"
-                  >
-                    <Bluetooth className="w-3.5 h-3.5 text-[#00A3FF]" />
-                    <span>
-                      {hasPermitted
-                        ? isRtl
-                          ? 'إعادة الاتصال بالسوار'
-                          : 'Connect Strap'
-                        : isRtl
-                        ? 'ربط سوار WHOOP 4.0'
-                        : 'Pair WHOOP 4.0'}
-                    </span>
-                  </button>
-                </div>
-              )}
             </div>
           ) : (
             /* TAB 2: ADVANCED - Technical Controls & Live BLE Inspector */
