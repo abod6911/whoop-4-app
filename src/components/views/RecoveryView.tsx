@@ -8,8 +8,6 @@ import {
   Wind,
   Moon,
   Info,
-  Timer,
-  CheckCircle2,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -19,7 +17,6 @@ import {
   Line,
   XAxis,
   YAxis,
-  Tooltip,
   Cell,
   ReferenceArea,
   ReferenceLine,
@@ -46,7 +43,6 @@ export const getRecoveryColor = (score: number | null) => {
 
 export const RecoveryView: React.FC<RecoveryViewProps> = ({
   metrics,
-  settings,
   daysHistory,
   onOpenShareCard,
 }) => {
@@ -79,12 +75,6 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
       setTimeout(() => setShared(false), 2500);
     }
   };
-
-  const size = 180;
-  const stroke = 12;
-  const radius = (size - stroke) / 2;
-  const circ = 2 * Math.PI * radius;
-  const offset = recoveryScore !== null ? circ - (recoveryScore / 100) * circ : circ;
 
   const recentDays = (daysHistory || []).slice(0, 7).reverse();
 
@@ -132,24 +122,39 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
   const avgResp = validResp.length > 0 ? `${(validResp.reduce((a, b) => a + (b.resp || 0), 0) / validResp.length).toFixed(1)} ${t('rpm')}` : '--';
 
   return (
-    <div className="space-y-4 pb-28 animate-in fade-in duration-300">
+    <div className="space-y-3 sm:space-y-4 pb-6 overflow-x-hidden animate-in fade-in duration-300 select-none">
       {/* 1. Large Circular Recovery Gauge + Share (01:35 in Video) */}
-      <div className="p-6 rounded-[24px] bg-[#12151A] border border-white/5 flex flex-col items-center justify-center text-center">
-        <div className="w-full flex items-center justify-between text-xs font-black uppercase tracking-wider font-condensed text-zinc-400 mb-2">
-          <span>{t('recoveryScore')}</span>
-          <button
-            onClick={handleShare}
-            className="flex items-center gap-1 text-[#00F0FF] hover:underline active:scale-95 transition-transform"
-          >
-            <Share2 className="w-3.5 h-3.5" />
-            <span>{shared ? (isRtl ? 'تم النسخ!' : 'COPIED!') : (isRtl ? 'مشاركة' : 'SHARE')}</span>
-          </button>
+      <div className="p-3.5 sm:p-5 rounded-[20px] sm:rounded-[24px] bg-[#12151A] border border-white/5 flex flex-col items-center justify-center text-center">
+        <div className="w-full flex items-center justify-between gap-2 text-xs font-black uppercase tracking-wider font-condensed text-zinc-400 border-b border-white/5 pb-3">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-7 h-7 rounded-lg bg-[#16EC06]/10 border border-[#16EC06]/20 flex items-center justify-center shrink-0">
+              <Activity className="w-3.5 h-3.5 text-[#16EC06]" />
+            </div>
+            <span className="text-white font-black tracking-wide truncate text-xs sm:text-sm">
+              {t('recoveryScore')}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              onClick={handleShare}
+              title={isRtl ? 'مشاركة بطاقة الأداء' : 'Share Scorecard'}
+              className={`flex items-center gap-1.5 font-condensed tracking-wider px-2 sm:px-2.5 py-1 min-h-[34px] rounded-lg border transition-all active:scale-[0.98] text-[11px] sm:text-xs font-bold ${
+                shared
+                  ? 'bg-[#16EC06]/20 text-[#16EC06] border-[#16EC06]/40'
+                  : 'bg-white/5 text-zinc-300 hover:text-white hover:bg-white/10 border-white/10'
+              }`}
+            >
+              <Share2 className="w-3.5 h-3.5" />
+              <span>{shared ? (isRtl ? 'تم النسخ!' : 'COPIED!') : (isRtl ? 'مشاركة' : 'SHARE')}</span>
+            </button>
+          </div>
         </div>
 
-        <div className="relative flex items-center justify-center my-3">
+        <div className="relative flex items-center justify-center my-3 sm:my-4">
           <AnimatedRing
-            radius={76}
-            strokeWidth={12}
+            radius={72}
+            strokeWidth={11}
             progress={recoveryScore !== null ? Math.min(1, Math.max(0, recoveryScore / 100)) : 0}
             strokeColor={recoveryColor}
             glow
@@ -165,12 +170,12 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
           >
             <div className="flex flex-col items-center justify-center">
               <span
-                className="text-5xl font-black font-condensed tracking-tight tabular-nums transition-colors"
+                className="text-4xl sm:text-5xl font-black font-condensed tracking-tight tabular-nums transition-colors"
                 style={{ color: recoveryColor }}
               >
                 {recoveryScore !== null ? `${recoveryScore}%` : '--'}
               </span>
-              <span className="text-[11px] font-black uppercase tracking-widest text-zinc-400 font-condensed mt-1">
+              <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-zinc-400 font-condensed mt-1">
                 {recoveryScore !== null
                   ? recoveryScore >= 67
                     ? (isRtl ? 'أخضر (جاهزية عالية)' : 'GREEN')
@@ -196,7 +201,7 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
         </div>
 
         {/* Dynamic Insight Box */}
-        <div className="mt-5 w-full p-3.5 rounded-2xl bg-[#0D1612] border border-[#16EC06]/20 text-xs text-zinc-300 leading-relaxed text-start flex items-start gap-2.5">
+        <div className="mt-3 sm:mt-4 w-full p-3 sm:p-3.5 rounded-2xl bg-[#0D1612] border border-[#16EC06]/20 text-xs text-zinc-300 leading-relaxed text-start flex items-start gap-2.5">
           <Info className="w-4 h-4 text-[#16EC06] flex-shrink-0 mt-0.5" />
           <p>
             {recoveryScore !== null ? (
@@ -221,7 +226,7 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
       </div>
 
       {/* 2. RECOVERY STATISTICS Rows */}
-      <div className="p-4 rounded-[24px] bg-[#12151A] border border-white/5 space-y-3">
+      <div className="p-3.5 sm:p-4 rounded-[20px] sm:rounded-[24px] bg-[#12151A] border border-white/5 space-y-3">
         <h3 className="text-xs font-black uppercase tracking-wider text-zinc-400 font-condensed px-1">
           {isRtl ? 'إحصائيات التعافي الفسيولوجي' : 'Recovery Statistics'}
         </h3>
@@ -275,9 +280,9 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
       </div>
 
       {/* 3. 4 Dedicated 7-Day Charts (01:42 – 01:54 in Video) */}
-      <div className="space-y-4">
+      <div className="space-y-3 sm:space-y-4">
         {/* Chart 1: RECOVERY Vertical Bars */}
-        <div className="p-4 rounded-[24px] bg-[#12151A] border border-white/5 space-y-2">
+        <div className="p-3.5 sm:p-4 rounded-[20px] sm:rounded-[24px] bg-[#12151A] border border-white/5 space-y-2">
           <div className="flex items-center justify-between text-xs font-black uppercase font-condensed text-white">
             <span>{t('recovery7Days')}</span>
             <span className="text-[10px] text-[#16EC06] font-mono">{t('average')}: {avgRec}</span>
@@ -298,7 +303,7 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
         </div>
 
         {/* Chart 2: HEART RATE VARIABILITY Line Chart */}
-        <div className="p-4 rounded-[24px] bg-[#12151A] border border-white/5 space-y-2">
+        <div className="p-3.5 sm:p-4 rounded-[20px] sm:rounded-[24px] bg-[#12151A] border border-white/5 space-y-2">
           <div className="flex items-center justify-between text-xs font-black uppercase font-condensed text-white">
             <span>{t('hrv7Days')}</span>
             <span className="text-[10px] text-[#16EC06] font-mono">{t('baseline')}: {baseline.hrvBaseline} ms</span>
@@ -328,7 +333,7 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
         </div>
 
         {/* Chart 3: RESTING HEART RATE Line Chart */}
-        <div className="p-4 rounded-[24px] bg-[#12151A] border border-white/5 space-y-2">
+        <div className="p-3.5 sm:p-4 rounded-[20px] sm:rounded-[24px] bg-[#12151A] border border-white/5 space-y-2">
           <div className="flex items-center justify-between text-xs font-black uppercase font-condensed text-white">
             <span>{t('restingHeartRate')}</span>
             <span className="text-[10px] text-zinc-400 font-mono">{t('typicalRange')}: {baseline.rhrBaseline} {t('bpm')}</span>
@@ -358,7 +363,7 @@ export const RecoveryView: React.FC<RecoveryViewProps> = ({
         </div>
 
         {/* Chart 4: RESPIRATORY RATE Line Chart */}
-        <div className="p-4 rounded-[24px] bg-[#12151A] border border-white/5 space-y-2">
+        <div className="p-3.5 sm:p-4 rounded-[20px] sm:rounded-[24px] bg-[#12151A] border border-white/5 space-y-2">
           <div className="flex items-center justify-between text-xs font-black uppercase font-condensed text-white">
             <span>{t('respiratoryRate')}</span>
             <span className="text-[10px] text-[#7293B2] font-mono">{t('average')}: {avgResp}</span>

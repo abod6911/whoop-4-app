@@ -71,8 +71,8 @@ export const WorkoutHudModal: React.FC<WorkoutHudModalProps> = ({
   const pulseDuration = currentHr && currentHr > 0 ? (60 / currentHr).toFixed(2) : '1.0';
 
   return (
-    <div className="fixed inset-0 z-50 bg-black flex justify-center animate-in fade-in duration-200">
-      <div className="w-full max-w-[430px] min-h-dvh flex flex-col justify-between p-5 bg-black text-white relative">
+    <div className="fixed inset-0 z-50 bg-black flex justify-center animate-in fade-in duration-200 overflow-x-hidden overflow-y-auto">
+      <div className="w-full max-w-md min-h-dvh flex flex-col justify-between p-4 sm:p-5 pt-[env(safe-area-inset-top,1.25rem)] pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] bg-black text-white relative">
         {/* Top Header */}
         <div className="flex items-center justify-between border-b border-white/10 pb-3">
           <div className="flex items-center gap-2">
@@ -88,10 +88,11 @@ export const WorkoutHudModal: React.FC<WorkoutHudModalProps> = ({
 
           <button
             onClick={onClose}
-            className="p-1.5 rounded-full bg-[#16191E] text-zinc-400 hover:text-white"
+            className="w-10 h-10 rounded-full bg-[#16191E] text-zinc-400 hover:text-white flex items-center justify-center active:scale-95 transition-all"
             title={isRtl ? 'تصغير' : 'Minimize HUD'}
+            aria-label={isRtl ? 'تصغير' : 'Minimize HUD'}
           >
-            <ChevronDown className="w-4 h-4" />
+            <ChevronDown className="w-5 h-5" />
           </button>
         </div>
 

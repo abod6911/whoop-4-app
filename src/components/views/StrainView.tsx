@@ -7,7 +7,6 @@ import {
   Share2,
   Play,
   Square,
-  Activity,
   Footprints,
   Heart,
   Info,
@@ -22,7 +21,6 @@ import {
   Line,
   XAxis,
   YAxis,
-  Tooltip,
 } from 'recharts';
 
 import { useLanguage } from '../../i18n/LanguageContext';
@@ -45,7 +43,6 @@ interface StrainViewProps {
 export const StrainView: React.FC<StrainViewProps> = ({
   metrics,
   zones,
-  settings,
   daysHistory,
   onStartWorkout,
   onStopWorkout,
@@ -99,13 +96,8 @@ export const StrainView: React.FC<StrainViewProps> = ({
     Walking: isRtl ? 'المشي' : 'Walking',
   };
 
-  const size = 180;
-  const stroke = 12;
-  const radius = (size - stroke) / 2;
-  const circ = 2 * Math.PI * radius;
   const strainScore = metrics.dailyStrain;
   const strainRatio = Math.min(1, Math.max(0, strainScore / 21.0));
-  const strainOffset = circ - strainRatio * circ;
 
   const recentDays = (daysHistory || []).slice(0, 7).reverse();
 
@@ -146,8 +138,6 @@ export const StrainView: React.FC<StrainViewProps> = ({
   const validCal = calories7Day.filter((d) => d.cal > 0);
   const avgCalVal = validCal.length > 0 ? `${Math.round(validCal.reduce((a, b) => a + b.cal, 0) / validCal.length).toLocaleString()} ${isRtl ? 'سعرة' : 'kcal'}` : '--';
 
-  const totalZoneSeconds = Object.values(metrics.zoneSeconds).reduce((a, b) => a + b, 0);
-
   const formatSec = (totalSec: number) => {
     const mins = Math.floor(totalSec / 60);
     const secs = totalSec % 60;
@@ -155,36 +145,49 @@ export const StrainView: React.FC<StrainViewProps> = ({
   };
 
   return (
-    <div className="space-y-4 pb-28 animate-in fade-in duration-300">
+    <div className="space-y-3 sm:space-y-4 pb-6 overflow-x-hidden animate-in fade-in duration-300 select-none">
       {/* 1. Large Circular Strain Gauge + Share (01:55 in Video) */}
-      <div className="p-6 rounded-[24px] bg-[#12151A] border border-white/5 flex flex-col items-center justify-center text-center">
-        <div className="w-full flex items-center justify-between text-xs font-black uppercase tracking-wider font-condensed text-zinc-400 mb-2">
-          <span>{t('dayStrain')}</span>
-          <button
-            onClick={handleShare}
-            className={`flex items-center gap-1 font-condensed tracking-wider transition-colors ${
-              shared ? 'text-[#16EC06]' : 'text-[#00F0FF] hover:underline'
-            }`}
-          >
-            <Share2 className="w-3.5 h-3.5" />
-            <span>{shared ? (isRtl ? 'تم النسخ!' : 'COPIED!') : (isRtl ? 'مشاركة' : 'SHARE')}</span>
-          </button>
+      <div className="p-3.5 sm:p-5 rounded-[20px] sm:rounded-[24px] bg-[#12151A] border border-white/5 flex flex-col items-center justify-center text-center">
+        <div className="w-full flex items-center justify-between gap-2 text-xs font-black uppercase tracking-wider font-condensed text-zinc-400 border-b border-white/5 pb-3">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-7 h-7 rounded-lg bg-[#00A3FF]/10 border border-[#00A3FF]/20 flex items-center justify-center shrink-0">
+              <Flame className="w-3.5 h-3.5 text-[#00A3FF]" />
+            </div>
+            <span className="text-white font-black tracking-wide truncate text-xs sm:text-sm">
+              {t('dayStrain')}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              onClick={handleShare}
+              title={isRtl ? 'مشاركة بطاقة الأداء' : 'Share Scorecard'}
+              className={`flex items-center gap-1.5 font-condensed tracking-wider px-2 sm:px-2.5 py-1 min-h-[34px] rounded-lg border transition-all active:scale-[0.98] text-[11px] sm:text-xs font-bold ${
+                shared
+                  ? 'bg-[#16EC06]/20 text-[#16EC06] border-[#16EC06]/40'
+                  : 'bg-white/5 text-zinc-300 hover:text-white hover:bg-white/10 border-white/10'
+              }`}
+            >
+              <Share2 className="w-3.5 h-3.5" />
+              <span>{shared ? (isRtl ? 'تم النسخ!' : 'COPIED!') : (isRtl ? 'مشاركة' : 'SHARE')}</span>
+            </button>
+          </div>
         </div>
 
-        <div className="relative flex items-center justify-center my-3">
+        <div className="relative flex items-center justify-center my-3 sm:my-4">
           <AnimatedRing
-            radius={76}
-            strokeWidth={12}
+            radius={72}
+            strokeWidth={11}
             progress={strainRatio}
             strokeColor="#00A3FF"
             glow
             glowColor="rgba(0, 163, 255, 0.45)"
           >
             <div className="flex flex-col items-center justify-center">
-              <span className="text-5xl font-black font-condensed text-[#00A3FF] tracking-tight tabular-nums">
+              <span className="text-4xl sm:text-5xl font-black font-condensed text-[#00A3FF] tracking-tight tabular-nums">
                 {strainScore.toFixed(1)}
               </span>
-              <span className="text-[11px] font-black uppercase tracking-widest text-zinc-400 font-condensed mt-1">
+              <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-zinc-400 font-condensed mt-1">
                 {isRtl
                   ? `المستهدف: ${metrics.optimalStrainTarget.max > 0 ? `${metrics.optimalStrainTarget.min.toFixed(1)} - ${metrics.optimalStrainTarget.max.toFixed(1)}` : '--'}`
                   : `Target: ${metrics.optimalStrainTarget.max > 0 ? `${metrics.optimalStrainTarget.min.toFixed(1)} - ${metrics.optimalStrainTarget.max.toFixed(1)}` : '--'}`}
@@ -194,7 +197,7 @@ export const StrainView: React.FC<StrainViewProps> = ({
         </div>
 
         {/* Dynamic Coaching Text */}
-        <div className="mt-5 w-full p-3.5 rounded-2xl bg-[#0D1520] border border-[#00A3FF]/20 text-xs text-zinc-300 leading-relaxed text-start flex items-start gap-2.5">
+        <div className="mt-3 sm:mt-4 w-full p-3 sm:p-3.5 rounded-2xl bg-[#0D1520] border border-[#00A3FF]/20 text-xs text-zinc-300 leading-relaxed text-start flex items-start gap-2.5">
           <Info className="w-4 h-4 text-[#00A3FF] flex-shrink-0 mt-0.5" />
           <p>
             {metrics.optimalStrainTarget.max === 0
@@ -213,7 +216,7 @@ export const StrainView: React.FC<StrainViewProps> = ({
       </div>
 
       {/* 2. STRAIN STATISTICS Rows */}
-      <div className="p-4 rounded-[24px] bg-[#12151A] border border-white/5 space-y-3">
+      <div className="p-3.5 sm:p-4 rounded-[20px] sm:rounded-[24px] bg-[#12151A] border border-white/5 space-y-3">
         <h3 className="text-xs font-black uppercase tracking-wider text-zinc-400 font-condensed px-1">
           {isRtl ? 'إحصائيات الإجهاد والنشاط' : 'Strain Statistics'}
         </h3>
@@ -221,7 +224,7 @@ export const StrainView: React.FC<StrainViewProps> = ({
         <div className="divide-y divide-white/5">
           {/* Real Steps & Cadence (Live Synchronized IMU Locomotion) */}
           <div className="py-2.5 flex items-center justify-between text-xs font-condensed font-bold">
-            <div className="flex items-center gap-2.5 text-zinc-300">
+            <div className="flex items-center gap-2.5 text-zinc-300 min-w-0">
               <motion.div
                 animate={isStrapConnected && metrics.cadence > 0 ? {
                   y: [0, -2.5, 0],
@@ -232,7 +235,7 @@ export const StrainView: React.FC<StrainViewProps> = ({
                   repeat: isStrapConnected && metrics.cadence > 0 ? Infinity : 0,
                   ease: 'easeInOut',
                 }}
-                className={`w-7 h-7 rounded-lg flex items-center justify-center shadow-sm transition-colors ${
+                className={`w-7 h-7 rounded-lg flex items-center justify-center shadow-sm transition-colors shrink-0 ${
                   isStrapConnected
                     ? 'bg-[#00A3FF]/15 border border-[#00A3FF]/30 text-[#00A3FF] shadow-[#00A3FF]/20'
                     : 'bg-zinc-800/40 border border-white/5 text-zinc-500'
@@ -240,7 +243,7 @@ export const StrainView: React.FC<StrainViewProps> = ({
               >
                 <Footprints className="w-3.5 h-3.5 stroke-[2.2]" />
               </motion.div>
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 flex-wrap min-w-0">
                 <span className="uppercase text-white tracking-wider">{t('steps')}</span>
                 {isStrapConnected ? (
                   <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-[#16EC06]/15 text-[#16EC06] border border-[#16EC06]/30 font-mono font-bold flex items-center gap-1">
@@ -255,7 +258,7 @@ export const StrainView: React.FC<StrainViewProps> = ({
                 )}
               </div>
             </div>
-            <div className="text-end">
+            <div className="text-end shrink-0">
               <span className="text-white font-mono font-black text-sm drop-shadow-[0_1px_8px_rgba(0,163,255,0.25)]" dir="ltr">
                 <AnimatedStepCounter value={metrics.steps || 0} />
               </span>
@@ -297,7 +300,7 @@ export const StrainView: React.FC<StrainViewProps> = ({
       </div>
 
       {/* 3. Live Strain Coach Workout Controller */}
-      <div className="p-5 rounded-[24px] bg-[#12151A] border border-white/5 space-y-4">
+      <div className="p-3.5 sm:p-5 rounded-[20px] sm:rounded-[24px] bg-[#12151A] border border-white/5 space-y-3.5 sm:space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-white font-condensed">
             <Dumbbell className="w-4 h-4 text-[#00A3FF]" />
@@ -315,7 +318,7 @@ export const StrainView: React.FC<StrainViewProps> = ({
             <button
               key={sp}
               onClick={() => setSelectedSport(sp)}
-              className={`py-2 px-2 text-[11px] font-condensed font-black uppercase tracking-wider rounded-xl transition-all ${
+              className={`py-2 px-1.5 sm:px-2 min-h-[38px] text-[10px] sm:text-[11px] font-condensed font-black uppercase tracking-wider rounded-xl transition-all active:scale-[0.98] truncate ${
                 selectedSport === sp
                   ? 'bg-white text-black font-bold shadow-md'
                   : 'bg-[#1A1F26] text-zinc-400 hover:text-white'
@@ -329,7 +332,7 @@ export const StrainView: React.FC<StrainViewProps> = ({
         {!isWorkoutActive ? (
           <button
             onClick={() => onStartWorkout(selectedSport)}
-            className="w-full py-3.5 rounded-2xl bg-[#00A3FF] hover:bg-[#0082CF] text-white font-condensed font-black uppercase tracking-wider text-sm flex items-center justify-center gap-2 shadow-lg active:scale-98 transition-all"
+            className="w-full py-3.5 min-h-[44px] rounded-2xl bg-[#00A3FF] hover:bg-[#0082CF] text-white font-condensed font-black uppercase tracking-wider text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg active:scale-[0.98] transition-all"
           >
             <Play className="w-4 h-4 fill-white" />
             <span>{isRtl ? `بدء جلسة ${sportsMap[selectedSport] || selectedSport}` : `Start ${selectedSport} Session`}</span>
@@ -337,7 +340,7 @@ export const StrainView: React.FC<StrainViewProps> = ({
         ) : (
           <button
             onClick={onStopWorkout}
-            className="w-full py-3.5 rounded-2xl bg-[#FF3344] hover:bg-[#E00022] text-white font-condensed font-black uppercase tracking-wider text-sm flex items-center justify-center gap-2 shadow-lg active:scale-98 transition-all"
+            className="w-full py-3.5 min-h-[44px] rounded-2xl bg-[#FF3344] hover:bg-[#E00022] text-white font-condensed font-black uppercase tracking-wider text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg active:scale-[0.98] transition-all"
           >
             <Square className="w-4 h-4 fill-white" />
             <span>{isRtl ? 'إنهاء التمرين وحفظه' : 'End & Save Workout'}</span>
@@ -346,7 +349,7 @@ export const StrainView: React.FC<StrainViewProps> = ({
       </div>
 
       {/* Heart Rate Zones with Live Cardiac Pulse */}
-      <div className="p-4 rounded-[24px] bg-[#12151A] border border-white/5 space-y-3">
+      <div className="p-3.5 sm:p-4 rounded-[20px] sm:rounded-[24px] bg-[#12151A] border border-white/5 space-y-3">
         <div className="flex items-center justify-between px-1">
           <h3 className="text-xs font-black uppercase tracking-wider text-zinc-400 font-condensed">
             {isRtl ? 'نطاقات نبض القلب (HR ZONES)' : 'Heart Rate Zones'}
@@ -400,9 +403,9 @@ export const StrainView: React.FC<StrainViewProps> = ({
       </div>
 
       {/* 4. 3 Dedicated 7-Day Charts (02:02 – 02:13 in Video) */}
-      <div className="space-y-4">
+      <div className="space-y-3 sm:space-y-4">
         {/* Chart 1: STRAIN Bright Blue Vertical Bars */}
-        <div className="p-4 rounded-[24px] bg-[#12151A] border border-white/5 space-y-2">
+        <div className="p-3.5 sm:p-4 rounded-[20px] sm:rounded-[24px] bg-[#12151A] border border-white/5 space-y-2">
           <div className="flex items-center justify-between text-xs font-black uppercase font-condensed text-white">
             <span>{t('strain7Days')}</span>
             <span className="text-[10px] text-[#00A3FF] font-mono">{isRtl ? `المتوسط: ${avgStrain}` : `AVG: ${avgStrain}`}</span>
@@ -419,7 +422,7 @@ export const StrainView: React.FC<StrainViewProps> = ({
         </div>
 
         {/* Chart 2: AVERAGE HR Line Chart */}
-        <div className="p-4 rounded-[24px] bg-[#12151A] border border-white/5 space-y-2">
+        <div className="p-3.5 sm:p-4 rounded-[20px] sm:rounded-[24px] bg-[#12151A] border border-white/5 space-y-2">
           <div className="flex items-center justify-between text-xs font-black uppercase font-condensed text-white">
             <span>{t('avgHr')}</span>
             <span className="text-[10px] text-[#00A3FF] font-mono">{isRtl ? `المتوسط: ${avgHrVal}` : `AVG: ${avgHrVal}`}</span>
@@ -436,7 +439,7 @@ export const StrainView: React.FC<StrainViewProps> = ({
         </div>
 
         {/* Chart 3: CALORIES Bar Chart */}
-        <div className="p-4 rounded-[24px] bg-[#12151A] border border-white/5 space-y-2">
+        <div className="p-3.5 sm:p-4 rounded-[20px] sm:rounded-[24px] bg-[#12151A] border border-white/5 space-y-2">
           <div className="flex items-center justify-between text-xs font-black uppercase font-condensed text-white">
             <span>{t('calories7Days')}</span>
             <span className="text-[10px] text-[#00A3FF] font-mono">{isRtl ? `المتوسط: ${avgCalVal}` : `AVG: ${avgCalVal}`}</span>

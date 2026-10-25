@@ -111,11 +111,18 @@ export const AdjustSleepModal: React.FC<AdjustSleepModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-50 flex flex-col justify-end sm:justify-center items-center p-0 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200"
+    >
       <div
-        className="relative w-full max-w-lg p-5 sm:p-6 rounded-3xl bg-[#0E131C] border border-[#A855F7]/30 shadow-[0_0_50px_rgba(168,85,247,0.2)] space-y-4 max-h-[92vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+        className="relative w-full max-w-lg p-5 sm:p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] sm:pb-6 rounded-t-[32px] sm:rounded-3xl bg-[#0E131C] border-t sm:border border-[#A855F7]/30 shadow-[0_0_50px_rgba(168,85,247,0.2)] space-y-4 max-h-[85vh] overflow-y-auto overscroll-contain"
         dir={isRtl ? 'rtl' : 'ltr'}
       >
+        {/* Mobile Grab Handle */}
+        <div className="w-10 h-1 rounded-full bg-white/20 mx-auto sm:hidden mb-2 -mt-1 cursor-grab" />
+
         {/* Header */}
         <div className="flex items-center justify-between border-b border-white/10 pb-3">
           <div className="flex items-center gap-2.5">
@@ -135,7 +142,8 @@ export const AdjustSleepModal: React.FC<AdjustSleepModalProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10 transition-colors"
+            className="w-10 h-10 rounded-xl text-zinc-400 hover:text-white hover:bg-white/10 flex items-center justify-center active:scale-95 transition-all"
+            aria-label={isRtl ? 'إغلاق' : 'Close'}
           >
             <X className="w-5 h-5" />
           </button>

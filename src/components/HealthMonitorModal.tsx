@@ -154,12 +154,12 @@ export const HealthMonitorModal: React.FC<HealthMonitorModalProps> = ({
 
   return (
     <SheetBackdrop isOpen={isOpen} onClose={onClose}>
-      <SheetPanel onClose={onClose} className="h-[92vh]">
+      <SheetPanel onClose={onClose} className="max-h-[85vh]">
         {/* Header */}
         <div className="p-4 border-b border-white/5 flex items-center justify-between">
           <button
             onClick={onClose}
-            className="p-1.5 rounded-full bg-[#16191E] text-zinc-400 hover:text-white transition-colors"
+            className="w-10 h-10 rounded-full bg-[#16191E] text-zinc-400 hover:text-white flex items-center justify-center active:scale-95 transition-all"
           >
             <X className="w-5 h-5" />
           </button>
@@ -168,11 +168,11 @@ export const HealthMonitorModal: React.FC<HealthMonitorModalProps> = ({
             {t('healthMonitor')}
           </h2>
 
-          <div className="w-8" />
+          <div className="w-10" />
         </div>
 
         {/* Content Body */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-5">
+        <div className="flex-1 overflow-y-auto overscroll-contain p-4 space-y-4">
           {/* Top Live Heart Circle */}
           <div className="flex flex-col items-center justify-center py-2 text-center">
             <div className="relative w-36 h-36 rounded-full bg-[#12151A] border border-white/10 flex flex-col items-center justify-center shadow-inner">

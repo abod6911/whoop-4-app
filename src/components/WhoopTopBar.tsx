@@ -144,13 +144,14 @@ export const WhoopTopBar: React.FC<WhoopTopBarProps> = ({
 
 
       {/* Row 1: Top Bar (00:00 in Video) */}
-      <div className="px-4 pt-[max(env(safe-area-inset-top),0.75rem)] pb-2 flex items-center justify-between gap-2 max-w-[430px] mx-auto">
+      <div className="px-3 sm:px-4 pt-[env(safe-area-inset-top,1rem)] pb-2 flex items-center justify-between gap-1.5 sm:gap-2 max-w-[430px] mx-auto select-none">
         {/* Left: Athlete Avatar (AB) + Notification Bell Badge + Streak Badge + Quick Add (+) */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
           <button
             onClick={onOpenNotifications}
-            className="relative flex items-center justify-center group active:scale-95 transition-transform"
+            className="relative flex items-center justify-center p-0.5 min-w-[36px] min-h-[36px] group active:scale-[0.98] transition-transform"
             title="Notification Center"
+            aria-label="Notification Center"
           >
             {/* Neutral Athlete Initials Circle */}
             <div className="w-[34px] h-[34px] rounded-full bg-gradient-to-tr from-[#1E2530] to-[#2B3545] p-[1.5px] flex items-center justify-center border border-white/10">
@@ -160,13 +161,13 @@ export const WhoopTopBar: React.FC<WhoopTopBarProps> = ({
             </div>
 
             {/* Notification Bell Badge on Avatar */}
-            <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-[#16191E] border border-white/20 flex items-center justify-center text-zinc-300">
+            <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-[#16191E] border border-white/20 flex items-center justify-center text-zinc-300">
               <Bell className="w-2.5 h-2.5" />
             </div>
 
             {/* Unread Counter Dot */}
             {unreadNotificationsCount > 0 && (
-              <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-[#0093E9] text-[9px] font-black font-condensed flex items-center justify-center text-white ring-2 ring-black">
+              <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-[#0093E9] text-[9px] font-black font-condensed flex items-center justify-center text-white ring-2 ring-black">
                 {unreadNotificationsCount > 9 ? '9+' : unreadNotificationsCount}
               </span>
             )}
@@ -181,8 +182,9 @@ export const WhoopTopBar: React.FC<WhoopTopBarProps> = ({
           {onOpenQuickAction && (
             <button
               onClick={onOpenQuickAction}
-              className="w-[34px] h-[34px] rounded-full bg-white/10 hover:bg-white/20 active:scale-95 border border-white/15 text-white flex items-center justify-center transition-all shadow-sm"
+              className="w-[34px] h-[34px] rounded-full bg-white/10 hover:bg-white/20 active:scale-[0.98] border border-white/15 text-white flex items-center justify-center transition-all shadow-sm"
               title={isRtl ? 'إضافة نشاط سريع أو تمرين' : 'Quick Add Activity'}
+              aria-label={isRtl ? 'إضافة نشاط سريع' : 'Quick Add Activity'}
             >
               <Plus className="w-4 h-4 stroke-[2.5]" />
             </button>
@@ -190,25 +192,27 @@ export const WhoopTopBar: React.FC<WhoopTopBarProps> = ({
         </div>
 
         {/* Center: Date Selector < TODAY > with Chevrons and Click-to-Calendar */}
-        <div className="flex items-center gap-0.5 bg-[#1C212B] px-2 py-1 rounded-full border border-white/5">
+        <div className="flex items-center gap-0.5 bg-[#1C212B] px-1.5 sm:px-2 py-1 rounded-full border border-white/5 flex-shrink-0">
           <button
             onClick={onPrevDate}
-            className="p-0.5 text-zinc-400 hover:text-white transition-colors"
+            className="p-1 min-w-[24px] min-h-[24px] flex items-center justify-center text-zinc-400 hover:text-white transition-colors active:scale-[0.98]"
             title="Previous Day"
+            aria-label="Previous Day"
           >
             <ChevronLeft className={`w-3.5 h-3.5 ${isRtl ? 'rotate-180' : ''}`} />
           </button>
           <button
             onClick={onOpenCalendar}
-            className="text-[11px] font-black uppercase text-white font-condensed tracking-widest px-2.5 hover:text-[#00A3FF] transition-colors active:scale-95"
+            className="text-[10px] sm:text-[11px] font-black uppercase text-white font-condensed tracking-wider sm:tracking-widest px-1.5 sm:px-2.5 hover:text-[#00A3FF] transition-colors active:scale-[0.98] truncate"
             title={isRtl ? 'فتح تقويم الدورات الفسيولوجية' : 'Open Cycles Calendar'}
           >
             {getLocalizedDate(selectedDate)}
           </button>
           <button
             onClick={onNextDate}
-            className="p-0.5 text-zinc-400 hover:text-white transition-colors"
+            className="p-1 min-w-[24px] min-h-[24px] flex items-center justify-center text-zinc-400 hover:text-white transition-colors active:scale-[0.98]"
             title="Next Day"
+            aria-label="Next Day"
           >
             <ChevronRight className={`w-3.5 h-3.5 ${isRtl ? 'rotate-180' : ''}`} />
           </button>
@@ -217,8 +221,9 @@ export const WhoopTopBar: React.FC<WhoopTopBarProps> = ({
         {/* Right: Real Battery % + Vertical Strap Icon + Signal Bars Icon */}
         <button
           onClick={onOpenStrapSheet}
-          className="flex items-center gap-1.5 bg-[#16191E] border border-white/5 hover:border-zinc-700 px-2.5 py-1 rounded-full transition-all active:scale-95"
+          className="flex items-center gap-1 sm:gap-1.5 bg-[#16191E] border border-white/5 hover:border-zinc-700 px-2 sm:px-2.5 py-1 min-h-[34px] rounded-full transition-all active:scale-[0.98] flex-shrink-0"
           title="WHOOP 4.0 Strap & Battery Status"
+          aria-label="WHOOP 4.0 Strap & Battery Status"
         >
           {metadata.connected && metadata.isCharging ? (
             <span className="flex items-center gap-0.5 text-[#16EC06] text-xs font-black font-condensed animate-pulse">
@@ -237,27 +242,27 @@ export const WhoopTopBar: React.FC<WhoopTopBarProps> = ({
 
       {/* Row 2: 4 Sub-Tabs (OVERVIEW | SLEEP | RECOVERY | STRAIN) on Home Tab (00:00 in Video) */}
       {mainTab === 'home' ? (
-        <div className="flex items-center justify-between max-w-[430px] mx-auto px-4 border-t border-white/5">
+        <div className="flex items-center justify-between max-w-[430px] mx-auto px-2 sm:px-4 border-t border-white/5">
           {(['overview', 'sleep', 'recovery', 'strain'] as HomeSubTab[]).map((tab) => {
             const isActive = activeSubTab === tab;
             return (
               <button
                 key={tab}
                 onClick={() => onChangeSubTab(tab)}
-                className={`py-2 px-3 text-xs font-black uppercase tracking-wider font-condensed relative transition-colors ${
+                className={`py-2.5 px-2 sm:px-3 min-h-[40px] text-[11px] sm:text-xs font-black uppercase tracking-wider font-condensed relative transition-colors active:scale-[0.98] ${
                   isActive ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'
                 }`}
               >
                 <span>{subTabLabels[tab]}</span>
                 {isActive && (
-                  <div className="absolute bottom-0 left-2 right-2 h-[2px] bg-white rounded-full shadow-sm" />
+                  <div className="absolute bottom-0 left-1.5 right-1.5 sm:left-2 sm:right-2 h-[2px] bg-white rounded-full shadow-sm" />
                 )}
               </button>
             );
           })}
         </div>
       ) : (
-        <div className="py-2 px-4 max-w-[430px] mx-auto border-t border-white/5 text-start">
+        <div className="py-2.5 px-4 max-w-[430px] mx-auto border-t border-white/5 text-start">
           <span className="text-xs font-black uppercase tracking-wider font-condensed text-zinc-300">
             {getMainTabTitle()}
           </span>

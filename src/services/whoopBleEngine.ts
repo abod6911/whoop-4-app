@@ -103,6 +103,20 @@ export type GattTreeCallback = (services: GattServiceInfo[]) => void;
 export type ErrorCallback = (error: string) => void;
 export type StepsCallback = (steps: number, cadence: number) => void;
 
+export interface ImuDiagnosticTelemetry {
+  packetsPerSec: number;
+  totalPackets: number;
+  rawX: number;
+  rawY: number;
+  rawZ: number;
+  currentMag: number;
+  threshold: number;
+  totalSteps: number;
+  cadence: number;
+  lastPacketTimestamp: number;
+}
+export type ImuDiagnosticCallback = (diag: ImuDiagnosticTelemetry) => void;
+
 // --- Reverse-Engineered WHOOP 4.0 Protocol & OpenStrap Framing ---
 export {
   crc8Whoop,
@@ -153,6 +167,25 @@ export class WhoopBleEngine {
   private onGattTreeCallbacks: Set<GattTreeCallback> = new Set();
   private onErrorCallbacks: Set<ErrorCallback> = new Set();
   private onStepsCallbacks: Set<StepsCallback> = new Set();
+  private imuDiagnosticCallbacks: Set<ImuDiagnosticCallback> = new Set();
+
+  // IMU Live Telemetry & Real-Time Ingestion Counters
+  private imuWindowPackets = 0;
+  private imuWindowStartTime = Date.now();
+  private imuPacketsPerSec = 0;
+  private imuTotalPackets = 0;
+  private latestImuTelemetry: ImuDiagnosticTelemetry = {
+    packetsPerSec: 0,
+    totalPackets: 0,
+    rawX: 0,
+    rawY: 0,
+    rawZ: 0,
+    currentMag: 0,
+    threshold: 1.12,
+    totalSteps: 0,
+    cadence: 0,
+    lastPacketTimestamp: 0,
+  };
 
   // StepDetector DSP Engine Singleton
   public readonly stepDetector: StepDetector = stepDetector;
@@ -224,6 +257,12 @@ export class WhoopBleEngine {
       this.sendChunkAck(seq).catch(() => {});
     });
 
+    // Wire StepDetector notifications directly to emitSteps & telemetry updates
+    this.stepDetector.subscribe((steps, cadence) => {
+      this.emitSteps(steps, cadence);
+      this.emitImuDiagnostic();
+    });
+
     if (typeof window !== 'undefined') {
       this.checkPermittedDevices().catch(() => {});
     }
@@ -233,8 +272,60 @@ export class WhoopBleEngine {
     whoopDb.getDailyRecord(todayKey).then((record) => {
       if (record && typeof record.steps === 'number' && record.steps > 0) {
         this.stepDetector.setSteps(record.steps);
+        this.emitSteps(record.steps, this.stepDetector.getCadence());
       }
     }).catch(() => {});
+  }
+
+  public getImuDiagnostic(): ImuDiagnosticTelemetry {
+    return {
+      ...this.latestImuTelemetry,
+      totalSteps: this.stepDetector.getSteps(),
+      cadence: this.stepDetector.getCadence(),
+    };
+  }
+
+  public onImuDiagnostic(cb: ImuDiagnosticCallback): () => void {
+    this.imuDiagnosticCallbacks.add(cb);
+    cb(this.getImuDiagnostic());
+    return () => this.imuDiagnosticCallbacks.delete(cb);
+  }
+
+  private emitImuDiagnostic(): void {
+    const diag = this.getImuDiagnostic();
+    this.imuDiagnosticCallbacks.forEach((cb) => {
+      try {
+        cb(diag);
+      } catch { /* ignore */ }
+    });
+  }
+
+  private trackImuPacketArrival(): void {
+    const now = Date.now();
+    this.imuTotalPackets++;
+    this.imuWindowPackets++;
+    const elapsed = now - this.imuWindowStartTime;
+    if (elapsed >= 1000) {
+      this.imuPacketsPerSec = Math.round((this.imuWindowPackets / elapsed) * 1000);
+      this.imuWindowPackets = 0;
+      this.imuWindowStartTime = now;
+    }
+  }
+
+  private updateImuLiveTelemetry(rawX: number, rawY: number, rawZ: number, mag: number): void {
+    this.latestImuTelemetry = {
+      packetsPerSec: this.imuPacketsPerSec,
+      totalPackets: this.imuTotalPackets,
+      rawX,
+      rawY,
+      rawZ,
+      currentMag: Number(mag.toFixed(3)),
+      threshold: this.stepDetector.MIN_THRESHOLD_G,
+      totalSteps: this.stepDetector.getSteps(),
+      cadence: this.stepDetector.getCadence(),
+      lastPacketTimestamp: Date.now(),
+    };
+    this.emitImuDiagnostic();
   }
 
   public isSupported(): boolean {
@@ -713,12 +804,18 @@ export class WhoopBleEngine {
           WHOOP_BASE_SERVICE_UUID,
           WHOOP_DATA_FROM_STRAP_UUID,
           (data: DataView) => {
+            console.log(
+              '[BLE RAW CHUNK]',
+              Array.from(new Uint8Array(data.buffer, data.byteOffset, data.byteLength))
+                .map((b) => b.toString(16).padStart(2, '0'))
+                .join(' ')
+            );
             this.parseProprietaryPacket(WHOOP_DATA_FROM_STRAP_UUID, data);
           }
         );
         console.log('[Native BLE] Subscribed to WHOOP DATA stream');
       } catch (e) {
-        console.warn('[Native BLE] Failed subscribing to WHOOP DATA:', e);
+        console.error('[Native BLE] Failed subscribing to WHOOP DATA stream:', e);
       }
 
       try {
@@ -1335,6 +1432,9 @@ export class WhoopBleEngine {
     pedometerEngine.setLiveCadence(cadence);
     whoopDb.updateTodaySteps(steps, cadence, true);
     this.emitSteps(steps, cadence);
+    // Update live IMU telemetry sample so HUD immediately displays test movement
+    const testRawZ = Math.round(2048 * 1.28);
+    this.updateImuLiveTelemetry(140, -85, testRawZ, 1.285);
   }
 
   // --- Dynamic Battery & Charging State Detection Engine ---
@@ -1640,15 +1740,29 @@ export class WhoopBleEngine {
               await char.startNotifications();
               char.addEventListener('characteristicvaluechanged', (e: Event) => {
                 const target = e.target as BluetoothRemoteGATTCharacteristic;
-                if (target.value) {
+                if (target?.value) {
+                  if (uuid === WHOOP_DATA_FROM_STRAP_UUID) {
+                    console.log(
+                      '[BLE RAW CHUNK]',
+                      Array.from(new Uint8Array(target.value.buffer, target.value.byteOffset, target.value.byteLength))
+                        .map((b) => b.toString(16).padStart(2, '0'))
+                        .join(' ')
+                    );
+                  }
                   this.parseProprietaryPacket(uuid, target.value);
                 }
               });
-              console.log(`Subscribed to Gen4 characteristic: ${uuid}`);
+              console.log(`[WHOOP BLE] Successfully subscribed to Gen4 characteristic: ${uuid}`);
+              // Stagger CCCD writes to prevent Windows BLE descriptor collisions
+              await new Promise((resolve) => setTimeout(resolve, 120));
+            } else {
+              console.warn(`[WHOOP BLE] Gen4 characteristic ${uuid} does not support notify/indicate`);
             }
+          } else {
+            console.warn(`[WHOOP BLE] Gen4 characteristic ${uuid} not discovered on service`);
           }
         } catch (err) {
-          console.warn(`Could not subscribe to Gen4 char ${uuid}:`, err);
+          console.error(`[WHOOP BLE] startNotifications FAILED on Gen4 char ${uuid}:`, err);
         }
       }
 
@@ -1691,20 +1805,27 @@ export class WhoopBleEngine {
       scale = 4096.0;
     } else if (rawMag > 800) {
       scale = 2048.0;
-    } else if (rawMag > 500) {
+    } else if (rawMag > 400) {
       scale = 1000.0;
+    } else if (rawMag > 40 && rawMag <= 400) {
+      scale = 100.0;
     } else if (rawMag > 5 && rawMag < 25) {
       scale = 9.80665;
     } else if (rawMag > 0 && rawMag <= 5) {
       scale = 1.0;
     }
 
-    const xG = rawX / scale;
-    const yG = rawY / scale;
-    const zG = rawZ / scale;
+    const xG = isNaN(rawX) ? 0 : rawX / scale;
+    const yG = isNaN(rawY) ? 0 : rawY / scale;
+    const zG = isNaN(rawZ) ? 0 : rawZ / scale;
     const rawMagnitude = Math.sqrt(xG * xG + yG * yG + zG * zG);
 
-    this.logImuRaw(xG, yG, zG, rawMagnitude);
+    // Rate-limited live IMU output logger
+    const now = Date.now();
+    if (now - this.lastImuLogTimestamp >= 1000) {
+      this.lastImuLogTimestamp = now;
+      console.log(`[IMU Live] RawX: ${rawX}, RawY: ${rawY}, RawZ: ${rawZ} => Calculated Mag: ${rawMagnitude.toFixed(3)} G`);
+    }
 
     return { xG, yG, zG, rawMagnitude };
   }
@@ -1779,10 +1900,13 @@ export class WhoopBleEngine {
 
       // Raw IMU / Accelerometer / PPG / Flash stream from DATA_FROM_STRAP
       if (charUuid === WHOOP_DATA_FROM_STRAP_UUID && data.byteLength >= 1) {
+        this.trackImuPacketArrival();
         const rawBytes = new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
 
         // Feed directly into OpenStrap in-memory MTU de-fragmentation stream
         this.defragStream.pushChunk(rawBytes);
+
+        let imuSampleProcessed = false;
 
         // 1. Check for framed WHOOP packet (0xAA header)
         if (header === 0xaa) {
@@ -1801,26 +1925,26 @@ export class WhoopBleEngine {
               pedometerEngine.reconcileCumulativeHardwareSteps(hwSteps);
               whoopDb.updateTodaySteps(hwSteps, this.stepDetector.getCadence(), true);
               this.emitSteps(hwSteps, this.stepDetector.getCadence());
-            } else if (pType === 0x01 && pData.byteLength >= 7) {
+            } else if ((pType === 0x01 || pType === 0x07) && pData.byteLength >= 7) {
               // Accelerometer IMU frame
               const rawX = pData.getInt16(1, true);
               const rawY = pData.getInt16(3, true);
               const rawZ = pData.getInt16(5, true);
               const { xG, yG, zG, rawMagnitude } = this.decodeAccelG(rawX, rawY, rawZ);
+              this.updateImuLiveTelemetry(rawX, rawY, rawZ, rawMagnitude);
               const motionDelta = Math.abs(rawMagnitude - 1.0);
 
-              if (this.metadata.connected && this.metadata.onWrist !== false) {
-                const isStep = this.stepDetector.processSample({ x: xG, y: yG, z: zG, timestamp: Date.now() });
-                if (isStep) {
-                  const steps = this.stepDetector.getSteps();
-                  const cadence = this.stepDetector.getCadence();
-                  pedometerEngine.setDailySteps(steps, 'imu_hardware');
-                  pedometerEngine.setLiveCadence(cadence);
-                  whoopDb.updateTodaySteps(steps, cadence);
-                  this.emitSteps(steps, cadence);
-                }
+              const isStep = this.stepDetector.processSample({ x: xG, y: yG, z: zG, timestamp: Date.now() });
+              if (isStep) {
+                const steps = this.stepDetector.getSteps();
+                const cadence = this.stepDetector.getCadence();
+                pedometerEngine.setDailySteps(steps, 'imu_hardware');
+                pedometerEngine.setLiveCadence(cadence);
+                whoopDb.updateTodaySteps(steps, cadence);
+                this.emitSteps(steps, cadence);
               }
               sleepEngine.ingestMotion(motionDelta);
+              imuSampleProcessed = true;
             } else if (pType === 0x02 && pData.byteLength >= 9) {
               // Raw PPG optical stream: red/IR modulation ratio parsing
               const acRed = pData.getInt16(1, true);
@@ -1843,25 +1967,43 @@ export class WhoopBleEngine {
               }
             }
           }
-        } else {
-          // 2. Unframed Accelerometer IMU frame fallback
-          const rawX = data.getInt16(0, true);
-          const rawY = data.getInt16(2, true);
-          const rawZ = data.getInt16(4, true);
+        }
+
+        // 2. Unframed Accelerometer IMU frame fallback or alternate framing
+        if (!imuSampleProcessed && data.byteLength >= 6) {
+          let rawX = data.getInt16(0, true);
+          let rawY = data.getInt16(2, true);
+          let rawZ = data.getInt16(4, true);
+
+          // If offset 0 produces an out-of-range value and byte 0 is an opcode / channel ID / sequence byte
+          if (
+            data.byteLength >= 7 &&
+            (header === 0x01 || header === 0xaa || Math.abs(rawX) > 28000 || Math.abs(rawY) > 28000 || Math.abs(rawZ) > 28000)
+          ) {
+            const altX = data.getInt16(1, true);
+            const altY = data.getInt16(3, true);
+            const altZ = data.getInt16(5, true);
+            const altMag = Math.sqrt(altX * altX + altY * altY + altZ * altZ);
+            if (altMag > 40 && altMag < 25000) {
+              rawX = altX;
+              rawY = altY;
+              rawZ = altZ;
+            }
+          }
+
           const { xG, yG, zG, rawMagnitude } = this.decodeAccelG(rawX, rawY, rawZ);
+          this.updateImuLiveTelemetry(rawX, rawY, rawZ, rawMagnitude);
           const motionDelta = Math.abs(rawMagnitude - 1.0);
 
-          if (rawMagnitude >= 0.1 && rawMagnitude <= 10.0) {
-            if (this.metadata.connected && this.metadata.onWrist !== false) {
-              const isStep = this.stepDetector.processSample({ x: xG, y: yG, z: zG, timestamp: Date.now() });
-              if (isStep) {
-                const steps = this.stepDetector.getSteps();
-                const cadence = this.stepDetector.getCadence();
-                pedometerEngine.setDailySteps(steps, 'imu_hardware');
-                pedometerEngine.setLiveCadence(cadence);
-                whoopDb.updateTodaySteps(steps, cadence);
-                this.emitSteps(steps, cadence);
-              }
+          if (!isNaN(rawMagnitude) && rawMagnitude >= 0.1 && rawMagnitude <= 12.0) {
+            const isStep = this.stepDetector.processSample({ x: xG, y: yG, z: zG, timestamp: Date.now() });
+            if (isStep) {
+              const steps = this.stepDetector.getSteps();
+              const cadence = this.stepDetector.getCadence();
+              pedometerEngine.setDailySteps(steps, 'imu_hardware');
+              pedometerEngine.setLiveCadence(cadence);
+              whoopDb.updateTodaySteps(steps, cadence);
+              this.emitSteps(steps, cadence);
             }
             sleepEngine.ingestMotion(motionDelta);
           }
@@ -2082,42 +2224,111 @@ export class WhoopBleEngine {
   public async sendRawBuffer(buffer: Uint8Array): Promise<void> {
     if (Capacitor.isNativePlatform() && this.nativeDeviceId) {
       const dataView = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
-      await BleClient.write(this.nativeDeviceId, WHOOP_BASE_SERVICE_UUID, WHOOP_CMD_TO_STRAP_UUID, dataView);
+      try {
+        await BleClient.write(this.nativeDeviceId, WHOOP_BASE_SERVICE_UUID, WHOOP_CMD_TO_STRAP_UUID, dataView);
+      } catch (err) {
+        console.warn('[Native BLE] BleClient.write with response failed, falling back to writeWithoutResponse:', err);
+        try {
+          await BleClient.writeWithoutResponse(this.nativeDeviceId, WHOOP_BASE_SERVICE_UUID, WHOOP_CMD_TO_STRAP_UUID, dataView);
+        } catch (err2) {
+          console.error('[Native BLE] BleClient.writeWithoutResponse also failed:', err2);
+          throw err2;
+        }
+      }
       return;
     }
 
     const char = this.activeCharacteristics.get(WHOOP_CMD_TO_STRAP_UUID);
     if (!char) {
-      throw new Error('WHOOP CMD_TO_STRAP characteristic not discovered or connected');
+      const err = new Error('WHOOP CMD_TO_STRAP characteristic not discovered or connected');
+      console.error('[WHOOP BLE]', err.message);
+      throw err;
     }
 
     const payload = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength) as ArrayBuffer;
 
+    let writeSuccess = false;
+    let lastError: unknown = null;
+
+    // Check if characteristic supports writeValueWithResponse
     if (char.properties.write) {
-      await char.writeValueWithResponse(payload);
-    } else if (char.properties.writeWithoutResponse) {
-      await char.writeValueWithoutResponse(payload);
-    } else {
-      throw new Error('Characteristic does not support WRITE');
+      try {
+        await char.writeValueWithResponse(payload);
+        writeSuccess = true;
+      } catch (err) {
+        lastError = err;
+        console.warn('[WHOOP BLE] writeValueWithResponse failed, attempting writeValueWithoutResponse fallback:', err);
+      }
+    }
+
+    // Try writeValueWithoutResponse if not succeeded
+    if (!writeSuccess && (char.properties.writeWithoutResponse || !char.properties.write)) {
+      try {
+        if ('writeValueWithoutResponse' in char) {
+          await char.writeValueWithoutResponse(payload);
+          writeSuccess = true;
+        }
+      } catch (err) {
+        lastError = err;
+        console.warn('[WHOOP BLE] writeValueWithoutResponse failed:', err);
+      }
+    }
+
+    // Legacy Web Bluetooth fallback if properties did not reflect write flags
+    if (!writeSuccess) {
+      try {
+        if ('writeValue' in char) {
+          await (char as any).writeValue(payload);
+          writeSuccess = true;
+        }
+      } catch (err) {
+        lastError = err;
+      }
+    }
+
+    if (!writeSuccess) {
+      console.error('[WHOOP BLE] All write methods to CMD_TO_STRAP failed:', lastError);
+      throw lastError || new Error('All write attempts to CMD_TO_STRAP failed');
     }
   }
 
   // --- Hardware Sensor Wake & IMU Accelerometer Stream Command (0x25, 0x02, 0x01) ---
   public async enableImuStream(): Promise<void> {
     console.log('[WHOOP 4.0] Dispatching Hardware Sensor Wake & IMU Accelerometer Stream Trigger (0x25, 0x02, 0x01)...');
+    const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
     try {
+      // 0. Ensure OpenStrap Auth Handshake & RTC synchronization handshake first
+      await this.sendHello().catch((e) => console.warn('[WHOOP 4.0] Handshake HELLO notice:', e));
+      await delay(120);
+      await this.sendSetClock().catch((e) => console.warn('[WHOOP 4.0] Handshake SET_CLOCK notice:', e));
+      await delay(120);
+
       // 1. Direct raw opcode: 0x25 (Telemetry Stream Control), 0x02 (IMU stream), 0x01 (Enable continuous)
       const imuRawPayload = new Uint8Array([0x25, 0x02, 0x01]);
-      await this.sendRawBuffer(imuRawPayload).catch(() => {});
+      await this.sendRawBuffer(imuRawPayload).catch((e) => {
+        console.error('[WHOOP 4.0] Direct IMU stream wake (0x25, 0x02, 0x01) failed:', e);
+      });
+      await delay(100);
+
       // 2. OpenStrap 0xAA binary framing
-      await this.sendRawBuffer(encodeWhoopFrame(imuRawPayload)).catch(() => {});
+      await this.sendRawBuffer(encodeWhoopFrame(imuRawPayload)).catch((e) => {
+        console.error('[WHOOP 4.0] Framed IMU stream wake (0xAA ... 0x25, 0x02, 0x01) failed:', e);
+      });
+      await delay(100);
+
       // 3. Alternate firmware opcode: 0x23, 0x07, 0x01
       const altPayload = new Uint8Array([0x23, 0x07, 0x01]);
-      await this.sendRawBuffer(altPayload).catch(() => {});
-      await this.sendRawBuffer(encodeWhoopFrame(altPayload)).catch(() => {});
+      await this.sendRawBuffer(altPayload).catch((e) => {
+        console.error('[WHOOP 4.0] Direct alternate IMU wake (0x23, 0x07, 0x01) failed:', e);
+      });
+      await delay(100);
+      await this.sendRawBuffer(encodeWhoopFrame(altPayload)).catch((e) => {
+        console.error('[WHOOP 4.0] Framed alternate IMU wake (0xAA ... 0x23, 0x07, 0x01) failed:', e);
+      });
+
       console.log('[WHOOP 4.0] ✓ Hardware Accelerometer IMU stream activation sent to CMD_TO_STRAP');
     } catch (e) {
-      console.warn('[WHOOP 4.0] IMU stream wake notice:', e);
+      console.error('[WHOOP 4.0] IMU stream wake error:', e);
     }
   }
 
@@ -2126,36 +2337,42 @@ export class WhoopBleEngine {
     console.log('[WHOOP 4.0] Executing Full Sensor Activation Handshake Sequence...');
     const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
     try {
+      // 0. Ensure OpenStrap Auth Handshake & RTC synchronization
+      await this.sendHello().catch((e) => console.warn('[WHOOP 4.0] Handshake HELLO notice:', e));
+      await delay(150);
+      await this.sendSetClock().catch((e) => console.warn('[WHOOP 4.0] Handshake SET_CLOCK notice:', e));
+      await delay(150);
+
       // 1. Toggle Realtime HR & RR Broadcast ON ([0x23, 0x03, 0x01])
       const hrPayload = new Uint8Array([0x23, 0x03, 0x01]);
-      await this.sendRawBuffer(encodeWhoopFrame(hrPayload)).catch(() => {});
+      await this.sendRawBuffer(encodeWhoopFrame(hrPayload)).catch((e) => console.error('[WHOOP 4.0] HR broadcast toggle failed:', e));
       await this.sendRawBuffer(new Uint8Array([0xaa, 0x04, 0x00, 0x23, 0x03, 0x01])).catch(() => {});
-      await delay(250);
+      await delay(200);
 
       // 2. Toggle R7 Raw Optical PPG / SpO2 / Skin Temp / IMU Telemetry ON ([0x23, 0x16, 0x01])
       const r7Payload = new Uint8Array([0x23, 0x16, 0x01]);
-      await this.sendRawBuffer(encodeWhoopFrame(r7Payload)).catch(() => {});
+      await this.sendRawBuffer(encodeWhoopFrame(r7Payload)).catch((e) => console.error('[WHOOP 4.0] R7 telemetry toggle failed:', e));
       await this.sendRawBuffer(new Uint8Array([0xaa, 0x04, 0x00, 0x23, 0x16, 0x01])).catch(() => {});
-      await delay(250);
+      await delay(200);
 
       // 3. Request Strap Status / Battery ([0x23, 0x01, 0x01])
       const statusPayload = new Uint8Array([0x23, 0x01, 0x01]);
-      await this.sendRawBuffer(encodeWhoopFrame(statusPayload)).catch(() => {});
+      await this.sendRawBuffer(encodeWhoopFrame(statusPayload)).catch((e) => console.error('[WHOOP 4.0] Status poll failed:', e));
       await this.sendRawBuffer(new Uint8Array([0xaa, 0x04, 0x00, 0x23, 0x01, 0x01])).catch(() => {});
-      await delay(250);
+      await delay(200);
 
       // 4. Request Thermistor Report ([0x23, 0x06, 0x01])
       const thermPayload = new Uint8Array([0x23, 0x06, 0x01]);
-      await this.sendRawBuffer(encodeWhoopFrame(thermPayload)).catch(() => {});
+      await this.sendRawBuffer(encodeWhoopFrame(thermPayload)).catch((e) => console.error('[WHOOP 4.0] Thermistor poll failed:', e));
       await this.sendRawBuffer(new Uint8Array([0xaa, 0x04, 0x00, 0x23, 0x06, 0x01])).catch(() => {});
-      await delay(250);
+      await delay(200);
 
       // 5. Enable IMU Accelerometer Motion Stream (Opcode 0x25, 0x02, 0x01 & 0x23, 0x07, 0x01)
       await this.enableImuStream();
-      await delay(250);
+      await delay(200);
 
       // 6. Also trigger legacy 0x11 Realtime Stream command
-      await this.sendToggleRealtimeHr(true).catch(() => {});
+      await this.sendToggleRealtimeHr(true).catch((e) => console.error('[WHOOP 4.0] Legacy 0x11 stream toggle failed:', e));
 
       console.log('[WHOOP 4.0] ✓ Full sensor activation handshake dispatched successfully');
     } catch (e) {
@@ -2217,12 +2434,12 @@ export class WhoopBleEngine {
 
   public async sendHello(): Promise<void> {
     const frame = whoopCommands.createHello();
-    await this.sendRawBuffer(frame).catch(() => {});
+    await this.sendRawBuffer(frame);
   }
 
   public async sendSetClock(now = Date.now()): Promise<void> {
     const frame = whoopCommands.createSetClock(now);
-    await this.sendRawBuffer(frame).catch(() => {});
+    await this.sendRawBuffer(frame);
   }
 
   // --- Historical Sleep Packet Sync (Offline Data Offload from Strap) ---

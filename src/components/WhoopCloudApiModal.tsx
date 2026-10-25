@@ -164,15 +164,22 @@ export const WhoopCloudApiModal: React.FC<WhoopCloudApiModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in">
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-50 flex flex-col justify-end sm:justify-center items-center p-0 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in"
+    >
       <div
-        className="w-full max-w-xl max-h-[90vh] bg-[#12151A] border border-white/10 rounded-3xl shadow-2xl flex flex-col overflow-hidden text-white font-sans text-start"
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-xl max-h-[85vh] bg-[#12151A] border-t sm:border border-white/10 rounded-t-[32px] sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden text-white font-sans text-start overscroll-contain"
         dir={isRtl ? 'rtl' : 'ltr'}
       >
+        {/* Mobile Grab Handle */}
+        <div className="w-10 h-1 rounded-full bg-white/20 mx-auto sm:hidden mt-3 -mb-1 cursor-grab" />
+
         {/* Header */}
         <div className="p-4 border-b border-white/10 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-[#16EC06]/20 border border-[#16EC06]/40 flex items-center justify-center">
+            <div className="w-9 h-9 rounded-xl bg-[#16EC06]/20 border border-[#16EC06]/40 flex items-center justify-center">
               <Cloud className="w-4 h-4 text-[#16EC06]" />
             </div>
             <div>
@@ -186,14 +193,15 @@ export const WhoopCloudApiModal: React.FC<WhoopCloudApiModalProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-zinc-400 hover:text-white transition-colors"
+            className="w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-zinc-400 hover:text-white active:scale-95 transition-all"
+            aria-label={isRtl ? 'إغلاق' : 'Close'}
           >
-            <X className="w-4 h-4" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Scrollable Content */}
-        <div className="p-4 space-y-4 overflow-y-auto flex-1 font-condensed text-xs">
+        <div className="p-4 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] sm:pb-6 space-y-4 overflow-y-auto overscroll-contain flex-1 font-condensed text-xs">
           {/* Section 1: OAuth Scopes Verification */}
           <div className="p-3.5 rounded-2xl bg-[#181D24] border border-white/5 space-y-2.5">
             <div className="flex items-center justify-between">

@@ -219,7 +219,7 @@ export const StrapConnectSheet: React.FC<StrapConnectSheetProps> = ({
     <SheetBackdrop isOpen={isOpen} onClose={onClose}>
       <SheetPanel
         onClose={onClose}
-        className="h-[92vh] max-h-[92vh] bg-gradient-to-b from-[#1A1F26] via-[#12161C] to-[#080A0D] flex flex-col p-0 overflow-hidden border-t border-white/10 select-none"
+        className="h-auto max-h-[85vh] bg-gradient-to-b from-[#1A1F26] via-[#12161C] to-[#080A0D] flex flex-col p-0 overflow-hidden overscroll-contain border-t border-white/10 select-none"
       >
         {/* Top Header Navigation: Tabs & Close Button */}
         <div
@@ -268,10 +268,10 @@ export const StrapConnectSheet: React.FC<StrapConnectSheetProps> = ({
 
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white flex items-center justify-center transition-colors active:scale-95"
+            className="w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white flex items-center justify-center transition-all active:scale-95"
             aria-label="Close"
           >
-            <X className="w-4 h-4" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 

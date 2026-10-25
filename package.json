@@ -9,6 +9,8 @@
     "lint": "oxlint",
     "test:sleep": "npx tsx scripts/verify-sleep-pipeline.ts",
     "test:steps": "npx tsx scripts/verify-step-detector.ts",
+    "test:physiology": "npx tsx scripts/verify-physiological-engine.ts",
+    "test": "npm run test:steps && npm run test:sleep && npm run test:physiology",
     "preview": "vite preview"
   },
   "dependencies": {

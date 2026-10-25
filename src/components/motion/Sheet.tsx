@@ -19,7 +19,7 @@ export const SheetBackdrop: React.FC<SheetBackdropProps> = ({ isOpen, onClose, c
           exit={{ opacity: 0 }}
           transition={{ duration: 0.22 }}
           onClick={onClose}
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/85 backdrop-blur-md p-0 sm:p-4 overflow-hidden"
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/85 backdrop-blur-md p-0 sm:p-4 overflow-hidden overscroll-contain"
         >
           {children}
         </motion.div>
@@ -59,7 +59,7 @@ export const SheetPanel: React.FC<SheetPanelProps> = ({
       dragElastic={{ top: 0, bottom: 0.4 }}
       onDragEnd={handleDragEnd}
       onClick={(e) => e.stopPropagation()}
-      className={`relative w-full max-w-[440px] max-h-[92vh] overflow-y-auto rounded-t-[32px] sm:rounded-[32px] bg-[#12151A] border-t sm:border border-white/10 shadow-2xl p-5 text-white flex flex-col ${className}`}
+      className={`relative w-full max-w-[440px] max-h-[85vh] overflow-y-auto overscroll-contain rounded-t-[32px] sm:rounded-[32px] bg-[#12151A] border-t sm:border border-white/10 shadow-2xl p-4 sm:p-5 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] sm:pb-5 text-white flex flex-col ${className}`}
     >
       {/* Top iOS Grab Handle */}
       <div className="w-full flex items-center justify-center pt-0 pb-3 cursor-grab active:cursor-grabbing">

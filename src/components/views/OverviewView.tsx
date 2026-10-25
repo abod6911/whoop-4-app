@@ -68,6 +68,7 @@ import { useLanguage } from '../../i18n/LanguageContext';
 import { StreakBadge } from '../StreakBadge';
 import { useAuth } from '../../context/AuthContext';
 import { AnimatedStepCounter } from '../AnimatedStepCounter';
+import { ImuDiagnosticHud } from '../ImuDiagnosticHud';
 
 export const OverviewView: React.FC<OverviewViewProps> = ({
   metrics,
@@ -99,6 +100,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   const [editingSport, setEditingSport] = useState<string>('');
   const [isSportPickerOpen, setIsSportPickerOpen] = useState(false);
   const [isStepPulsing, setIsStepPulsing] = useState(false);
+  const [showImuHud, setShowImuHud] = useState(false);
   const prevStepsRef = useRef<number>(metrics.steps || 0);
 
   useEffect(() => {
@@ -233,7 +235,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
     : [];
 
   return (
-    <div className="space-y-4 pb-28 animate-in fade-in duration-300">
+    <div className="space-y-3 sm:space-y-4 pb-6 overflow-x-hidden animate-in fade-in duration-300 select-none">
       {/* 1. Official WHOOP Concentric 3-Layer Ring Gauge around the "W" Logo (00:01) */}
       <div className="py-1">
         <WhoopConcentricTripleGauge
@@ -306,10 +308,10 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
       )}
 
       {/* 2. "Your Daily Outlook" Card (00:04) */}
-      <div className="rounded-[24px] bg-[#12151A] border border-[#6366F1]/30 p-4 relative overflow-hidden shadow-lg shadow-[#6366F1]/5">
+      <div className="rounded-[20px] sm:rounded-[24px] bg-[#12151A] border border-[#6366F1]/30 p-3.5 sm:p-4 relative overflow-hidden shadow-lg shadow-[#6366F1]/5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-black tracking-wider font-condensed text-white">
+            <span className="text-xs sm:text-sm font-black tracking-wider font-condensed text-white">
               {isRtl ? 'نظرتك اليومية' : 'Your Daily Outlook'}
             </span>
           </div>
@@ -333,7 +335,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
 
         <button
           onClick={() => setIsOutlookModalOpen(true)}
-          className="mt-3 text-xs font-black uppercase tracking-wider font-condensed text-[#00F0FF] flex items-center gap-1 hover:underline"
+          className="mt-3 text-xs font-black uppercase tracking-wider font-condensed text-[#00F0FF] flex items-center gap-1 hover:underline active:scale-[0.98] transition-transform"
         >
           <span>{isRtl ? 'عرض التقرير اليومي' : 'GET MY OUTLOOK'}</span>
           <span>{isRtl ? '←' : '→'}</span>
@@ -343,37 +345,37 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
       {/* 3. "Ask WHOOP anything" Interactive AI Coach Bar (00:04) */}
       <button
         onClick={onOpenCoachChat}
-        className="w-full px-4 py-3 rounded-full bg-[#16191E] border border-white/10 hover:border-zinc-700 flex items-center gap-3 text-start transition-all active:scale-98 shadow-sm"
+        className="w-full px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-full bg-[#16191E] border border-white/10 hover:border-zinc-700 flex items-center gap-3 text-start transition-all active:scale-[0.98] shadow-sm min-h-[44px]"
       >
         <div className="w-6 h-6 rounded-full bg-[#0A0C0F] border border-white/15 flex items-center justify-center flex-shrink-0">
           <WhoopEmblemIcon size={14} variant="monogram" />
         </div>
-        <span className="text-xs text-zinc-400 font-sans flex-1">
+        <span className="text-xs text-zinc-400 font-sans flex-1 truncate">
           {t('askCoach')}
         </span>
       </button>
 
       {/* 4. Side-by-Side HEALTH MONITOR & STRESS MONITOR Cards (00:05) */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-2 sm:gap-3">
         {/* Left: HEALTH MONITOR */}
         <button
           onClick={onOpenHealthMonitorModal}
-          className="p-3.5 rounded-[22px] bg-[#12151A] border border-white/5 hover:border-zinc-700 text-start transition-all active:scale-98 flex flex-col justify-between h-[112px]"
+          className="p-3 sm:p-3.5 rounded-[20px] sm:rounded-[22px] bg-[#12151A] border border-white/5 hover:border-zinc-700 text-start transition-all active:scale-[0.98] flex flex-col justify-between min-h-[108px] sm:h-[112px]"
         >
-          <div className="flex items-center justify-between text-xs font-black uppercase tracking-wider text-white font-condensed">
-            <span>{t('healthMonitor')}</span>
-            <ChevronRight className={`w-3.5 h-3.5 text-zinc-500 ${isRtl ? 'rotate-180' : ''}`} />
+          <div className="flex items-center justify-between text-[11px] sm:text-xs font-black uppercase tracking-wider text-white font-condensed">
+            <span className="truncate">{t('healthMonitor')}</span>
+            <ChevronRight className={`w-3.5 h-3.5 text-zinc-500 shrink-0 ${isRtl ? 'rotate-180' : ''}`} />
           </div>
 
           <div className="flex items-center gap-2">
-            <div className={`w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs border ${healthBadgeStyle}`}>
+            <div className={`w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs border shrink-0 ${healthBadgeStyle}`}>
               {healthBadgeIcon}
             </div>
-            <div>
-              <div className={`text-xs font-black font-condensed uppercase tracking-wide ${healthStatusColor}`}>
+            <div className="min-w-0">
+              <div className={`text-[11px] sm:text-xs font-black font-condensed uppercase tracking-wide truncate ${healthStatusColor}`}>
                 {healthStatusText}
               </div>
-              <div className="text-[10px] text-zinc-400 font-mono">
+              <div className="text-[10px] text-zinc-400 font-mono truncate">
                 {activeHealthCount > 0 ? `${activeHealthCount}/5 ${isRtl ? 'مؤشرات' : 'Metrics'}` : t('calibrating')}
               </div>
             </div>
@@ -383,23 +385,23 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
         {/* Right: STRESS MONITOR */}
         <button
           onClick={onOpenStressMonitorModal}
-          className="p-3.5 rounded-[22px] bg-[#12151A] border border-white/5 hover:border-zinc-700 text-start transition-all active:scale-98 flex flex-col justify-between h-[112px]"
+          className="p-3 sm:p-3.5 rounded-[20px] sm:rounded-[22px] bg-[#12151A] border border-white/5 hover:border-zinc-700 text-start transition-all active:scale-[0.98] flex flex-col justify-between min-h-[108px] sm:h-[112px]"
         >
-          <div className="flex items-center justify-between text-xs font-black uppercase tracking-wider text-white font-condensed">
-            <span>{t('stressMonitor')}</span>
-            <ChevronRight className={`w-3.5 h-3.5 text-zinc-500 ${isRtl ? 'rotate-180' : ''}`} />
+          <div className="flex items-center justify-between text-[11px] sm:text-xs font-black uppercase tracking-wider text-white font-condensed">
+            <span className="truncate">{t('stressMonitor')}</span>
+            <ChevronRight className={`w-3.5 h-3.5 text-zinc-500 shrink-0 ${isRtl ? 'rotate-180' : ''}`} />
           </div>
 
-          <div className="space-y-1.5">
+          <div className="space-y-1.5 w-full">
             <div className="flex items-center gap-2">
-              <div className={`px-2 py-0.5 rounded-lg border font-mono font-black text-xs ${stressBadgeColor}`}>
+              <div className={`px-1.5 sm:px-2 py-0.5 rounded-lg border font-mono font-black text-xs shrink-0 ${stressBadgeColor}`}>
                 {stressScore !== null ? stressScore.toFixed(1) : '--'}
               </div>
               <div className="flex-1 min-w-0">
-                <div className="text-xs font-black font-condensed uppercase tracking-wide text-white truncate">
+                <div className="text-[11px] sm:text-xs font-black font-condensed uppercase tracking-wide text-white truncate">
                   {stressText}
                 </div>
-                <div className="text-[10px] text-zinc-400 font-mono">
+                <div className="text-[10px] text-zinc-400 font-mono truncate">
                   {stressTime}
                 </div>
               </div>
@@ -632,7 +634,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
           <div className="grid grid-cols-2 gap-2 pt-2 border-t border-white/5">
             <button
               onClick={onOpenQuickAction || onStartActivity}
-              className="py-2.5 px-3 rounded-xl bg-[#1A1F26] hover:bg-[#222832] text-white text-xs font-black uppercase tracking-wider font-condensed flex items-center justify-center gap-1.5 transition-all active:scale-98"
+              className="py-2.5 px-2.5 sm:px-3 min-h-[44px] rounded-xl bg-[#1A1F26] hover:bg-[#222832] text-white text-[11px] sm:text-xs font-black uppercase tracking-wider font-condensed flex items-center justify-center gap-1.5 transition-all active:scale-[0.98]"
             >
               <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
               <span>{isRtl ? 'إضافة نشاط' : 'ADD ACTIVITY'}</span>
@@ -640,7 +642,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
 
             <button
               onClick={onStartActivity}
-              className="py-2.5 px-3 rounded-xl bg-[#1A1F26] hover:bg-[#222832] text-white text-xs font-black uppercase tracking-wider font-condensed flex items-center justify-center gap-1.5 transition-all active:scale-98"
+              className="py-2.5 px-2.5 sm:px-3 min-h-[44px] rounded-xl bg-[#1A1F26] hover:bg-[#222832] text-white text-[11px] sm:text-xs font-black uppercase tracking-wider font-condensed flex items-center justify-center gap-1.5 transition-all active:scale-[0.98]"
             >
               <Clock className="w-3.5 h-3.5 stroke-[2.5]" />
               <span>{t('startActivity')}</span>
@@ -664,14 +666,14 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
           return (
             <button
               onClick={onOpenSleepPlanner}
-              className="w-full p-4 rounded-[24px] bg-[#12151A] border border-white/5 hover:border-zinc-700 flex items-center justify-between text-start transition-all active:scale-98"
+              className="w-full p-3.5 sm:p-4 rounded-[20px] sm:rounded-[24px] bg-[#12151A] border border-white/5 hover:border-zinc-700 flex items-center justify-between text-start transition-all active:scale-[0.98]"
             >
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-[#7293B2]/15 flex items-center justify-center text-[#7293B2]">
-                  <Moon className="w-5 h-5" />
+              <div className="flex items-center gap-2.5 sm:gap-3">
+                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-[#7293B2]/15 flex items-center justify-center text-[#7293B2] shrink-0">
+                  <Moon className="w-4 h-4 sm:w-5 sm:h-5" />
                 </div>
                 <div>
-                  <div className="text-2xl font-black font-condensed text-white tabular-nums">
+                  <div className="text-xl sm:text-2xl font-black font-condensed text-white tabular-nums">
                     {recommendedBedtime}
                   </div>
                   <div className="text-[10px] font-black uppercase tracking-wider text-zinc-400 font-condensed">
@@ -694,13 +696,13 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
         })()}
 
         {/* MY JOURNAL Card */}
-        <div className="p-4 rounded-[24px] bg-[#12151A] border border-white/5 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-white/[0.04] flex items-center justify-center text-zinc-400">
-              <CheckCircle2 className="w-5 h-5 text-zinc-400" />
+        <div className="p-3.5 sm:p-4 rounded-[20px] sm:rounded-[24px] bg-[#12151A] border border-white/5 flex items-center justify-between">
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-white/[0.04] flex items-center justify-center text-zinc-400 shrink-0">
+              <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 text-zinc-400" />
             </div>
             <div>
-              <div className="text-sm font-black uppercase tracking-wider text-white font-condensed">
+              <div className="text-xs sm:text-sm font-black uppercase tracking-wider text-white font-condensed">
                 {t('dailyJournal')}
               </div>
               <div className="text-[10px] text-zinc-400 font-sans">
@@ -711,7 +713,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
 
           <button
             onClick={onOpenJournal}
-            className="px-3.5 py-1.5 rounded-full bg-[#1C2026] hover:bg-[#252B34] text-white text-xs font-black uppercase tracking-wider font-condensed flex items-center gap-1 transition-all active:scale-95 border border-white/5"
+            className="px-3 sm:px-3.5 py-1.5 min-h-[36px] rounded-full bg-[#1C2026] hover:bg-[#252B34] text-white text-[11px] sm:text-xs font-black uppercase tracking-wider font-condensed flex items-center gap-1 transition-all active:scale-[0.98] border border-white/5"
           >
             <Edit3 className="w-3 h-3" />
             <span>{isRtl ? 'تعبئة' : 'FILL OUT'}</span>
@@ -722,12 +724,12 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
       {/* 6. "My Dashboard" Section (00:55 – 01:14) */}
       <div className="space-y-3 pt-1">
         <div className="flex items-center justify-between px-1">
-          <h3 className="text-xl font-bold text-white tracking-tight">
+          <h3 className="text-lg sm:text-xl font-bold text-white tracking-tight">
             {t('myDashboard')}
           </h3>
           <button
             onClick={() => setIsCustomizeOpen(true)}
-            className="text-xs font-black uppercase tracking-wider font-condensed text-zinc-400 hover:text-white flex items-center gap-1 transition-colors"
+            className="text-xs font-black uppercase tracking-wider font-condensed text-zinc-400 hover:text-white flex items-center gap-1 transition-colors min-h-[36px] px-1 active:scale-[0.98]"
           >
             <span>{t('customize')}</span>
             <Edit3 className="w-3 h-3" />
@@ -740,11 +742,11 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
           return (
             <button
               onClick={() => onSelectSubTab('recovery')}
-              className="w-full p-4 rounded-[22px] bg-[#12151A] hover:bg-[#16191E] border border-white/5 hover:border-zinc-700 flex items-center justify-between transition-all active:scale-98 cursor-pointer text-start"
+              className="w-full p-3.5 sm:p-4 rounded-[20px] sm:rounded-[22px] bg-[#12151A] hover:bg-[#16191E] border border-white/5 hover:border-zinc-700 flex items-center justify-between transition-all active:scale-[0.98] cursor-pointer text-start"
             >
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-white/[0.04] flex items-center justify-center text-[#8A94A6]">
-                  <Activity className="w-5 h-5 stroke-[1.8]" />
+              <div className="flex items-center gap-2.5 sm:gap-3">
+                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-white/[0.04] flex items-center justify-center text-[#8A94A6] shrink-0">
+                  <Activity className="w-4 h-4 sm:w-5 sm:h-5 stroke-[1.8]" />
                 </div>
                 <div>
                   <div className="flex items-center gap-1.5">
@@ -765,7 +767,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
 
               <div className="text-end">
                 <div className="flex items-baseline justify-end gap-1">
-                  <span className="text-2xl font-black font-condensed text-white tabular-nums">
+                  <span className="text-xl sm:text-2xl font-black font-condensed text-white tabular-nums">
                     {displayHrv !== null ? displayHrv : '--'}
                   </span>
                   <span className="text-xs text-zinc-400 font-sans">ms</span>
@@ -792,11 +794,11 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
         {dashboardPrefs.sleep && (
           <button
             onClick={() => onSelectSubTab('sleep')}
-            className="w-full p-4 rounded-[22px] bg-[#12151A] hover:bg-[#16191E] border border-white/5 hover:border-zinc-700 flex items-center justify-between transition-all active:scale-98 cursor-pointer text-start"
+            className="w-full p-3.5 sm:p-4 rounded-[20px] sm:rounded-[22px] bg-[#12151A] hover:bg-[#16191E] border border-white/5 hover:border-zinc-700 flex items-center justify-between transition-all active:scale-[0.98] cursor-pointer text-start"
           >
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-white/[0.04] flex items-center justify-center text-[#8A94A6]">
-                <Moon className="w-5 h-5 stroke-[1.8]" />
+            <div className="flex items-center gap-2.5 sm:gap-3">
+              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-white/[0.04] flex items-center justify-center text-[#8A94A6] shrink-0">
+                <Moon className="w-4 h-4 sm:w-5 sm:h-5 stroke-[1.8]" />
               </div>
               <div>
                 <div className="text-xs font-black uppercase tracking-wider text-zinc-300 font-condensed">
@@ -809,7 +811,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
             </div>
 
             <div className="text-end">
-              <div className="text-2xl font-black font-condensed text-white tabular-nums">
+              <div className="text-xl sm:text-2xl font-black font-condensed text-white tabular-nums">
                 {metrics.sleepPerformance !== null ? `${metrics.sleepPerformance}%` : '--'}
               </div>
               {metrics.hoursAsleep !== null && metrics.hoursAsleep !== undefined ? (
@@ -827,7 +829,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
         {dashboardPrefs.stress && (
           <button
             onClick={onOpenStressMonitorModal}
-            className="w-full p-4 rounded-[24px] bg-[#12151A] border border-white/5 hover:border-zinc-700 text-start space-y-2 transition-all active:scale-98"
+            className="w-full p-3.5 sm:p-4 rounded-[20px] sm:rounded-[24px] bg-[#12151A] border border-white/5 hover:border-zinc-700 text-start space-y-2 transition-all active:scale-[0.98]"
           >
             <div className="flex items-center justify-between text-xs font-black uppercase tracking-wider font-condensed text-white">
               <div className="flex items-center gap-1.5">
@@ -858,12 +860,12 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
 
         {/* Embedded STRAIN & RECOVERY 7-Day Dual-Axis Line Chart (01:01 in Video) */}
         {dashboardPrefs.strainRecovery && (
-          <div className="p-4 rounded-[24px] bg-[#12151A] border border-white/5 space-y-3">
+          <div className="p-3.5 sm:p-4 rounded-[20px] sm:rounded-[24px] bg-[#12151A] border border-white/5 space-y-3">
             <div className="flex items-center justify-between">
               <div className="text-xs font-black uppercase tracking-wider font-condensed text-white">
                 {t('strainAndRecovery7Days')}
               </div>
-              <div className="flex items-center gap-3 text-[10px] font-mono font-bold">
+              <div className="flex items-center gap-2 sm:gap-3 text-[10px] font-mono font-bold">
                 <span className="text-[#0093E9]">● {t('dayStrain')}</span>
                 <span className="text-[#16EC06]">● {t('recoveryScore')}</span>
               </div>
@@ -919,94 +921,125 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
 
         {/* Metric Row 5: STEPS & CADENCE (Real-time Live IMU / RSC Steps & Offline Reconciliation) */}
         {dashboardPrefs.steps && (
-          <div className={`p-4 rounded-[22px] bg-[#12151A] border transition-all duration-300 shadow-lg shadow-black/40 flex items-center justify-between relative overflow-hidden group ${
-            isStepPulsing
-              ? 'border-[#16EC06] shadow-[0_0_25px_rgba(22,236,6,0.25)] scale-[1.01]'
-              : 'border-white/10 hover:border-[#16EC06]/30'
-          }`}>
-            {/* Ambient neon green reactive aura */}
-            <div className={`absolute -inset-0.5 bg-gradient-to-r from-[#16EC06]/10 to-transparent rounded-[22px] pointer-events-none transition-opacity duration-300 ${
-              isStepPulsing ? 'opacity-100' : 'opacity-40 group-hover:opacity-100'
-            }`} />
+          <div className="space-y-2">
+            <div
+              onClick={() => setShowImuHud(!showImuHud)}
+              className={`p-3.5 sm:p-4 rounded-[20px] sm:rounded-[22px] bg-[#12151A] border transition-all duration-300 shadow-lg shadow-black/40 flex items-center justify-between relative overflow-hidden group cursor-pointer ${
+                isStepPulsing
+                  ? 'border-[#16EC06] shadow-[0_0_25px_rgba(22,236,6,0.25)] scale-[1.01]'
+                  : 'border-white/10 hover:border-[#16EC06]/30'
+              }`}
+            >
+              {/* Ambient neon green reactive aura */}
+              <div className={`absolute -inset-0.5 bg-gradient-to-r from-[#16EC06]/10 to-transparent rounded-[22px] pointer-events-none transition-opacity duration-300 ${
+                isStepPulsing ? 'opacity-100' : 'opacity-40 group-hover:opacity-100'
+              }`} />
 
-            <div className="flex items-center gap-3 relative z-10">
-              {/* Bouncing Footprint Micro-Animation */}
+              <div className="flex items-center gap-2.5 sm:gap-3 relative z-10 min-w-0">
+                {/* Bouncing Footprint Micro-Animation */}
+                <motion.div
+                  animate={isStepPulsing ? {
+                    scale: [1, 1.25, 1],
+                    rotate: [0, -10, 10, 0],
+                  } : (metadata.connected && metrics.cadence > 0 ? {
+                    y: [0, -3.5, 0],
+                    scale: [1, 1.08, 1],
+                    rotate: [0, -3, 3, 0],
+                  } : {})}
+                  transition={{
+                    duration: isStepPulsing ? 0.4 : 1.2,
+                    repeat: isStepPulsing ? 1 : (metadata.connected && metrics.cadence > 0 ? Infinity : 0),
+                    ease: 'easeInOut',
+                  }}
+                  className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center transition-colors shadow-md shrink-0 ${
+                    isStepPulsing
+                      ? 'bg-[#16EC06]/30 border-2 border-[#16EC06] text-white shadow-[#16EC06]/50'
+                      : (metadata.connected
+                          ? 'bg-[#16EC06]/15 border border-[#16EC06]/30 text-[#16EC06] shadow-[#16EC06]/20'
+                          : 'bg-zinc-800/40 border border-white/5 text-zinc-500')
+                  }`}
+                >
+                  <Footprints className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.2]" />
+                </motion.div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-xs font-black uppercase tracking-wider text-white font-condensed">
+                      {t('steps')}
+                    </span>
+                    {metadata.connected ? (
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-[#16EC06]/15 border border-[#16EC06]/30 text-[9px] font-mono font-bold text-[#16EC06]">
+                        <span className={`w-1.5 h-1.5 rounded-full bg-[#16EC06] ${metrics.cadence > 0 ? 'animate-ping' : ''}`} />
+                        {metrics.cadence > 0 ? (isRtl ? 'حركة حية' : 'ACTIVE') : (isRtl ? 'مزامنة حية' : 'LIVE')}
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-zinc-800 border border-white/5 text-[9px] font-mono font-bold text-zinc-500">
+                        <span className="w-1.5 h-1.5 rounded-full bg-zinc-600" />
+                        {isRtl ? 'غير متصل' : 'OFFLINE'}
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowImuHud(!showImuHud);
+                      }}
+                      className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-bold border transition-colors ${
+                        showImuHud
+                          ? 'bg-[#00F0FF]/20 text-[#00F0FF] border-[#00F0FF]/40'
+                          : 'bg-white/5 hover:bg-white/10 text-zinc-400 border-white/10'
+                      }`}
+                    >
+                      {showImuHud ? (isRtl ? 'إخفاء HUD' : 'HIDE HUD') : (isRtl ? 'تشخيص HUD' : 'IMU HUD')}
+                    </button>
+                  </div>
+                  <div className="text-[10px] text-zinc-400 font-mono mt-0.5 truncate">
+                    {t('target')}: 10,000 • {metrics.cadence > 0 ? `${metrics.cadence} spm` : (metadata.connected ? (isRtl ? 'حساس IMU متصل' : 'IMU Active') : (isRtl ? 'غير متصل' : 'Disconnected'))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1.5 sm:gap-2 relative z-10 shrink-0">
+                <div className="text-end">
+                  <div className="flex items-baseline justify-end gap-1">
+                    <motion.span
+                      animate={isStepPulsing ? { scale: [1, 1.15, 1], color: ['#ffffff', '#16EC06', '#ffffff'] } : {}}
+                      transition={{ duration: 0.4 }}
+                      className="text-2xl sm:text-3xl font-black font-condensed text-white tabular-nums drop-shadow-[0_2px_10px_rgba(22,236,6,0.3)] inline-block"
+                    >
+                      <AnimatedStepCounter value={metrics.steps || 0} resetKey={currentUser?.id} isPulsing={isStepPulsing} />
+                    </motion.span>
+                    <span className="text-[11px] sm:text-xs text-[#16EC06] font-bold font-condensed uppercase tracking-wider">
+                      {isRtl ? 'خطوة' : 'steps'}
+                    </span>
+                  </div>
+                  <div className="text-[10px] sm:text-[11px] font-bold font-condensed text-zinc-400 tracking-wide mt-0.5">
+                    {metadata.connected ? (isRtl ? 'الخطوات المنجزة' : 'COMPLETED STEPS') : (isRtl ? 'آخر إجمالي محفوظ' : 'LAST PERSISTED')}
+                  </div>
+                </div>
+                <ChevronRight className={`w-4 h-4 text-zinc-500 group-hover:text-white transition-colors shrink-0 ${showImuHud ? 'rotate-90' : (isRtl ? 'rotate-180' : '')}`} />
+              </div>
+            </div>
+
+            {/* Expandable IMU Real-Time Diagnostic HUD */}
+            {showImuHud && (
               <motion.div
-                animate={isStepPulsing ? {
-                  scale: [1, 1.25, 1],
-                  rotate: [0, -10, 10, 0],
-                } : (metadata.connected && metrics.cadence > 0 ? {
-                  y: [0, -3.5, 0],
-                  scale: [1, 1.08, 1],
-                  rotate: [0, -3, 3, 0],
-                } : {})}
-                transition={{
-                  duration: isStepPulsing ? 0.4 : 1.2,
-                  repeat: isStepPulsing ? 1 : (metadata.connected && metrics.cadence > 0 ? Infinity : 0),
-                  ease: 'easeInOut',
-                }}
-                className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors shadow-md ${
-                  isStepPulsing
-                    ? 'bg-[#16EC06]/30 border-2 border-[#16EC06] text-white shadow-[#16EC06]/50'
-                    : (metadata.connected
-                        ? 'bg-[#16EC06]/15 border border-[#16EC06]/30 text-[#16EC06] shadow-[#16EC06]/20'
-                        : 'bg-zinc-800/40 border border-white/5 text-zinc-500')
-                }`}
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.2 }}
               >
-                <Footprints className="w-5 h-5 stroke-[2.2]" />
+                <ImuDiagnosticHud isCollapsible={false} defaultExpanded={true} />
               </motion.div>
-              <div>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs font-black uppercase tracking-wider text-white font-condensed">
-                    {t('steps')}
-                  </span>
-                  {metadata.connected ? (
-                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-[#16EC06]/15 border border-[#16EC06]/30 text-[9px] font-mono font-bold text-[#16EC06]">
-                      <span className={`w-1.5 h-1.5 rounded-full bg-[#16EC06] ${metrics.cadence > 0 ? 'animate-ping' : ''}`} />
-                      {metrics.cadence > 0 ? (isRtl ? 'حركة حية' : 'ACTIVE') : (isRtl ? 'مزامنة حية' : 'LIVE')}
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-zinc-800 border border-white/5 text-[9px] font-mono font-bold text-zinc-500">
-                      <span className="w-1.5 h-1.5 rounded-full bg-zinc-600" />
-                      {isRtl ? 'غير متصل' : 'OFFLINE'}
-                    </span>
-                  )}
-                </div>
-                <div className="text-[10px] text-zinc-400 font-mono mt-0.5">
-                  {t('target')}: 10,000 • {metrics.cadence > 0 ? `${metrics.cadence} spm` : (metadata.connected ? (isRtl ? 'حساس IMU متصل' : 'IMU Active') : (isRtl ? 'غير متصل' : 'Disconnected'))}
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 relative z-10">
-              <div className="text-end">
-                <div className="flex items-baseline justify-end gap-1">
-                  <motion.span
-                    animate={isStepPulsing ? { scale: [1, 1.15, 1], color: ['#ffffff', '#16EC06', '#ffffff'] } : {}}
-                    transition={{ duration: 0.4 }}
-                    className="text-3xl font-black font-condensed text-white tabular-nums drop-shadow-[0_2px_10px_rgba(22,236,6,0.3)] inline-block"
-                  >
-                    <AnimatedStepCounter value={metrics.steps || 0} resetKey={currentUser?.id} isPulsing={isStepPulsing} />
-                  </motion.span>
-                  <span className="text-xs text-[#16EC06] font-bold font-condensed uppercase tracking-wider">
-                    {isRtl ? 'خطوة' : 'steps'}
-                  </span>
-                </div>
-                <div className="text-[11px] font-bold font-condensed text-zinc-400 tracking-wide mt-0.5">
-                  {metadata.connected ? (isRtl ? 'الخطوات المنجزة' : 'COMPLETED STEPS') : (isRtl ? 'آخر إجمالي محفوظ' : 'LAST PERSISTED')}
-                </div>
-              </div>
-              <ChevronRight className={`w-4 h-4 text-zinc-500 group-hover:text-white transition-colors ${isRtl ? 'rotate-180' : ''}`} />
-            </div>
+            )}
           </div>
         )}
 
         {/* Metric Row 6: TOTAL CALORIC BURN (KEYTEL METABOLIC BURN) */}
         {dashboardPrefs.calories && (
-          <div className="p-4 rounded-[22px] bg-[#12151A] border border-white/5 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-white/[0.04] flex items-center justify-center text-[#8A94A6]">
-                <Flame className="w-5 h-5 stroke-[1.8]" />
+          <div className="p-3.5 sm:p-4 rounded-[20px] sm:rounded-[22px] bg-[#12151A] border border-white/5 flex items-center justify-between">
+            <div className="flex items-center gap-2.5 sm:gap-3">
+              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-white/[0.04] flex items-center justify-center text-[#8A94A6] shrink-0">
+                <Flame className="w-4 h-4 sm:w-5 sm:h-5 stroke-[1.8]" />
               </div>
               <div>
                 <div className="text-xs font-black uppercase tracking-wider text-zinc-400 font-condensed">
@@ -1017,24 +1050,24 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2">
               <div className="text-end">
-                <span className="text-2xl font-black font-condensed text-white tabular-nums">
+                <span className="text-xl sm:text-2xl font-black font-condensed text-white tabular-nums">
                   {metrics.totalCalories > 0 ? metrics.totalCalories.toLocaleString() : (metrics.activeCalories > 0 ? metrics.activeCalories.toLocaleString() : '--')}
                 </span>
                 <span className="text-xs text-zinc-400 font-normal ml-1">kcal</span>
               </div>
-              <ChevronRight className={`w-4 h-4 text-zinc-600 ${isRtl ? 'rotate-180' : ''}`} />
+              <ChevronRight className={`w-4 h-4 text-zinc-600 shrink-0 ${isRtl ? 'rotate-180' : ''}`} />
             </div>
           </div>
         )}
 
         {/* Metric Row 7: RESPIRATORY RATE */}
         {dashboardPrefs.respiratory && (
-          <div className="p-4 rounded-[22px] bg-[#12151A] border border-white/5 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-white/[0.04] flex items-center justify-center text-[#8A94A6]">
-                <Wind className="w-5 h-5 stroke-[1.8]" />
+          <div className="p-3.5 sm:p-4 rounded-[20px] sm:rounded-[22px] bg-[#12151A] border border-white/5 flex items-center justify-between">
+            <div className="flex items-center gap-2.5 sm:gap-3">
+              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-white/[0.04] flex items-center justify-center text-[#8A94A6] shrink-0">
+                <Wind className="w-4 h-4 sm:w-5 sm:h-5 stroke-[1.8]" />
               </div>
               <div>
                 <div className="text-xs font-black uppercase tracking-wider text-zinc-400 font-condensed">
@@ -1045,14 +1078,14 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2">
               <div className="text-end">
-                <span className="text-2xl font-black font-condensed text-white tabular-nums">
+                <span className="text-xl sm:text-2xl font-black font-condensed text-white tabular-nums">
                   {metrics.respiratoryRate ?? '--'}
                 </span>
                 <span className="text-xs text-zinc-400 font-normal ml-1">rpm</span>
               </div>
-              <ChevronRight className={`w-4 h-4 text-zinc-600 ${isRtl ? 'rotate-180' : ''}`} />
+              <ChevronRight className={`w-4 h-4 text-zinc-600 shrink-0 ${isRtl ? 'rotate-180' : ''}`} />
             </div>
           </div>
         )}

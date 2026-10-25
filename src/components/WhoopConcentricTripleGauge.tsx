@@ -55,25 +55,25 @@ export const WhoopConcentricTripleGauge: React.FC<WhoopConcentricTripleGaugeProp
   const pulseDuration = currentHr ? Math.max(0.35, 60 / currentHr) : 1.2;
 
   return (
-    <div className="flex items-center justify-between px-3 py-2 select-none">
+    <div className="flex items-center justify-between px-1 sm:px-3 py-2 select-none gap-1 sm:gap-2 w-full overflow-hidden">
       {/* LEFT COLUMN: Recovery % & HRV */}
-      <div className="flex flex-col items-start justify-between min-w-[95px] space-y-4 text-start">
+      <div className="flex-1 min-w-0 flex flex-col items-start justify-between space-y-3 sm:space-y-4 text-start">
         {/* Top: Recovery */}
         <motion.button
           whileTap={TAP}
           onClick={() => onSelectTab('recovery')}
-          className="text-start group focus:outline-none"
+          className="text-start group focus:outline-none max-w-full"
           title="View Recovery Drill-down"
         >
           <div
-            className="text-4xl font-black font-condensed tracking-tight tabular-nums transition-colors"
+            className="text-3xl sm:text-4xl font-black font-condensed tracking-tight tabular-nums transition-colors"
             style={{ color: metrics.recoveryScore !== null ? recoveryColor : '#71717A' }}
           >
             {metrics.recoveryScore !== null ? `${metrics.recoveryScore}%` : '--'}
           </div>
-          <div className="text-[11px] font-black uppercase tracking-wider text-zinc-400 font-condensed group-hover:text-white transition-colors flex items-center gap-0.5">
-            <span>{t('recoveryScore')}</span>
-            <span className="text-[10px] text-zinc-500">{isRtl ? '‹' : '›'}</span>
+          <div className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-zinc-400 font-condensed group-hover:text-white transition-colors flex items-center gap-0.5 truncate">
+            <span className="truncate">{t('recoveryScore')}</span>
+            <span className="text-[10px] text-zinc-500 shrink-0">{isRtl ? '‹' : '›'}</span>
           </div>
         </motion.button>
 
@@ -81,22 +81,22 @@ export const WhoopConcentricTripleGauge: React.FC<WhoopConcentricTripleGaugeProp
         <motion.button
           whileTap={TAP}
           onClick={() => onSelectTab('recovery')}
-          className="text-start group focus:outline-none pt-1"
+          className="text-start group focus:outline-none pt-0.5 sm:pt-1 max-w-full"
           title="View HRV Details"
         >
-          <div className="text-2xl font-black font-condensed tracking-tight tabular-nums text-white">
+          <div className="text-xl sm:text-2xl font-black font-condensed tracking-tight tabular-nums text-white">
             {metrics.currentHrv !== null ? metrics.currentHrv : '--'}
-            <span className="text-xs font-sans text-zinc-400 font-medium ml-1">ms</span>
+            <span className="text-[11px] sm:text-xs font-sans text-zinc-400 font-medium ml-1">ms</span>
           </div>
-          <div className="text-[10px] font-black uppercase tracking-wider text-zinc-500 font-condensed group-hover:text-zinc-300 transition-colors">
+          <div className="text-[10px] font-black uppercase tracking-wider text-zinc-500 font-condensed group-hover:text-zinc-300 transition-colors truncate">
             {t('hrv')}
           </div>
         </motion.button>
       </div>
 
       {/* CENTER COLUMN: Concentric 3-Layer Ring Gauge around the "W" Logo */}
-      <div className="relative flex items-center justify-center flex-shrink-0" style={{ width: size, height: size }}>
-        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="overflow-visible transform -rotate-90">
+      <div className="relative flex items-center justify-center flex-shrink-0 w-[136px] h-[136px] sm:w-[154px] sm:h-[154px] aspect-square">
+        <svg viewBox={`0 0 ${size} ${size}`} className="w-full h-full aspect-square overflow-visible transform -rotate-90">
           <defs>
             {/* Linear gradient for Strain: #00A3FF -> #0055FF */}
             <linearGradient id="whoopStrainGradient" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -199,31 +199,31 @@ export const WhoopConcentricTripleGauge: React.FC<WhoopConcentricTripleGaugeProp
               repeat: Infinity,
               ease: 'easeInOut',
             }}
-            className="absolute w-12 h-12 rounded-full border border-[#FF3344] pointer-events-none"
+            className="absolute w-10 h-10 sm:w-12 sm:h-12 rounded-full border border-[#FF3344] pointer-events-none"
           />
         )}
 
         {/* Center Geometric "W" Monogram */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <WhoopEmblemIcon size={34} variant="monogram" />
+          <WhoopEmblemIcon size={30} variant="monogram" />
         </div>
       </div>
 
       {/* RIGHT COLUMN: Strain & Sleep Performance */}
-      <div className="flex flex-col items-end justify-between min-w-[95px] space-y-4 text-end">
+      <div className="flex-1 min-w-0 flex flex-col items-end justify-between space-y-3 sm:space-y-4 text-end">
         {/* Top: Day Strain */}
         <motion.button
           whileTap={TAP}
           onClick={() => onSelectTab('strain')}
-          className="text-end group focus:outline-none"
+          className="text-end group focus:outline-none max-w-full"
           title="View Strain Drill-down"
         >
-          <div className="text-4xl font-black font-condensed tracking-tight tabular-nums text-[#00A3FF]">
+          <div className="text-3xl sm:text-4xl font-black font-condensed tracking-tight tabular-nums text-[#00A3FF]">
             {metrics.dailyStrain > 0 ? metrics.dailyStrain.toFixed(1) : '0.0'}
           </div>
-          <div className="text-[11px] font-black uppercase tracking-wider text-zinc-400 font-condensed group-hover:text-white transition-colors flex items-center gap-0.5 justify-end">
-            <span className="text-[10px] text-zinc-500">{isRtl ? '›' : '‹'}</span>
-            <span>{t('dayStrain')}</span>
+          <div className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-zinc-400 font-condensed group-hover:text-white transition-colors flex items-center gap-0.5 justify-end truncate">
+            <span className="text-[10px] text-zinc-500 shrink-0">{isRtl ? '›' : '‹'}</span>
+            <span className="truncate">{t('dayStrain')}</span>
           </div>
         </motion.button>
 
@@ -231,13 +231,13 @@ export const WhoopConcentricTripleGauge: React.FC<WhoopConcentricTripleGaugeProp
         <motion.button
           whileTap={TAP}
           onClick={() => onSelectTab('sleep')}
-          className="text-end group focus:outline-none pt-1"
+          className="text-end group focus:outline-none pt-0.5 sm:pt-1 max-w-full"
           title="View Sleep Details"
         >
-          <div className="text-2xl font-black font-condensed tracking-tight tabular-nums text-[#7395B7]">
+          <div className="text-xl sm:text-2xl font-black font-condensed tracking-tight tabular-nums text-[#7395B7]">
             {metrics.sleepPerformance !== null ? `${metrics.sleepPerformance}%` : '--'}
           </div>
-          <div className="text-[10px] font-black uppercase tracking-wider text-zinc-500 font-condensed group-hover:text-zinc-300 transition-colors">
+          <div className="text-[10px] font-black uppercase tracking-wider text-zinc-500 font-condensed group-hover:text-zinc-300 transition-colors truncate">
             {t('sleepPerformance')}
           </div>
         </motion.button>

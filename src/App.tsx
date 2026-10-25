@@ -462,7 +462,17 @@ export const App: React.FC = () => {
 
   const currentDayRecord: DayHistoryRecord = useMemo(() => {
     if (isViewingToday) {
-      return daysHistory[0] || {
+      const todayBase = daysHistory[0];
+      if (todayBase) {
+        return {
+          ...todayBase,
+          dayStrain: liveMetrics.dailyStrain || todayBase.dayStrain,
+          steps: Math.max(todayBase.steps || 0, liveMetrics.steps || 0),
+          activeCalories: liveMetrics.activeCalories || todayBase.activeCalories,
+          totalCalories: liveMetrics.totalCalories || todayBase.totalCalories,
+        };
+      }
+      return {
         offset: 0,
         label: 'TODAY',
         date: localDateKey(),
@@ -831,7 +841,7 @@ export const App: React.FC = () => {
       </div>
 
       {/* Main Mobile Chassis Container */}
-      <div className="h-[100dvh] w-full max-w-md md:max-w-[430px] md:h-[92vh] md:max-h-[880px] bg-gradient-to-b from-[#161B22] via-[#0B0D10] to-[#000000] flex flex-col relative overflow-hidden md:border md:border-white/15 md:rounded-[44px] md:shadow-2xl select-none z-10">
+      <div className="h-[100dvh] w-full max-w-md mx-auto md:min-h-[820px] md:h-[92vh] md:max-h-[880px] bg-gradient-to-b from-[#161B22] via-[#0B0D10] to-[#000000] flex flex-col relative overflow-x-hidden overflow-y-hidden shadow-2xl md:border md:border-white/15 md:rounded-[44px] select-none z-10">
         {/* Dynamic Island Floating Athletic Banner */}
         <DynamicIslandBanner onAction={handleBannerAction} />
 
@@ -906,7 +916,7 @@ export const App: React.FC = () => {
         )}
 
         {/* Main Content Area */}
-        <main className="flex-1 overflow-y-auto no-scrollbar pb-24 px-4 pt-2">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden no-scrollbar pb-24 px-3 sm:px-4 pt-2">
           {/* TAB 1: HOME (Sub-tabs: Overview | Sleep | Recovery | Strain) */}
           {mainTab === 'home' && (
             <>
@@ -1162,17 +1172,19 @@ export const App: React.FC = () => {
           isOpen={isCoachChatOpen}
           onClose={() => setIsCoachChatOpen(false)}
           metrics={effectiveMetrics}
+          sleepData={sleepData}
+          isStrapConnected={metadata.connected}
           settings={settings}
         />
 
         {/* HRV Resonance Coherence Breathe Pacer Modal */}
         {isHrvBreatheOpen && (
           <div
-            className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-in fade-in"
+            className="fixed inset-0 z-50 flex flex-col justify-end sm:justify-center items-center bg-black/85 backdrop-blur-md p-0 sm:p-4 animate-in fade-in"
             onClick={() => setIsHrvBreatheOpen(false)}
           >
             <div
-              className="w-full max-w-[430px] p-5 rounded-[28px] bg-[#16191E] border border-white/10 shadow-2xl space-y-4 animate-in slide-in-from-bottom"
+              className="w-full max-w-[430px] max-h-[85vh] overflow-y-auto overscroll-contain p-5 rounded-t-[32px] sm:rounded-[28px] bg-[#16191E] border-t sm:border border-white/10 shadow-2xl space-y-4 animate-in slide-in-from-bottom"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between border-b border-white/5 pb-2">

@@ -43,7 +43,7 @@ html, body {
 button:not(:disabled):active,
 [role="button"]:active,
 .pressable:active {
-  transform: scale(0.95);
+  transform: scale(0.98);
   transition: transform 0.1s ease;
 }
 
@@ -68,19 +68,19 @@ button:not(:disabled):active,
 
 /* Safe Area Utilities */
 .pb-safe {
-  padding-bottom: env(safe-area-inset-bottom, 20px);
+  padding-bottom: env(safe-area-inset-bottom, 1.25rem);
 }
 
 .pt-safe {
-  padding-top: env(safe-area-inset-top, 20px);
+  padding-top: env(safe-area-inset-top, 1rem);
 }
 
 .mb-safe {
-  margin-bottom: env(safe-area-inset-bottom, 20px);
+  margin-bottom: env(safe-area-inset-bottom, 1.25rem);
 }
 
 .bottom-safe {
-  bottom: env(safe-area-inset-bottom, 20px);
+  bottom: env(safe-area-inset-bottom, 1.25rem);
 }
 
 .num {

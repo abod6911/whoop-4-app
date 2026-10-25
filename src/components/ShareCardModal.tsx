@@ -373,8 +373,16 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/90 backdrop-blur-md animate-in fade-in">
-      <div className="relative w-full max-w-[420px] max-h-[92vh] overflow-y-auto rounded-[28px] bg-[#12151A] border border-white/10 shadow-2xl p-4 text-white space-y-3.5">
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-50 flex flex-col justify-end sm:justify-center items-center p-0 sm:p-3 bg-black/90 backdrop-blur-md animate-in fade-in"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="relative w-full max-w-[440px] max-h-[85vh] overflow-y-auto overscroll-contain rounded-t-[32px] sm:rounded-[28px] bg-[#12151A] border-t sm:border border-white/10 shadow-2xl p-4 sm:p-5 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] sm:pb-5 text-white space-y-3"
+      >
+        {/* Mobile Grab Handle */}
+        <div className="w-10 h-1 rounded-full bg-white/20 mx-auto sm:hidden mb-1 -mt-1 cursor-grab" />
         
         {/* Header */}
         <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
@@ -389,7 +397,8 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
               hapticLight();
               onClose();
             }}
-            className="p-1.5 rounded-full bg-[#1E232B] text-zinc-400 hover:text-white"
+            className="w-10 h-10 rounded-full bg-[#1E232B] text-zinc-400 hover:text-white flex items-center justify-center active:scale-95 transition-all"
+            aria-label={isRtl ? 'إغلاق' : 'Close'}
           >
             <X className="w-4 h-4" />
           </button>
@@ -402,7 +411,7 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
               hapticLight();
               setCardType('recovery');
             }}
-            className={`py-2 rounded-lg transition-all ${
+            className={`py-2 rounded-lg transition-all active:scale-95 ${
               cardType === 'recovery'
                 ? 'bg-[#16EC06]/20 text-[#16EC06] border border-[#16EC06]/40'
                 : 'text-zinc-400 hover:text-white'
@@ -415,7 +424,7 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
               hapticLight();
               setCardType('strain');
             }}
-            className={`py-2 rounded-lg transition-all ${
+            className={`py-2 rounded-lg transition-all active:scale-95 ${
               cardType === 'strain'
                 ? 'bg-[#0093E9]/20 text-[#0093E9] border border-[#0093E9]/40'
                 : 'text-zinc-400 hover:text-white'
@@ -428,7 +437,7 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
               hapticLight();
               setCardType('activity');
             }}
-            className={`py-2 rounded-lg transition-all ${
+            className={`py-2 rounded-lg transition-all active:scale-95 ${
               cardType === 'activity'
                 ? 'bg-[#00F0FF]/20 text-[#00F0FF] border border-[#00F0FF]/40'
                 : 'text-zinc-400 hover:text-white'
@@ -439,7 +448,7 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
         </div>
 
         {/* Live Canvas Preview (Scaled down for preview) */}
-        <div className="relative w-full aspect-[9/14] bg-[#07090C] rounded-2xl overflow-hidden border border-white/10 shadow-inner flex items-center justify-center">
+        <div className="relative w-full aspect-[9/14] max-h-[36vh] sm:max-h-[42vh] bg-[#07090C] rounded-2xl overflow-hidden border border-white/10 shadow-inner flex items-center justify-center mx-auto">
           <canvas
             ref={canvasRef}
             className="w-full h-full object-contain pointer-events-none"

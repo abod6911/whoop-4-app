@@ -78,7 +78,7 @@ export const HardwareDiagnosticsModal: React.FC<HardwareDiagnosticsModalProps> =
 
   return (
     <SheetBackdrop isOpen={isOpen} onClose={onClose}>
-      <SheetPanel onClose={onClose} className="p-5 max-h-[90vh] overflow-y-auto space-y-4">
+      <SheetPanel onClose={onClose} className="p-4 sm:p-5 max-h-[85vh] overflow-y-auto overscroll-contain space-y-4">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-white/5 pb-3">
           <div className="flex items-center gap-2.5">
@@ -89,7 +89,8 @@ export const HardwareDiagnosticsModal: React.FC<HardwareDiagnosticsModalProps> =
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-full bg-[#222730] text-zinc-400 hover:text-white transition-colors"
+            className="w-10 h-10 rounded-full bg-[#222730] text-zinc-400 hover:text-white flex items-center justify-center active:scale-95 transition-all"
+            aria-label="Close"
           >
             <X className="w-4 h-4" />
           </button>

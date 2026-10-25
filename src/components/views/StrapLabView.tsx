@@ -5,6 +5,7 @@ import { whoopBleEngine } from '../../services/whoopBleEngine';
 import { notificationEngine } from '../../services/notificationEngine';
 import { pedometerEngine } from '../../services/pedometerEngine';
 import { AnimatedStepCounter } from '../AnimatedStepCounter';
+import { ImuDiagnosticHud } from '../ImuDiagnosticHud';
 import { sleepEngine } from '../../services/sleepEngine';
 import { activityDetectionEngine } from '../../services/activityDetectionEngine';
 import { GattExplorer } from '../GattExplorer';
@@ -275,55 +276,29 @@ export const StrapLabView: React.FC<StrapLabViewProps> = ({
           </div>
         )}
 
-        {/* Step & IMU Locomotion Hardware Simulator */}
-        <div className="p-4 rounded-2xl bg-[#0B0D10] border border-white/5 space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-lg bg-[#00F0FF]/15 flex items-center justify-center">
-                <Footprints className="w-3.5 h-3.5 text-[#00F0FF]" />
-              </div>
-              <span className="text-xs font-black uppercase text-white font-condensed tracking-wider">
-                {isRtl ? 'محاكي حركة وخطوات الحساس (IMU Simulator)' : 'IMU Locomotion & Step Simulator'}
-              </span>
-            </div>
-            <span className="text-[10px] font-mono text-[#00F0FF]">
-              <AnimatedStepCounter value={labSteps} /> {isRtl ? 'خطوة' : 'steps'}
+        {/* Real-Time On-Screen Diagnostic HUD */}
+        <ImuDiagnosticHud isCollapsible={false} defaultExpanded={true} />
+
+        {/* Reset Steps Action Card */}
+        <div className="p-3.5 rounded-2xl bg-[#0B0D10] border border-white/5 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Footprints className="w-4 h-4 text-[#00F0FF]" />
+            <span className="text-xs font-bold font-condensed text-zinc-300">
+              {isRtl ? 'إعادة تعيين عداد الخطوات لليوم' : 'Reset Daily Step Accumulator'}
             </span>
           </div>
-
-          <p className="text-[11px] text-zinc-400 font-sans leading-relaxed">
-            {isRtl
-              ? 'اختبار بث الخطوات المباشرة وحساب إيقاع الحركة (Cadence) وتأثيرها الفوري على شاشة اليوم والجهد اليومي.'
-              : 'Test live step stream accumulation and real-time cadence response across dashboard cards.'}
-          </p>
-
-          <div className="grid grid-cols-2 gap-2 pt-1 font-condensed text-xs font-bold">
-            {/* Test Live Step Packet (+1 Step) */}
-            <button
-              onClick={() => {
-                whoopBleEngine.testLiveStepPacket();
-                setCommandFeedback(isRtl ? '✓ فحص حزمة خطوة حية (+1 خطوة)' : '✓ Test Live Step Packet (+1 Step)');
-                setTimeout(() => setCommandFeedback(null), 2500);
-              }}
-              className="py-2.5 px-3 rounded-xl bg-[#16191E] border border-white/10 hover:border-[#00F0FF]/40 text-white flex items-center justify-center gap-1.5 active:scale-95 transition-all"
-            >
-              <Footprints className="w-3.5 h-3.5 text-[#00F0FF]" />
-              <span>{isRtl ? 'حزمة خطوة حية (+1)' : 'Live Step Packet (+1)'}</span>
-            </button>
-
-            {/* Zero-Mock Reset to 0 */}
-            <button
-              onClick={() => {
-                pedometerEngine.resetTodaySteps();
-                setCommandFeedback(isRtl ? '✓ تم تصفير الخطوات (0)' : '✓ Reset to 0 steps');
-                setTimeout(() => setCommandFeedback(null), 2500);
-              }}
-              className="py-2.5 px-3 rounded-xl bg-[#16191E] border border-white/10 hover:border-zinc-600 text-zinc-300 hover:text-white flex items-center justify-center gap-1.5 active:scale-95 transition-all"
-            >
-              <RotateCcw className="w-3.5 h-3.5 text-zinc-400" />
-              <span>{isRtl ? 'إعادة ضبط (0)' : 'Reset (0)'}</span>
-            </button>
-          </div>
+          <button
+            onClick={() => {
+              pedometerEngine.resetTodaySteps();
+              whoopBleEngine.stepDetector.reset();
+              setCommandFeedback(isRtl ? '✓ تم تصفير الخطوات (0)' : '✓ Reset to 0 steps');
+              setTimeout(() => setCommandFeedback(null), 2500);
+            }}
+            className="py-1.5 px-3 rounded-lg bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 hover:text-white text-xs font-condensed font-bold flex items-center gap-1.5 active:scale-95 transition-all"
+          >
+            <RotateCcw className="w-3.5 h-3.5 text-zinc-400" />
+            <span>{isRtl ? 'إعادة ضبط (0)' : 'Reset (0)'}</span>
+          </button>
         </div>
 
         {/* Automated Activity Detection Engine Lab (WHOOP 4.0 Style) */}

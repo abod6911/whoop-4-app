@@ -303,7 +303,7 @@ export const SleepView: React.FC<SleepViewProps> = ({
   const isConnected = Boolean(metadata?.connected);
 
   return (
-    <div className="space-y-4 pb-28 animate-in fade-in duration-300">
+    <div className="space-y-3 sm:space-y-4 pb-6 overflow-x-hidden animate-in fade-in duration-300 select-none">
       {/* Developer Diagnostic Banner / Debug Mode (Dismissible & Toggleable) */}
       {showDebugOverlay && (
         <div className="p-4 rounded-2xl bg-[#0B0F17]/95 border border-[#38BDF8]/40 text-start space-y-3 shadow-2xl backdrop-blur-md animate-in fade-in">
@@ -412,25 +412,25 @@ export const SleepView: React.FC<SleepViewProps> = ({
       )}
 
       {/* 1. Giant Header + Share (01:16 in Video) */}
-      <div className="p-5 rounded-[24px] bg-[#12151A] border border-white/5 space-y-4 text-center">
-        <div className="flex items-center justify-between gap-3 text-xs font-black uppercase tracking-wider font-condensed text-zinc-400 border-b border-white/5 pb-3">
+      <div className="p-3.5 sm:p-5 rounded-[20px] sm:rounded-[24px] bg-[#12151A] border border-white/5 space-y-4 text-center">
+        <div className="flex items-center justify-between gap-2 text-xs font-black uppercase tracking-wider font-condensed text-zinc-400 border-b border-white/5 pb-3">
           <div className="flex items-center gap-2 min-w-0">
-            <div className="w-7 h-7 rounded-lg bg-[#38BDF8]/10 border border-[#38BDF8]/20 flex items-center justify-center flex-shrink-0">
+            <div className="w-7 h-7 rounded-lg bg-[#38BDF8]/10 border border-[#38BDF8]/20 flex items-center justify-center shrink-0">
               <Moon className="w-3.5 h-3.5 text-[#38BDF8]" />
             </div>
-            <span className="text-white font-black tracking-wide truncate">
+            <span className="text-white font-black tracking-wide truncate text-xs sm:text-sm">
               {t('sleepPerformance')}
             </span>
           </div>
 
-          <div className="flex items-center gap-1.5 flex-shrink-0">
+          <div className="flex items-center gap-1.5 shrink-0">
             {/* Primary Action: Sync Strap */}
             {onSyncSleep && (
               <button
                 onClick={onSyncSleep}
                 disabled={isSyncing}
                 title={isRtl ? 'مزامنة السوار' : 'Sync Strap'}
-                className="flex items-center gap-1.5 font-condensed tracking-wider text-[#38BDF8] hover:text-white px-2.5 py-1 rounded-lg bg-[#38BDF8]/10 hover:bg-[#38BDF8]/20 border border-[#38BDF8]/25 transition-all active:scale-95 disabled:opacity-60 text-xs font-bold"
+                className="flex items-center gap-1.5 font-condensed tracking-wider text-[#38BDF8] hover:text-white px-2 sm:px-2.5 py-1 min-h-[34px] rounded-lg bg-[#38BDF8]/10 hover:bg-[#38BDF8]/20 border border-[#38BDF8]/25 transition-all active:scale-[0.98] disabled:opacity-60 text-[11px] sm:text-xs font-bold"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-[#16EC06]' : 'text-[#38BDF8]'}`} />
                 <span>
@@ -448,7 +448,7 @@ export const SleepView: React.FC<SleepViewProps> = ({
               <button
                 onClick={() => setIsSyncToolsOpen(!isSyncToolsOpen)}
                 title={isRtl ? 'أدوات المزامنة ومصادر البيانات' : 'Sync Tools & Data Sources'}
-                className={`flex items-center gap-1.5 font-condensed tracking-wider px-2.5 py-1 rounded-lg border transition-all active:scale-95 text-xs font-bold ${
+                className={`flex items-center gap-1.5 font-condensed tracking-wider px-2 sm:px-2.5 py-1 min-h-[34px] rounded-lg border transition-all active:scale-[0.98] text-[11px] sm:text-xs font-bold ${
                   isSyncToolsOpen
                     ? 'bg-white/15 text-white border-white/30'
                     : 'bg-white/5 text-zinc-300 hover:text-white hover:bg-white/10 border-white/10'
@@ -832,11 +832,11 @@ export const SleepView: React.FC<SleepViewProps> = ({
         )}
 
         {/* Giant Number / Animated Rings: SLEEP PERFORMANCE & SLEEP EFFICIENCY (Responsive & Proportional) */}
-        <div className="flex items-center justify-center gap-4 sm:gap-8 my-4 py-1">
+        <div className="flex items-center justify-center gap-2.5 sm:gap-6 my-3 sm:my-4 py-1 w-full overflow-hidden">
           {/* Performance Ring */}
-          <div className="flex flex-col items-center">
+          <div className="flex flex-col items-center flex-1 max-w-[130px]">
             <AnimatedRing
-              radius={62}
+              radius={54}
               strokeWidth={8}
               progress={perf !== null ? Math.min(1, Math.max(0, perf / 100)) : 0}
               strokeColor="#38BDF8"
@@ -844,7 +844,7 @@ export const SleepView: React.FC<SleepViewProps> = ({
               glowColor="rgba(56, 189, 248, 0.45)"
             >
               <div className="flex flex-col items-center justify-center">
-                <span className="text-2xl sm:text-3xl font-black font-condensed text-white tracking-tight tabular-nums">
+                <span className="text-xl sm:text-2xl font-black font-condensed text-white tracking-tight tabular-nums">
                   {perf !== null ? `${perf}%` : '--'}
                 </span>
                 <span className="text-[9px] font-black uppercase text-zinc-400 font-condensed tracking-wider text-center">
@@ -855,9 +855,9 @@ export const SleepView: React.FC<SleepViewProps> = ({
           </div>
 
           {/* Efficiency Ring */}
-          <div className="flex flex-col items-center">
+          <div className="flex flex-col items-center flex-1 max-w-[130px]">
             <AnimatedRing
-              radius={62}
+              radius={54}
               strokeWidth={8}
               progress={sleepData.efficiencyPercent !== null ? Math.min(1, Math.max(0, sleepData.efficiencyPercent / 100)) : 0}
               strokeColor="#16EC06"
@@ -865,7 +865,7 @@ export const SleepView: React.FC<SleepViewProps> = ({
               glowColor="rgba(22, 236, 6, 0.45)"
             >
               <div className="flex flex-col items-center justify-center">
-                <span className="text-2xl sm:text-3xl font-black font-condensed text-white tracking-tight tabular-nums">
+                <span className="text-xl sm:text-2xl font-black font-condensed text-white tracking-tight tabular-nums">
                   {sleepData.efficiencyPercent !== null ? `${sleepData.efficiencyPercent}%` : '--'}
                 </span>
                 <span className="text-[9px] font-black uppercase text-zinc-400 font-condensed tracking-wider text-center">
@@ -877,8 +877,8 @@ export const SleepView: React.FC<SleepViewProps> = ({
         </div>
 
         {/* Flanked Pills: HOURS OF SLEEP vs SLEEP NEEDED (Balanced Responsive Grid) */}
-        <div className="grid grid-cols-2 gap-3 sm:gap-4 pt-1">
-          <div className="p-3.5 rounded-2xl bg-[#1A202A] border border-[#38BDF8]/30 text-center active:scale-95 transition-transform">
+        <div className="grid grid-cols-2 gap-2 sm:gap-3 pt-1">
+          <div className="p-3 sm:p-3.5 rounded-2xl bg-[#1A202A] border border-[#38BDF8]/30 text-center active:scale-[0.98] transition-transform">
             <div className="text-[10px] font-black uppercase text-[#38BDF8] font-condensed tracking-wider">
               {isRtl ? 'ساعات النوم' : 'HOURS OF SLEEP'}
             </div>
