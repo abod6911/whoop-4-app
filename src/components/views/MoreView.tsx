@@ -288,10 +288,10 @@ export const MoreView: React.FC<MoreViewProps> = ({
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div
-                  className="w-12 h-12 rounded-2xl flex items-center justify-center text-white font-extrabold text-base shadow-lg border border-white/20 select-none"
-                  style={{ backgroundColor: currentUser?.avatarColor || '#0093E9' }}
+                  className="w-12 h-12 rounded-2xl flex items-center justify-center text-white font-extrabold text-base shadow-lg border border-white/20 select-none overflow-hidden"
+                  style={{ backgroundColor: settings?.avatarColor || currentUser?.avatarColor || '#0093E9' }}
                 >
-                  {(currentUser?.fullName || settings.name || 'W').charAt(0).toUpperCase()}
+                  {settings?.avatarUrl ? (<img src={settings.avatarUrl} alt={settings.name} className="w-full h-full object-cover rounded-2xl" />) : ((currentUser?.fullName || settings.name || 'W').charAt(0).toUpperCase())}
                 </div>
                 <div>
                   <div className="text-sm font-black text-white font-condensed tracking-wide flex items-center gap-2">

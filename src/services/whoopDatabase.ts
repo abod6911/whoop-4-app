@@ -41,6 +41,9 @@ export class WhoopPulseDatabase extends Dexie {
     const profile: UserProfileEntity = {
       id: 'current_user',
       name: settings.name,
+      handle: settings.handle || '@athlete',
+      avatarUrl: settings.avatarUrl,
+      avatarColor: settings.avatarColor || '#16EC06',
       age: settings.age,
       gender: settings.gender,
       weightKg: settings.weightKg,
@@ -49,6 +52,7 @@ export class WhoopPulseDatabase extends Dexie {
       restingHrBaseline: settings.restingHrBaseline,
       hrvBaseline: settings.hrvBaseline,
       sleepNeedHours: settings.sleepNeedHours,
+      stepGoal: settings.stepGoal || 10000,
       updatedAt: Date.now(),
     };
     await this.user_profile.put(profile);
@@ -277,15 +281,17 @@ export class WhoopPulseDatabase extends Dexie {
   public async exportDatabaseToJson(): Promise<string> {
     const profiles = await this.user_profile.toArray();
     const daily = await this.daily_records.toArray();
+    const sleep = await this.sleep_sessions.toArray();
     const journal = await this.journal_entries.toArray();
     const workouts = await this.workouts.toArray();
 
     const dump = {
-      exportVersion: 1,
+      exportVersion: 2,
       appName: 'WHOOP 4.0 Local Web App',
       exportedAt: new Date().toISOString(),
       user_profile: profiles,
       daily_records: daily,
+      sleep_sessions: sleep,
       journal_entries: journal,
       workouts,
     };
@@ -294,40 +300,51 @@ export class WhoopPulseDatabase extends Dexie {
   }
 
   // --- Full Backup: JSON Import ---
-  public async importDatabaseFromJson(jsonString: string): Promise<{ success: boolean; message: string }> {
+  public async importDatabaseFromJson(jsonString: string): Promise<{ success: boolean; message: string; recordCount: number }> {
     try {
       const parsed = JSON.parse(jsonString);
       if (!parsed || typeof parsed !== 'object') {
         throw new Error('Invalid JSON format');
       }
 
-      await this.transaction('rw', [this.user_profile, this.daily_records, this.journal_entries, this.workouts], async () => {
+      let count = 0;
+      await this.transaction('rw', [this.user_profile, this.daily_records, this.sleep_sessions, this.journal_entries, this.workouts], async () => {
         if (Array.isArray(parsed.user_profile)) {
           for (const item of parsed.user_profile) {
             await this.user_profile.put(item);
+            count++;
           }
         }
         if (Array.isArray(parsed.daily_records)) {
           for (const item of parsed.daily_records) {
             await this.daily_records.put(item);
+            count++;
+          }
+        }
+        if (Array.isArray(parsed.sleep_sessions)) {
+          for (const item of parsed.sleep_sessions) {
+            await this.sleep_sessions.put(item);
+            count++;
           }
         }
         if (Array.isArray(parsed.journal_entries)) {
           for (const item of parsed.journal_entries) {
             await this.journal_entries.put(item);
+            count++;
           }
         }
         if (Array.isArray(parsed.workouts)) {
           for (const item of parsed.workouts) {
             await this.workouts.put(item);
+            count++;
           }
         }
       });
 
-      return { success: true, message: 'Database successfully imported!' };
+      return { success: true, message: 'Database successfully imported!', recordCount: count };
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      return { success: false, message: `Import failed: ${msg}` };
+      return { success: false, message: `Import failed: ${msg}`, recordCount: 0 };
     }
   }
 

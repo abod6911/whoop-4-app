@@ -69,7 +69,21 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
   const [cardType, setCardType] = useState<ShareCardType>(initialType);
   const [copied, setCopied] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [avatarImage, setAvatarImage] = useState<HTMLImageElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  // Preload athlete avatar image if available
+  useEffect(() => {
+    if (settings?.avatarUrl) {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => setAvatarImage(img);
+      img.onerror = () => setAvatarImage(null);
+      img.src = settings.avatarUrl;
+    } else {
+      setAvatarImage(null);
+    }
+  }, [settings?.avatarUrl]);
 
   useEffect(() => {
     if (isOpen) {
@@ -125,31 +139,101 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
 
     // 4. Header: WHOOP 4.0 Emblem & Brand
     ctx.fillStyle = '#FFFFFF';
-    ctx.font = '900 48px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.font = '900 42px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('W H O O P', W / 2, 140);
+    ctx.fillText('W H O O P', W / 2, 115);
 
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-    ctx.font = '700 24px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.fillText('4.0 BIOMETRIC SCORECARD', W / 2, 185);
-
-    // Date & Athlete
-    const dateStr = new Date().toLocaleDateString('en-US', {
-      weekday: 'long',
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    }).toUpperCase();
     ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-    ctx.font = '600 22px monospace';
-    ctx.fillText(`${dateStr}  •  ${(settings.name || 'ATHLETE').toUpperCase()}`, W / 2, 230);
+    ctx.font = '700 18px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.fillText('4.0 BIOMETRIC SCORECARD', W / 2, 145);
+
+    // Retrieve live wear streak from storage
+    let streakCount = 7;
+    try {
+      const savedStreak = typeof localStorage !== 'undefined' ? localStorage.getItem('whoop_streak_data') : null;
+      if (savedStreak) {
+        const parsed = JSON.parse(savedStreak);
+        if (typeof parsed.currentStreak === 'number') streakCount = parsed.currentStreak;
+      }
+    } catch {}
+
+    const athleteName = (settings.name || 'ATHLETE').toUpperCase();
+    const athleteHandle = (settings.handle || '@athlete').toUpperCase();
+    const avatarColor = settings.avatarColor || '#16EC06';
+
+    // Athlete Avatar (Circle with Ring)
+    const avatarX = 145;
+    const avatarY = 205;
+    const avatarR = 42;
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(avatarX, avatarY, avatarR, 0, Math.PI * 2);
+    ctx.fillStyle = '#1A202C';
+    ctx.fill();
+
+    if (avatarImage) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(avatarX, avatarY, avatarR - 3, 0, Math.PI * 2);
+      ctx.clip();
+      ctx.drawImage(avatarImage, avatarX - (avatarR - 3), avatarY - (avatarR - 3), (avatarR - 3) * 2, (avatarR - 3) * 2);
+      ctx.restore();
+    } else {
+      const cleanName = (settings.name || 'AB').trim();
+      const parts = cleanName.split(/\s+/);
+      const initials = parts.length === 1 ? cleanName.slice(0, 2).toUpperCase() : (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = '900 28px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(initials, avatarX, avatarY + 2);
+    }
+
+    // Outer Accent Ring
+    ctx.strokeStyle = avatarColor;
+    ctx.lineWidth = 3.5;
+    ctx.stroke();
+    ctx.restore();
+
+    // Athlete Info Text
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = '900 28px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.fillText(athleteName, 210, 198);
+
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+    ctx.font = '700 18px monospace';
+    ctx.fillText(athleteHandle, 210, 226);
+
+    // Streak Badge Pill on Right
+    const streakText = `🔥 ${streakCount}D STREAK`;
+    ctx.font = '800 20px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    const streakMetrics = ctx.measureText(streakText);
+    const pillW = streakMetrics.width + 36;
+    const pillH = 40;
+    const pillX = W - 100 - pillW;
+    const pillY = 185;
+
+    ctx.fillStyle = 'rgba(255, 138, 0, 0.15)';
+    ctx.strokeStyle = 'rgba(255, 138, 0, 0.45)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(pillX, pillY, pillW, pillH, 20);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = '#FF8A00';
+    ctx.textAlign = 'center';
+    ctx.fillText(streakText, pillX + pillW / 2, pillY + 27);
 
     // Divider Line
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(100, 270);
-    ctx.lineTo(W - 100, 270);
+    ctx.moveTo(100, 265);
+    ctx.lineTo(W - 100, 265);
     ctx.stroke();
 
     // --- CARD SPECIFIC CONTENT ---
@@ -295,7 +379,7 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
     ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
     ctx.font = '600 20px monospace';
     ctx.fillText('LIVE AT: WHOOP-4-APP.VERCEL.APP', W / 2, H - 100);
-  }, [cardType, metrics, settings, session, isRtl]);
+  }, [cardType, metrics, settings, session, isRtl, avatarImage]);
 
   // Re-draw canvas whenever cardType or metrics change
   useEffect(() => {

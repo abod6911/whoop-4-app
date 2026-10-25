@@ -51,6 +51,7 @@ import { HealthMonitorModal } from './components/HealthMonitorModal';
 import { StressMonitorModal } from './components/StressMonitorModal';
 import { SleepStageDetailModal } from './components/SleepStageDetailModal';
 import { WhoopCoachChatSheet } from './components/WhoopCoachChatSheet';
+import { UserProfileModal } from './components/UserProfileModal';
 import { HardwareDiagnosticsModal } from './components/HardwareDiagnosticsModal';
 import { HrvBreathePacer } from './components/HrvBreathePacer';
 import { HapticAlarmModal } from './components/HapticAlarmModal';
@@ -110,6 +111,7 @@ export const App: React.FC = () => {
   const [isHrvBreatheOpen, setIsHrvBreatheOpen] = useState(false);
   const [isHapticAlarmOpen, setIsHapticAlarmOpen] = useState(false);
   const [isShareCardOpen, setIsShareCardOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isStreakModalOpen, setIsStreakModalOpen] = useState(() =>
     typeof window !== 'undefined' && (window.location.search.includes('sheet=streak') || window.location.hash === '#streak')
   );
@@ -867,6 +869,8 @@ export const App: React.FC = () => {
             hapticMedium();
             setIsQuickActionOpen(true);
           }}
+          settings={settings}
+          onOpenProfile={() => setIsProfileModalOpen(true)}
         />
 
         {/* Historical Cycle Banner with Quick Return Button */}
@@ -1175,6 +1179,19 @@ export const App: React.FC = () => {
           sleepData={sleepData}
           isStrapConnected={metadata.connected}
           settings={settings}
+        />
+
+        {/* Athlete Profile, Avatar Upload & Biometric Calibration Modal */}
+        <UserProfileModal
+          isOpen={isProfileModalOpen}
+          onClose={() => setIsProfileModalOpen(false)}
+          settings={settings}
+          onSaveSettings={handleSaveSettings}
+          onDataRestored={() => {
+            setSettings(storageService.getUserSettings());
+            setDaysHistory(storageService.getDaysHistory());
+            refreshSessions();
+          }}
         />
 
         {/* HRV Resonance Coherence Breathe Pacer Modal */}

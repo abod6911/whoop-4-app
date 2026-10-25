@@ -136,6 +136,28 @@ export const CommunityView: React.FC<CommunityViewProps> = ({
         </div>
 
         {/* Real Live Metrics Snapshot Grid */}
+        <div className="flex items-center gap-3 p-3 rounded-xl bg-[#16191E] border border-white/5">
+          <div
+            className="w-10 h-10 rounded-full p-[1.5px] overflow-hidden flex items-center justify-center bg-[#1E2530] flex-shrink-0"
+            style={{ border: `2px solid ${settings.avatarColor || '#16EC06'}` }}
+          >
+            {settings.avatarUrl ? (
+              <img src={settings.avatarUrl} alt={settings.name} className="w-full h-full object-cover rounded-full" />
+            ) : (
+              <span className="text-xs font-black font-condensed text-white">
+                {settings.name?.slice(0, 2).toUpperCase() || 'AB'}
+              </span>
+            )}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-xs font-bold text-white font-condensed truncate">
+              {settings.name || 'Athlete'}
+            </div>
+            <div className="text-[10px] text-[#00F0FF] font-mono truncate">
+              {settings.handle || '@athlete'}
+            </div>
+          </div>
+        </div>
         <div className="grid grid-cols-3 gap-2 text-center">
           <div className="p-2.5 rounded-xl bg-[#16191E] border border-white/5">
             <div className="text-[10px] font-bold uppercase text-zinc-400 font-condensed">{t('recoveryScore')}</div>

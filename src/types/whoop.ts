@@ -22,6 +22,10 @@ export interface UserSettings {
   hrvBaseline: number;
   sleepNeedHours: number;
   gender: 'male' | 'female';
+  handle?: string;
+  avatarUrl?: string;
+  avatarColor?: string;
+  stepGoal?: number;
   language?: 'en' | 'ar';
   /** true once the user has saved their real profile (age/weight/height/sex). Until then personalised metrics are not computed. */
   profileConfirmed?: boolean;
@@ -33,6 +37,8 @@ export interface UserProfile {
   id: string; // unique user identifier, e.g. usr_1792348572
   email: string;
   fullName: string;
+  handle?: string;
+  avatarUrl?: string;
   avatarColor?: string;
   pairedDeviceId?: string | null;
   pairedDeviceName?: string | null;
@@ -336,6 +342,10 @@ export interface UserProfileEntity {
   name: string;
   age: number;
   gender: 'male' | 'female';
+  handle?: string;
+  avatarUrl?: string;
+  avatarColor?: string;
+  stepGoal?: number;
   weightKg: number;
   heightCm: number;
   maxHr: number;

@@ -43,6 +43,9 @@ export interface RealDayPersistedState {
 
 export const DEFAULT_SETTINGS: UserSettings = {
   name: 'Athlete',
+  handle: '@athlete',
+  avatarColor: '#16EC06',
+  stepGoal: 10000,
   age: 28,
   weightKg: 75,
   heightCm: 178,

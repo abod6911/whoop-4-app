@@ -8,3 +8,4 @@ export { SleepStageDetailModal } from '../SleepStageDetailModal';
 export { ShareCardModal } from '../ShareCardModal';
 export { WhoopCloudApiModal } from '../WhoopCloudApiModal';
 export { WorkoutHudModal } from '../views/WorkoutHudModal';
+export { UserProfileModal } from '../UserProfileModal';

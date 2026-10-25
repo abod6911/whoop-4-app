@@ -993,7 +993,13 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                     </button>
                   </div>
                   <div className="text-[10px] text-zinc-400 font-mono mt-0.5 truncate">
-                    {t('target')}: 10,000 • {metrics.cadence > 0 ? `${metrics.cadence} spm` : (metadata.connected ? (isRtl ? 'حساس IMU متصل' : 'IMU Active') : (isRtl ? 'غير متصل' : 'Disconnected'))}
+                    {t('target')}: {(settings?.stepGoal || 10000).toLocaleString()} ({Math.min(100, Math.round(((metrics.steps || 0) / (settings?.stepGoal || 10000)) * 100))}%) • {metrics.cadence > 0 ? `${metrics.cadence} spm` : (metadata.connected ? (isRtl ? 'حساس IMU متصل' : 'IMU Active') : (isRtl ? 'غير متصل' : 'Disconnected'))}
+                  </div>
+                  <div className="w-full max-w-[140px] h-1 bg-white/5 rounded-full mt-1 overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-[#16EC06] to-[#00F0FF] rounded-full transition-all duration-500"
+                      style={{ width: `${Math.min(100, Math.round(((metrics.steps || 0) / (settings?.stepGoal || 10000)) * 100))}%` }}
+                    />
                   </div>
                 </div>
               </div>

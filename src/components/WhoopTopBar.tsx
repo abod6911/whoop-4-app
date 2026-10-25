@@ -1,5 +1,5 @@
 import React from 'react';
-import type { DeviceMetadata, LiveMetrics, HomeSubTab, MainTabType } from '../types/whoop';
+import type { DeviceMetadata, LiveMetrics, HomeSubTab, MainTabType, UserSettings } from '../types/whoop';
 import { ChevronLeft, ChevronRight, Bell, Globe, Zap, Plus } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -18,6 +18,8 @@ interface WhoopTopBarProps {
   onOpenCalendar?: () => void;
   onOpenStreakModal?: () => void;
   onOpenQuickAction?: () => void;
+  settings?: UserSettings;
+  onOpenProfile?: () => void;
 }
 
 export const SignalBarsIcon: React.FC<{ isConnected: boolean; className?: string }> = ({
@@ -79,10 +81,21 @@ export const WhoopTopBar: React.FC<WhoopTopBarProps> = ({
   onOpenCalendar,
   onOpenStreakModal,
   onOpenQuickAction,
+  settings,
+  onOpenProfile,
 }) => {
   const { t, isRtl } = useLanguage();
   const isBatteryLow = metadata.batteryLevel !== null && metadata.batteryLevel < 15;
   const batteryColor = isBatteryLow ? 'text-[#FF3344]' : 'text-white';
+
+  const avatarRingColor = settings?.avatarColor || '#16EC06';
+  const getInitials = (nameStr?: string): string => {
+    const clean = (nameStr || '').trim();
+    if (!clean) return 'AB';
+    const parts = clean.split(/\s+/);
+    if (parts.length === 1) return clean.slice(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  };
 
   const getMainTabTitle = () => {
     switch (mainTab) {
@@ -145,33 +158,49 @@ export const WhoopTopBar: React.FC<WhoopTopBarProps> = ({
 
       {/* Row 1: Top Bar (00:00 in Video) */}
       <div className="px-3 sm:px-4 pt-[env(safe-area-inset-top,1rem)] pb-2 flex items-center justify-between gap-1.5 sm:gap-2 max-w-[430px] mx-auto select-none">
-        {/* Left: Athlete Avatar (AB) + Notification Bell Badge + Streak Badge + Quick Add (+) */}
+        {/* Left: Athlete Avatar + Notification Bell + Streak Badge + Quick Add (+) */}
         <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+          {/* Athlete Avatar Button (Click opens UserProfileModal) */}
           <button
-            onClick={onOpenNotifications}
-            className="relative flex items-center justify-center p-0.5 min-w-[36px] min-h-[36px] group active:scale-[0.98] transition-transform"
-            title="Notification Center"
-            aria-label="Notification Center"
+            onClick={onOpenProfile || onOpenNotifications}
+            className="relative flex items-center justify-center p-0.5 min-w-[34px] min-h-[34px] group active:scale-[0.96] transition-transform"
+            title={isRtl ? 'الملف الشخصي والمعايرة الحيوية' : 'Athlete Profile & Biometrics'}
+            aria-label="Athlete Profile"
           >
-            {/* Neutral Athlete Initials Circle */}
-            <div className="w-[34px] h-[34px] rounded-full bg-gradient-to-tr from-[#1E2530] to-[#2B3545] p-[1.5px] flex items-center justify-center border border-white/10">
-              <span className="text-xs font-black font-condensed tracking-wider text-white">
-                AB
-              </span>
+            <div
+              className="w-[34px] h-[34px] rounded-full p-[1.5px] flex items-center justify-center overflow-hidden bg-[#1E2530] shadow-md transition-all group-hover:scale-105"
+              style={{ border: `2px solid ${avatarRingColor}` }}
+            >
+              {settings?.avatarUrl ? (
+                <img
+                  src={settings.avatarUrl}
+                  alt={settings.name || 'Athlete'}
+                  className="w-full h-full object-cover rounded-full"
+                />
+              ) : (
+                <span className="text-[11px] font-black font-condensed tracking-wider text-white">
+                  {getInitials(settings?.name)}
+                </span>
+              )}
             </div>
-
-            {/* Notification Bell Badge on Avatar */}
-            <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-[#16191E] border border-white/20 flex items-center justify-center text-zinc-300">
-              <Bell className="w-2.5 h-2.5" />
-            </div>
-
-            {/* Unread Counter Dot */}
-            {unreadNotificationsCount > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-[#0093E9] text-[9px] font-black font-condensed flex items-center justify-center text-white ring-2 ring-black">
-                {unreadNotificationsCount > 9 ? '9+' : unreadNotificationsCount}
-              </span>
-            )}
           </button>
+
+          {/* Notification Center Bell Button */}
+          {onOpenNotifications && (
+            <button
+              onClick={onOpenNotifications}
+              className="relative w-[34px] h-[34px] rounded-full bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center text-zinc-300 hover:text-white transition-all active:scale-[0.96]"
+              title={isRtl ? 'مركز الإشعارات' : 'Notification Center'}
+              aria-label="Notification Center"
+            >
+              <Bell className="w-3.5 h-3.5" />
+              {unreadNotificationsCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-[#0093E9] text-[9px] font-black font-condensed flex items-center justify-center text-white ring-2 ring-black">
+                  {unreadNotificationsCount > 9 ? '9+' : unreadNotificationsCount}
+                </span>
+              )}
+            </button>
+          )}
 
           {/* Interactive WHOOP Wear Streak Badge */}
           {onOpenStreakModal && (
