@@ -1,6 +1,6 @@
 import React from 'react';
 import type { DeviceMetadata, LiveMetrics, HomeSubTab, MainTabType, UserSettings } from '../types/whoop';
-import { ChevronLeft, ChevronRight, Bell, Globe, Zap, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Zap } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 interface WhoopTopBarProps {
@@ -156,19 +156,19 @@ export const WhoopTopBar: React.FC<WhoopTopBarProps> = ({
       )}
 
 
-      {/* Row 1: Top Bar (00:00 in Video) */}
-      <div className="px-3 sm:px-4 pt-[env(safe-area-inset-top,1rem)] pb-2 flex items-center justify-between gap-1.5 sm:gap-2 max-w-[430px] mx-auto select-none">
-        {/* Left: Athlete Avatar + Notification Bell + Streak Badge + Quick Add (+) */}
+      {/* Row 1: Balanced 3-Zone Header (WHOOP 4.0 Authentic Ergonomics) */}
+      <div className="px-3 sm:px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-2 flex items-center justify-between gap-2 sm:gap-3 max-w-[430px] mx-auto select-none">
+        {/* Left Zone: Athlete Avatar + Streak Mini-Pill */}
         <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
           {/* Athlete Avatar Button (Click opens UserProfileModal) */}
           <button
             onClick={onOpenProfile || onOpenNotifications}
-            className="relative flex items-center justify-center p-0.5 min-w-[34px] min-h-[34px] group active:scale-[0.96] transition-transform"
+            className="relative flex items-center justify-center p-0.5 group active:scale-[0.96] transition-transform"
             title={isRtl ? 'الملف الشخصي والمعايرة الحيوية' : 'Athlete Profile & Biometrics'}
             aria-label="Athlete Profile"
           >
             <div
-              className="w-[34px] h-[34px] rounded-full p-[1.5px] flex items-center justify-center overflow-hidden bg-[#1E2530] shadow-md transition-all group-hover:scale-105"
+              className="w-9 h-9 rounded-full p-[1.5px] flex items-center justify-center overflow-hidden bg-[#1E2530] shadow-md transition-all group-hover:scale-105"
               style={{ border: `2px solid ${avatarRingColor}` }}
             >
               {settings?.avatarUrl ? (
@@ -178,120 +178,106 @@ export const WhoopTopBar: React.FC<WhoopTopBarProps> = ({
                   className="w-full h-full object-cover rounded-full"
                 />
               ) : (
-                <span className="text-[11px] font-black font-condensed tracking-wider text-white">
+                <span className="text-xs font-black font-condensed tracking-wider text-white">
                   {getInitials(settings?.name)}
                 </span>
               )}
             </div>
+
+            {/* Subtle Unread Notification Indicator Dot */}
+            {unreadNotificationsCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-[#00A3FF] border-2 border-[#0B0D10] ring-1 ring-[#00A3FF]/50 animate-pulse" />
+            )}
           </button>
 
-          {/* Notification Center Bell Button */}
-          {onOpenNotifications && (
-            <button
-              onClick={onOpenNotifications}
-              className="relative w-[34px] h-[34px] rounded-full bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center text-zinc-300 hover:text-white transition-all active:scale-[0.96]"
-              title={isRtl ? 'مركز الإشعارات' : 'Notification Center'}
-              aria-label="Notification Center"
-            >
-              <Bell className="w-3.5 h-3.5" />
-              {unreadNotificationsCount > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-[#0093E9] text-[9px] font-black font-condensed flex items-center justify-center text-white ring-2 ring-black">
-                  {unreadNotificationsCount > 9 ? '9+' : unreadNotificationsCount}
-                </span>
-              )}
-            </button>
-          )}
-
-          {/* Interactive WHOOP Wear Streak Badge */}
+          {/* Interactive WHOOP Wear Streak Mini-Badge */}
           {onOpenStreakModal && (
             <StreakBadge onClick={onOpenStreakModal} />
           )}
+        </div>
 
-          {/* Relocated Quick Add Action Button (+) */}
-          {onOpenQuickAction && (
+        {/* Center Zone: True Centered Date Selector */}
+        <div className="flex-1 flex justify-center items-center min-w-0">
+          <div className="inline-flex items-center gap-0.5 bg-white/[0.04] border border-white/[0.07] px-2.5 py-1 rounded-full shadow-inner">
             <button
-              onClick={onOpenQuickAction}
-              className="w-[34px] h-[34px] rounded-full bg-white/10 hover:bg-white/20 active:scale-[0.98] border border-white/15 text-white flex items-center justify-center transition-all shadow-sm"
-              title={isRtl ? 'إضافة نشاط سريع أو تمرين' : 'Quick Add Activity'}
-              aria-label={isRtl ? 'إضافة نشاط سريع' : 'Quick Add Activity'}
+              onClick={onPrevDate}
+              className="p-1 min-w-[20px] min-h-[20px] flex items-center justify-center text-zinc-400 hover:text-white transition-colors active:scale-[0.95]"
+              title={isRtl ? 'اليوم التالي' : 'Previous Day'}
+              aria-label="Previous Day"
             >
-              <Plus className="w-4 h-4 stroke-[2.5]" />
+              <ChevronLeft className={`w-3.5 h-3.5 ${isRtl ? 'rotate-180' : ''}`} />
             </button>
-          )}
+            <button
+              onClick={onOpenCalendar}
+              className="text-[11px] font-black uppercase text-white font-condensed tracking-wider px-1.5 hover:text-[#00A3FF] transition-colors active:scale-[0.98] truncate max-w-[120px]"
+              title={isRtl ? 'فتح تقويم الدورات الفسيولوجية' : 'Open Cycles Calendar'}
+            >
+              {getLocalizedDate(selectedDate)}
+            </button>
+            <button
+              onClick={onNextDate}
+              className="p-1 min-w-[20px] min-h-[20px] flex items-center justify-center text-zinc-400 hover:text-white transition-colors active:scale-[0.95]"
+              title={isRtl ? 'اليوم السابق' : 'Next Day'}
+              aria-label="Next Day"
+            >
+              <ChevronRight className={`w-3.5 h-3.5 ${isRtl ? 'rotate-180' : ''}`} />
+            </button>
+          </div>
         </div>
 
-        {/* Center: Date Selector < TODAY > with Chevrons and Click-to-Calendar */}
-        <div className="flex items-center gap-0.5 bg-[#1C212B] px-1.5 sm:px-2 py-1 rounded-full border border-white/5 flex-shrink-0">
+        {/* Right Zone: Hardware Telemetry Pill Only (Strap & Battery Status) */}
+        <div className="flex-shrink-0 flex items-center justify-end">
           <button
-            onClick={onPrevDate}
-            className="p-1 min-w-[24px] min-h-[24px] flex items-center justify-center text-zinc-400 hover:text-white transition-colors active:scale-[0.98]"
-            title="Previous Day"
-            aria-label="Previous Day"
+            onClick={onOpenStrapSheet}
+            className="flex items-center gap-1.5 bg-[#16191E] border border-white/5 hover:border-zinc-700 px-2.5 py-1 min-h-[34px] rounded-full transition-all active:scale-[0.98]"
+            title="WHOOP 4.0 Strap & Battery Status"
+            aria-label="WHOOP 4.0 Strap & Battery Status"
           >
-            <ChevronLeft className={`w-3.5 h-3.5 ${isRtl ? 'rotate-180' : ''}`} />
-          </button>
-          <button
-            onClick={onOpenCalendar}
-            className="text-[10px] sm:text-[11px] font-black uppercase text-white font-condensed tracking-wider sm:tracking-widest px-1.5 sm:px-2.5 hover:text-[#00A3FF] transition-colors active:scale-[0.98] truncate"
-            title={isRtl ? 'فتح تقويم الدورات الفسيولوجية' : 'Open Cycles Calendar'}
-          >
-            {getLocalizedDate(selectedDate)}
-          </button>
-          <button
-            onClick={onNextDate}
-            className="p-1 min-w-[24px] min-h-[24px] flex items-center justify-center text-zinc-400 hover:text-white transition-colors active:scale-[0.98]"
-            title="Next Day"
-            aria-label="Next Day"
-          >
-            <ChevronRight className={`w-3.5 h-3.5 ${isRtl ? 'rotate-180' : ''}`} />
+            {metadata.connected && metadata.isCharging ? (
+              <span className="flex items-center gap-0.5 text-[#16EC06] text-xs font-black font-condensed animate-pulse">
+                <Zap className="w-3 h-3 fill-[#16EC06] text-[#16EC06]" />
+                <span className="tabular-nums">{metadata.batteryLevel !== null ? `${metadata.batteryLevel}%` : ''}</span>
+              </span>
+            ) : (
+              <span className={`text-xs font-bold font-condensed tabular-nums tracking-wide ${metadata.connected ? batteryColor : 'text-zinc-500'}`}>
+                {metadata.connected && metadata.batteryLevel !== null ? `${metadata.batteryLevel}%` : '--'}
+              </span>
+            )}
+            <VerticalWhoopStrapIcon isConnected={metadata.connected} />
+            <SignalBarsIcon isConnected={metadata.connected} />
           </button>
         </div>
-
-        {/* Right: Real Battery % + Vertical Strap Icon + Signal Bars Icon */}
-        <button
-          onClick={onOpenStrapSheet}
-          className="flex items-center gap-1 sm:gap-1.5 bg-[#16191E] border border-white/5 hover:border-zinc-700 px-2 sm:px-2.5 py-1 min-h-[34px] rounded-full transition-all active:scale-[0.98] flex-shrink-0"
-          title="WHOOP 4.0 Strap & Battery Status"
-          aria-label="WHOOP 4.0 Strap & Battery Status"
-        >
-          {metadata.connected && metadata.isCharging ? (
-            <span className="flex items-center gap-0.5 text-[#16EC06] text-xs font-black font-condensed animate-pulse">
-              <Zap className="w-3 h-3 fill-[#16EC06] text-[#16EC06]" />
-              <span className="tabular-nums">{metadata.batteryLevel !== null ? `${metadata.batteryLevel}%` : ''}</span>
-            </span>
-          ) : (
-            <span className={`text-xs font-bold font-condensed tabular-nums tracking-wide ${metadata.connected ? batteryColor : 'text-zinc-500'}`}>
-              {metadata.connected && metadata.batteryLevel !== null ? `${metadata.batteryLevel}%` : '--'}
-            </span>
-          )}
-          <VerticalWhoopStrapIcon isConnected={metadata.connected} />
-          <SignalBarsIcon isConnected={metadata.connected} />
-        </button>
       </div>
 
-      {/* Row 2: 4 Sub-Tabs (OVERVIEW | SLEEP | RECOVERY | STRAIN) on Home Tab (00:00 in Video) */}
+      {/* Row 2: 4 Category Sub-Tabs with Animated Indicator (OVERVIEW | SLEEP | RECOVERY | STRAIN) */}
       {mainTab === 'home' ? (
-        <div className="flex items-center justify-between max-w-[430px] mx-auto px-2 sm:px-4 border-t border-white/5">
-          {(['overview', 'sleep', 'recovery', 'strain'] as HomeSubTab[]).map((tab) => {
-            const isActive = activeSubTab === tab;
-            return (
-              <button
-                key={tab}
-                onClick={() => onChangeSubTab(tab)}
-                className={`py-2.5 px-2 sm:px-3 min-h-[40px] text-[11px] sm:text-xs font-black uppercase tracking-wider font-condensed relative transition-colors active:scale-[0.98] ${
-                  isActive ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'
-                }`}
-              >
-                <span>{subTabLabels[tab]}</span>
-                {isActive && (
-                  <div className="absolute bottom-0 left-1.5 right-1.5 sm:left-2 sm:right-2 h-[2px] bg-white rounded-full shadow-sm" />
-                )}
-              </button>
-            );
-          })}
+        <div className="mt-1.5 border-t border-white/5 max-w-[430px] mx-auto">
+          <div className="grid grid-cols-4 px-2">
+            {(['overview', 'sleep', 'recovery', 'strain'] as HomeSubTab[]).map((tab) => {
+              const isActive = activeSubTab === tab;
+              return (
+                <button
+                  key={tab}
+                  onClick={() => onChangeSubTab(tab)}
+                  className={`py-2 px-1 min-h-[38px] text-[11px] font-bold uppercase tracking-wider font-condensed relative flex items-center justify-center transition-colors active:scale-[0.98] ${
+                    isActive ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'
+                  }`}
+                >
+                  <span className="truncate">{subTabLabels[tab]}</span>
+                  {isActive && (
+                    <motion.div
+                      layoutId="subTabActiveIndicator"
+                      className="absolute bottom-0 left-2 right-2 h-[2px] bg-white rounded-full shadow-[0_0_8px_rgba(255,255,255,0.4)]"
+                      transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+                    />
+                  )}
+                </button>
+              );
+            })}
+          </div>
         </div>
       ) : (
-        <div className="py-2.5 px-4 max-w-[430px] mx-auto border-t border-white/5 text-start">
+        <div className="mt-1.5 py-2 px-4 max-w-[430px] mx-auto border-t border-white/5 text-start">
           <span className="text-xs font-black uppercase tracking-wider font-condensed text-zinc-300">
             {getMainTabTitle()}
           </span>

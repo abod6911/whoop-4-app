@@ -64,7 +64,7 @@ import { notificationEngine } from './services/notificationEngine';
 import { telemetryWorkerManager } from './services/telemetryWorkerManager';
 import { hapticMedium, hapticLight } from './utils/haptics';
 
-import { AlertCircle, X, AlertTriangle, Wind, Dumbbell, Moon, Clock, ShieldCheck } from 'lucide-react';
+import { AlertCircle, X, AlertTriangle, Wind, Dumbbell, Moon, Clock, ShieldCheck, Plus } from 'lucide-react';
 import { useLanguage } from './i18n/LanguageContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { OnboardingFlow } from './components/onboarding/OnboardingFlow';
@@ -1045,6 +1045,21 @@ export const App: React.FC = () => {
           )}
         </main>
 
+        {/* Floating Quick Action Button (+) - WHOOP Authentic Mobile Ergonomics */}
+        {mainTab === 'home' && (
+          <button
+            onClick={() => {
+              hapticMedium();
+              setIsQuickActionOpen(true);
+            }}
+            className="absolute bottom-20 end-4 z-30 w-12 h-12 rounded-full bg-gradient-to-tr from-[#00A3FF] to-[#00E5FF] text-black shadow-[0_4px_24px_rgba(0,163,255,0.45)] flex items-center justify-center hover:scale-105 active:scale-95 transition-all group"
+            title={isRtl ? 'إضافة سريعة / بدء نشاط' : 'Quick Add / Start Activity'}
+            aria-label={isRtl ? 'إضافة نشاط سريع' : 'Quick Add Activity'}
+          >
+            <Plus className="w-6 h-6 stroke-[2.5] text-black group-hover:rotate-90 transition-transform duration-300" />
+          </button>
+        )}
+
         {/* 4-Tab Bottom Navigation Bar */}
         <WhoopBottomNav
           activeTab={mainTab}
@@ -1187,6 +1202,8 @@ export const App: React.FC = () => {
           onClose={() => setIsProfileModalOpen(false)}
           settings={settings}
           onSaveSettings={handleSaveSettings}
+          onOpenNotifications={() => setIsNotificationDrawerOpen(true)}
+          unreadNotificationsCount={unreadNotificationsCount}
           onDataRestored={() => {
             setSettings(storageService.getUserSettings());
             setDaysHistory(storageService.getDaysHistory());

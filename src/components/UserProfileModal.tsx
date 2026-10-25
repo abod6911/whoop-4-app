@@ -25,6 +25,7 @@ import {
   Sparkles,
   RefreshCw,
   X,
+  Bell,
   ShieldCheck,
   AlertCircle,
 } from 'lucide-react';
@@ -35,6 +36,8 @@ export interface UserProfileModalProps {
   settings: UserSettings;
   onSaveSettings: (settings: UserSettings) => void;
   onDataRestored?: () => void;
+  onOpenNotifications?: () => void;
+  unreadNotificationsCount?: number;
 }
 
 const ACCENT_COLORS = [
@@ -50,6 +53,8 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   settings,
   onSaveSettings,
   onDataRestored,
+  onOpenNotifications,
+  unreadNotificationsCount = 0,
 }) => {
   const { t, isRtl } = useLanguage();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -256,13 +261,35 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
               </p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-zinc-400 hover:text-white transition-colors"
-            aria-label="Close"
-          >
-            <X className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-2">
+            {onOpenNotifications && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onOpenNotifications();
+                }}
+                className="relative w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-zinc-300 hover:text-white transition-colors cursor-pointer"
+                title={isRtl ? 'مركز الإشعارات' : 'Notification Center'}
+                aria-label="Notification Center"
+              >
+                <Bell className="w-4 h-4" />
+                {unreadNotificationsCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-[#0093E9] text-[8px] font-black flex items-center justify-center text-white ring-2 ring-black">
+                    {unreadNotificationsCount > 9 ? '9+' : unreadNotificationsCount}
+                  </span>
+                )}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-zinc-400 hover:text-white transition-colors cursor-pointer"
+              aria-label="Close"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         {/* Scrollable Form Body */}
