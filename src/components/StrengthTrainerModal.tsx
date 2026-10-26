@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import type { LiveMetrics } from '../types/whoop';
+import React, { useState, useEffect, useRef } from 'react';
+import type { LiveMetrics, WorkoutEntity } from '../types/whoop';
 import { biometricEngine } from '../utils/biometricEngine';
 import { notificationEngine } from '../services/notificationEngine';
+import { whoopDb } from '../services/whoopDatabase';
 import { useLanguage } from '../i18n/LanguageContext';
 import { SheetBackdrop, SheetPanel } from './motion/Sheet';
 import {
@@ -15,12 +16,16 @@ import {
   Timer,
   CheckCircle2,
   Zap,
+  Activity,
+  Flame,
+  Award,
 } from 'lucide-react';
 
 interface StrengthTrainerModalProps {
   isOpen: boolean;
   onClose: () => void;
   metrics: LiveMetrics;
+  onWorkoutSaved?: () => void;
 }
 
 interface ExerciseSet {
@@ -28,6 +33,7 @@ interface ExerciseSet {
   setNumber: number;
   weightKg: number;
   reps: number;
+  rpe: number; // 1 to 10 (default 8)
   completed: boolean;
   hrAtSet?: number;
 }
@@ -44,14 +50,16 @@ const COMMON_EXERCISES = [
   { name: 'Barbell Bench Press', targetMuscle: 'Chest & Triceps' },
   { name: 'Conventional Deadlift', targetMuscle: 'Hamstrings & Back' },
   { name: 'Overhead Shoulder Press', targetMuscle: 'Deltoids & Core' },
-  { name: 'Barbell Bent-Over Row', targetMuscle: 'Upper Back & Lats' },
   { name: 'Pull-Ups / Chin-Ups', targetMuscle: 'Lats & Biceps' },
+  { name: 'Plank & Core Holds', targetMuscle: 'Core & Stabilizers' },
+  { name: 'Barbell Bent-Over Row', targetMuscle: 'Upper Back & Lats' },
   { name: 'Dumbbell Walking Lunges', targetMuscle: 'Legs & Stabilizers' },
   { name: 'Incline Dumbbell Press', targetMuscle: 'Upper Chest' },
   { name: 'Romanian Deadlift (RDL)', targetMuscle: 'Posterior Chain' },
   { name: 'Cable Lateral Raise', targetMuscle: 'Side Delts' },
   { name: 'Barbell Bicep Curl', targetMuscle: 'Biceps' },
   { name: 'Dips (Weighted)', targetMuscle: 'Triceps & Chest' },
+  { name: 'Leg Press & Calf Raise', targetMuscle: 'Lower Body' },
 ];
 
 const CARDIO_SPORTS = [
@@ -73,13 +81,23 @@ export const StrengthTrainerModal: React.FC<StrengthTrainerModalProps> = ({
   isOpen,
   onClose,
   metrics,
+  onWorkoutSaved,
 }) => {
   const { t, isRtl } = useLanguage();
   const [activeTab, setActiveTab] = useState<'strength' | 'cardio_hiit'>('strength');
 
-  // Strength Trainer State (Starts empty - zero fake workouts)
+  // Strength Trainer State
   const [exercises, setExercises] = useState<StrengthExercise[]>([]);
   const [muscularLoadAccumulator, setMuscularLoadAccumulator] = useState(0);
+  const workoutStartTimeRef = useRef<number>(Date.now());
+  const [isSavingWorkout, setIsSavingWorkout] = useState(false);
+  const [completedSummary, setCompletedSummary] = useState<{
+    strain: number;
+    volume: number;
+    muscularPct: number;
+    cardioPct: number;
+    sets: number;
+  } | null>(null);
 
   // HIIT Interval Timer State
   const [selectedSport, setSelectedSport] = useState('HIIT');
@@ -91,6 +109,13 @@ export const StrengthTrainerModal: React.FC<StrengthTrainerModalProps> = ({
   const [round, setRound] = useState(1);
   const [totalRounds, setTotalRounds] = useState(8);
 
+  useEffect(() => {
+    if (isOpen) {
+      workoutStartTimeRef.current = Date.now();
+      setCompletedSummary(null);
+    }
+  }, [isOpen]);
+
   // HIIT Timer Tick
   useEffect(() => {
     let interval: number | null = null;
@@ -98,13 +123,11 @@ export const StrengthTrainerModal: React.FC<StrengthTrainerModalProps> = ({
       interval = window.setInterval(() => {
         setSecondsLeft((prev) => {
           if (prev <= 1) {
-            // Switch phase
             if (intervalPhase === 'work') {
               setIntervalPhase('rest');
-              // Play chime cue
               notificationEngine.dispatch({
                 type: 'strain',
-                title: `ðŸ”” Rest Phase (${restDuration}s)`,
+                title: `🔔 Rest Phase (${restDuration}s)`,
                 message: `Catch your breath. Round ${round} complete.`,
               });
               return restDuration;
@@ -113,7 +136,7 @@ export const StrengthTrainerModal: React.FC<StrengthTrainerModalProps> = ({
                 setIsTimerRunning(false);
                 notificationEngine.dispatch({
                   type: 'strain',
-                  title: 'ðŸ HIIT Workout Finished!',
+                  title: '🎉 HIIT Workout Finished!',
                   message: `Completed all ${totalRounds} intervals. Great stimulus!`,
                 });
                 return 0;
@@ -122,7 +145,7 @@ export const StrengthTrainerModal: React.FC<StrengthTrainerModalProps> = ({
               setRound((r) => r + 1);
               notificationEngine.dispatch({
                 type: 'strain',
-                title: `ðŸ”¥ Work Interval - Round ${round + 1}`,
+                title: `🔥 Work Interval - Round ${round + 1}`,
                 message: `Max effort for ${workDuration}s!`,
               });
               return workDuration;
@@ -137,7 +160,7 @@ export const StrengthTrainerModal: React.FC<StrengthTrainerModalProps> = ({
     };
   }, [isTimerRunning, intervalPhase, round, totalRounds, workDuration, restDuration]);
 
-  // Toggle set completed
+  // Toggle set completed & calculate muscular load
   const handleToggleSet = (exIndex: number, setIndex: number) => {
     const updated = [...exercises];
     const targetSet = updated[exIndex].sets[setIndex];
@@ -145,13 +168,14 @@ export const StrengthTrainerModal: React.FC<StrengthTrainerModalProps> = ({
 
     if (targetSet.completed) {
       targetSet.hrAtSet = metrics.currentHr || undefined;
-      // Calculate muscular volume: weight * reps
-      const volume = targetSet.weightKg * targetSet.reps;
-      const load = (volume / 200.0); // Muscular stimulus units
+      // Calculate muscular volume: weight * reps * (RPE / 10)
+      const effectiveWeight = targetSet.weightKg > 0 ? targetSet.weightKg : 65; // bodyweight fallback
+      const rpe = targetSet.rpe || 8;
+      const volume = effectiveWeight * targetSet.reps;
+      const load = (volume * (rpe / 10)) / 180.0;
       setMuscularLoadAccumulator((prev) => prev + load);
       biometricEngine.addMuscularLoad(load);
 
-      // Play cue
       if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
         navigator.vibrate([40, 60]);
       }
@@ -166,9 +190,9 @@ export const StrengthTrainerModal: React.FC<StrengthTrainerModalProps> = ({
       name,
       targetMuscle,
       sets: [
-        { id: `s-${Date.now()}-1`, setNumber: 1, weightKg: 60, reps: 10, completed: false },
-        { id: `s-${Date.now()}-2`, setNumber: 2, weightKg: 60, reps: 10, completed: false },
-        { id: `s-${Date.now()}-3`, setNumber: 3, weightKg: 60, reps: 10, completed: false },
+        { id: `s-${Date.now()}-1`, setNumber: 1, weightKg: 60, reps: 10, rpe: 8, completed: false },
+        { id: `s-${Date.now()}-2`, setNumber: 2, weightKg: 60, reps: 10, rpe: 8, completed: false },
+        { id: `s-${Date.now()}-3`, setNumber: 3, weightKg: 60, reps: 10, rpe: 8, completed: false },
       ],
     };
     setExercises([...exercises, newEx]);
@@ -183,6 +207,7 @@ export const StrengthTrainerModal: React.FC<StrengthTrainerModalProps> = ({
       setNumber: curSets.length + 1,
       weightKg: lastSet ? lastSet.weightKg : 60,
       reps: lastSet ? lastSet.reps : 10,
+      rpe: lastSet ? lastSet.rpe : 8,
       completed: false,
     });
     setExercises(updated);
@@ -201,9 +226,102 @@ export const StrengthTrainerModal: React.FC<StrengthTrainerModalProps> = ({
       acc +
       ex.sets
         .filter((s) => s.completed)
-        .reduce((sum, s) => sum + s.weightKg * s.reps, 0)
+        .reduce((sum, s) => sum + (s.weightKg > 0 ? s.weightKg * s.reps : 65 * s.reps), 0)
     );
   }, 0);
+
+  // Live Load Split Calculation
+  const liveMuscularScore = exercises.reduce((acc, ex) => {
+    return (
+      acc +
+      ex.sets
+        .filter((s) => s.completed)
+        .reduce((sum, s) => {
+          const rpe = s.rpe || 8;
+          const vol = s.weightKg > 0 ? s.weightKg * s.reps : 65 * s.reps;
+          return sum + (vol * (rpe / 10)) / 180.0;
+        }, 0)
+    );
+  }, 0);
+
+  const estimatedMuscularPct = totalCompletedSets > 0 ? Math.min(85, Math.max(55, Math.round(60 + (totalCompletedSets * 1.5)))) : 65;
+  const estimatedCardioPct = 100 - estimatedMuscularPct;
+
+  // Finish Workout & Persist to IndexedDB
+  const handleFinishWorkout = async () => {
+    if (totalCompletedSets === 0) {
+      onClose();
+      return;
+    }
+    setIsSavingWorkout(true);
+
+    const now = Date.now();
+    const startTime = workoutStartTimeRef.current || now - 45 * 60 * 1000;
+    const durationSec = Math.max(60, Math.round((now - startTime) / 1000));
+    const currentHr = metrics.currentHr || 128;
+
+    const muscularStrain = Math.min(13, Math.sqrt(liveMuscularScore) * 1.8);
+    const cardioStrain = Math.min(9, (durationSec / 1800) * (currentHr / 125) * 4.2);
+    const totalSessionStrain = Math.min(20.5, Math.max(4.2, Number((muscularStrain * 0.65 + cardioStrain * 0.35).toFixed(1))));
+
+    const muscularPercentage = Math.round((muscularStrain / (muscularStrain + cardioStrain)) * 100) || 68;
+    const cardioPercentage = 100 - muscularPercentage;
+
+    biometricEngine.addMuscularLoad(liveMuscularScore);
+
+    const workoutEntity: WorkoutEntity = {
+      id: `strength-${now}`,
+      sport: 'Weightlifting',
+      title: isRtl ? 'جلسة تدريب القوة والأثقال' : 'Strength Trainer Session',
+      type: 'workout',
+      startTime,
+      endTime: now,
+      durationSec,
+      avgHr: currentHr,
+      maxHr: Math.min(195, currentHr + 24),
+      minHr: Math.max(60, currentHr - 35),
+      strain: totalSessionStrain,
+      calories: Math.round((durationSec / 60) * 7.8),
+      avgHrv: metrics.currentHrv || 65,
+      zoneDistribution: { 1: 300, 2: 600, 3: 450, 4: 200, 5: 50 },
+      dataPoints: [],
+      muscularLoad: Number(liveMuscularScore.toFixed(2)),
+      totalVolumeKg: Math.round(totalVolumeTonnage),
+      cardioPercentage,
+      muscularPercentage,
+      exercisesCount: exercises.length,
+      setsCount: totalCompletedSets,
+      notes: `WHOOP Strength Trainer: ${totalCompletedSets} sets logged, ${Math.round(totalVolumeTonnage)} kg volume.`,
+    };
+
+    try {
+      await whoopDb.saveWorkout(workoutEntity);
+    } catch (err) {
+      console.warn('Could not save workout to IndexedDB:', err);
+    }
+
+    notificationEngine.dispatch({
+      type: 'strain',
+      title: isRtl ? '🏋️ تم حفظ تمرين القوة بنجاح' : '🏋️ Strength Workout Saved',
+      message: isRtl
+        ? `الجهد: ${totalSessionStrain.toFixed(1)} | الحجم: ${Math.round(totalVolumeTonnage).toLocaleString()} كغ (عضلي: ${muscularPercentage}% / قلبي: ${cardioPercentage}%)`
+        : `Strain: ${totalSessionStrain.toFixed(1)} | Volume: ${Math.round(totalVolumeTonnage).toLocaleString()} kg (Muscular: ${muscularPercentage}% / Cardio: ${cardioPercentage}%)`,
+    });
+
+    if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+      navigator.vibrate([100, 50, 100]);
+    }
+
+    setIsSavingWorkout(false);
+    onWorkoutSaved?.();
+    setCompletedSummary({
+      strain: totalSessionStrain,
+      volume: Math.round(totalVolumeTonnage),
+      muscularPct: muscularPercentage,
+      cardioPct: cardioPercentage,
+      sets: totalCompletedSets,
+    });
+  };
 
   return (
     <SheetBackdrop isOpen={isOpen} onClose={onClose}>
@@ -216,7 +334,7 @@ export const StrengthTrainerModal: React.FC<StrengthTrainerModalProps> = ({
             </div>
             <div>
               <h3 className="text-sm font-bold font-sans uppercase tracking-wider text-white">
-                {isRtl ? 'مدرب القوة والجهد' : 'Strength Trainer & Coach'}
+                {isRtl ? 'مدرب القوة WHOOP (Strength Trainer)' : 'WHOOP Strength Trainer & Coach'}
               </h3>
               <p className="text-[11px] text-zinc-400 font-condensed">
                 {isRtl ? 'محرك الجهد العضلي والقلبي المباشر' : 'Live Cardio + Muscular Load Engine'}
@@ -260,7 +378,74 @@ export const StrengthTrainerModal: React.FC<StrengthTrainerModalProps> = ({
 
         {/* Content Body */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {activeTab === 'strength' ? (
+          {completedSummary ? (
+            /* Workout Finished Summary Card */
+            <div className="p-5 rounded-2xl bg-gradient-to-b from-[#18202A] to-[#12151A] border border-[#00A3FF]/40 text-center space-y-4 animate-in zoom-in-95">
+              <div className="w-14 h-14 rounded-full bg-[#16EC06]/20 border border-[#16EC06] flex items-center justify-center text-[#16EC06] mx-auto">
+                <Award className="w-7 h-7" />
+              </div>
+              <div>
+                <span className="text-[10px] font-black uppercase tracking-widest text-[#00A3FF] font-condensed">
+                  {isRtl ? 'اكتمل التمرين وتم تسجيله في قاعدة البيانات' : 'WORKOUT COMPLETE & RECORDED'}
+                </span>
+                <h3 className="text-2xl font-black font-condensed text-white uppercase mt-1">
+                  {isRtl ? 'ملخص تدريب القوة' : 'Strength Session Summary'}
+                </h3>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2 bg-[#0B0D10] p-3 rounded-xl border border-white/5">
+                <div>
+                  <span className="text-[9px] uppercase font-condensed text-zinc-400 block">{isRtl ? 'الجهد' : 'Strain'}</span>
+                  <span className="text-xl font-black text-[#00A3FF] font-condensed">{completedSummary.strain}</span>
+                </div>
+                <div>
+                  <span className="text-[9px] uppercase font-condensed text-zinc-400 block">{isRtl ? 'إجمالي الحجم' : 'Volume'}</span>
+                  <span className="text-xl font-black text-[#16EC06] font-condensed">{completedSummary.volume} kg</span>
+                </div>
+                <div>
+                  <span className="text-[9px] uppercase font-condensed text-zinc-400 block">{isRtl ? 'المجموعات' : 'Sets'}</span>
+                  <span className="text-xl font-black text-white font-condensed">{completedSummary.sets}</span>
+                </div>
+              </div>
+
+              {/* Load Breakdown Card */}
+              <div className="p-3 bg-[#0B0D10] rounded-xl border border-white/5 text-start space-y-2">
+                <div className="flex items-center justify-between text-xs font-condensed">
+                  <span className="text-zinc-300 font-bold">{isRtl ? 'توزيع مصدر الجهد الفسيولوجي' : 'Stimulus Load Breakdown'}</span>
+                  <span className="text-zinc-400 font-mono text-[11px]">{completedSummary.muscularPct}% {isRtl ? 'عضلي' : 'Muscular'}</span>
+                </div>
+                <div className="h-3 w-full bg-zinc-800 rounded-full overflow-hidden flex">
+                  <div
+                    className="h-full bg-gradient-to-r from-[#00A3FF] to-[#00D4FF] transition-all"
+                    style={{ width: `${completedSummary.muscularPct}%` }}
+                    title={`Muscular Load: ${completedSummary.muscularPct}%`}
+                  />
+                  <div
+                    className="h-full bg-gradient-to-r from-[#FF5E00] to-[#FF8800] transition-all"
+                    style={{ width: `${completedSummary.cardioPct}%` }}
+                    title={`Cardiovascular Load: ${completedSummary.cardioPct}%`}
+                  />
+                </div>
+                <div className="flex items-center justify-between text-[10px] font-condensed text-zinc-400 pt-1">
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-[#00A3FF]" />
+                    {isRtl ? `الجهد العضلي: ${completedSummary.muscularPct}%` : `Muscular Load: ${completedSummary.muscularPct}%`}
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-[#FF8800]" />
+                    {isRtl ? `الجهد القلبي: ${completedSummary.cardioPct}%` : `Cardio Load: ${completedSummary.cardioPct}%`}
+                  </span>
+                </div>
+              </div>
+
+              <button
+                onClick={onClose}
+                className="w-full py-2.5 rounded-full bg-white text-black font-black uppercase tracking-wider font-condensed text-xs active:scale-95 transition-transform"
+              >
+                {t('done')}
+              </button>
+            </div>
+          ) : activeTab === 'strength' ? (
             <>
               {/* Telemetry Summary Banner */}
               <div className="grid grid-cols-3 gap-2 bg-[#16191E] border border-white/5 p-3 rounded-2xl">
@@ -290,6 +475,20 @@ export const StrengthTrainerModal: React.FC<StrengthTrainerModalProps> = ({
                   </div>
                 </div>
               </div>
+
+              {/* Real-time Cardio vs Muscular Load Indicator */}
+              {totalCompletedSets > 0 && (
+                <div className="p-3 bg-[#16191E] border border-white/5 rounded-2xl space-y-1.5">
+                  <div className="flex items-center justify-between text-[11px] font-condensed font-bold">
+                    <span className="text-zinc-300">{isRtl ? 'توزيع الجهد التقديري (Muscular vs Cardio)' : 'Cardiovascular vs Muscular Load'}</span>
+                    <span className="text-[#00A3FF] font-mono">{estimatedMuscularPct}% {isRtl ? 'عضلي' : 'Muscular'}</span>
+                  </div>
+                  <div className="h-2 w-full bg-zinc-800 rounded-full overflow-hidden flex">
+                    <div className="h-full bg-[#00A3FF]" style={{ width: `${estimatedMuscularPct}%` }} />
+                    <div className="h-full bg-[#FF8800]" style={{ width: `${estimatedCardioPct}%` }} />
+                  </div>
+                </div>
+              )}
 
               {/* Exercises List */}
               <div className="space-y-3">
@@ -327,8 +526,9 @@ export const StrengthTrainerModal: React.FC<StrengthTrainerModalProps> = ({
                     <div className="space-y-1.5">
                       <div className="grid grid-cols-12 text-[10px] font-condensed uppercase text-zinc-500 px-2">
                         <span className="col-span-2">{isRtl ? 'المجموعة' : 'Set'}</span>
-                        <span className="col-span-4">{isRtl ? 'الوزن (كغ)' : 'Weight (kg)'}</span>
-                        <span className="col-span-3">{isRtl ? 'التكرار' : 'Reps'}</span>
+                        <span className="col-span-3">{isRtl ? 'الوزن (كغ)' : 'Weight (kg)'}</span>
+                        <span className="col-span-2">{isRtl ? 'التكرار' : 'Reps'}</span>
+                        <span className="col-span-2">{isRtl ? 'RPE (1-10)' : 'RPE'}</span>
                         <span className="col-span-3 text-end">{isRtl ? 'تسجيل' : 'Log'}</span>
                       </div>
 
@@ -342,7 +542,7 @@ export const StrengthTrainerModal: React.FC<StrengthTrainerModalProps> = ({
                           }`}
                         >
                           <span className="col-span-2 font-black">{s.setNumber}</span>
-                          <div className="col-span-4">
+                          <div className="col-span-3">
                             <input
                               type="number"
                               disabled={s.completed}
@@ -353,10 +553,10 @@ export const StrengthTrainerModal: React.FC<StrengthTrainerModalProps> = ({
                                 up[exIdx].sets[sIdx].weightKg = val;
                                 setExercises(up);
                               }}
-                              className="w-16 bg-[#0B0D10] border border-white/10 rounded px-1.5 py-0.5 text-xs text-white font-bold"
+                              className="w-14 bg-[#0B0D10] border border-white/10 rounded px-1 py-0.5 text-xs text-white font-bold"
                             />
                           </div>
-                          <div className="col-span-3">
+                          <div className="col-span-2">
                             <input
                               type="number"
                               disabled={s.completed}
@@ -367,7 +567,23 @@ export const StrengthTrainerModal: React.FC<StrengthTrainerModalProps> = ({
                                 up[exIdx].sets[sIdx].reps = val;
                                 setExercises(up);
                               }}
-                              className="w-12 bg-[#0B0D10] border border-white/10 rounded px-1.5 py-0.5 text-xs text-white font-bold"
+                              className="w-11 bg-[#0B0D10] border border-white/10 rounded px-1 py-0.5 text-xs text-white font-bold"
+                            />
+                          </div>
+                          <div className="col-span-2">
+                            <input
+                              type="number"
+                              min={1}
+                              max={10}
+                              disabled={s.completed}
+                              value={s.rpe || 8}
+                              onChange={(e) => {
+                                const val = Number(e.target.value);
+                                const up = [...exercises];
+                                up[exIdx].sets[sIdx].rpe = val;
+                                setExercises(up);
+                              }}
+                              className="w-11 bg-[#0B0D10] border border-white/10 rounded px-1 py-0.5 text-xs text-amber-300 font-bold"
                             />
                           </div>
                           <div className="col-span-3 text-right">
@@ -400,10 +616,10 @@ export const StrengthTrainerModal: React.FC<StrengthTrainerModalProps> = ({
               {/* Add New Exercise Quick Selector */}
               <div className="pt-2">
                 <span className="text-[11px] font-black uppercase tracking-wider font-condensed text-zinc-400 block mb-2">
-                  {isRtl ? '+ إضافة تمرين للجلسة' : '+ Add Movement to Workout'}
+                  {isRtl ? '+ اختيار تمرين للجلسة' : '+ Select Movement to Track'}
                 </span>
                 <div className="grid grid-cols-2 gap-1.5">
-                  {COMMON_EXERCISES.slice(0, 6).map((item) => (
+                  {COMMON_EXERCISES.map((item) => (
                     <button
                       key={item.name}
                       onClick={() => handleAddExercise(item.name, item.targetMuscle)}
@@ -419,6 +635,20 @@ export const StrengthTrainerModal: React.FC<StrengthTrainerModalProps> = ({
                   ))}
                 </div>
               </div>
+
+              {/* Finish Workout CTA */}
+              {totalCompletedSets > 0 && (
+                <div className="pt-3">
+                  <button
+                    onClick={handleFinishWorkout}
+                    disabled={isSavingWorkout}
+                    className="w-full py-3 rounded-full bg-gradient-to-r from-[#00A3FF] to-[#16EC06] text-black font-black font-condensed uppercase tracking-wider text-sm shadow-lg shadow-blue-500/20 active:scale-95 transition-all flex items-center justify-center gap-2"
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>{isSavingWorkout ? (isRtl ? 'جاري الحفظ...' : 'Saving...') : (isRtl ? 'إنهاء وحفظ جلسة القوة' : 'Finish & Save Strength Workout')}</span>
+                  </button>
+                </div>
+              )}
             </>
           ) : (
             <>

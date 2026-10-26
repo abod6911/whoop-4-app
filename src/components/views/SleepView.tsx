@@ -22,6 +22,7 @@ import {
   SlidersHorizontal,
   ChevronDown,
   RotateCcw,
+  Vibrate,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -40,6 +41,7 @@ import { WhoopCloudApiModal } from '../WhoopCloudApiModal';
 import { AdjustSleepModal } from '../AdjustSleepModal';
 import { whoopApiService } from '../../services/whoopApiService';
 import { sleepEngine } from '../../services/sleepEngine';
+import { alarmEngine } from '../../services/alarmEngine';
 
 interface SleepViewProps {
   metrics: LiveMetrics;
@@ -51,6 +53,7 @@ interface SleepViewProps {
   onConnectStrap?: () => void;
   onSimulateSleep?: () => void;
   onActivateRealSleep?: () => void;
+  onOpenAlarmModal?: () => void;
 }
 
 export const SleepView: React.FC<SleepViewProps> = ({
@@ -63,6 +66,7 @@ export const SleepView: React.FC<SleepViewProps> = ({
   onConnectStrap,
   onSimulateSleep,
   onActivateRealSleep,
+  onOpenAlarmModal,
 }) => {
   const { t, isRtl, dayNames } = useLanguage();
   const perf = sleepData.sleepPerformance;
@@ -87,6 +91,12 @@ export const SleepView: React.FC<SleepViewProps> = ({
 
   const diagnosticInfo = sleepEngine.getDiagnosticInfo();
   const tokenInfo = whoopApiService.getDiagnosticTokenInfo();
+  const [alarmSettings, setAlarmSettings] = useState(() => alarmEngine.getSettings());
+  useEffect(() => {
+    return alarmEngine.subscribe(() => {
+      setAlarmSettings(alarmEngine.getSettings());
+    });
+  }, []);
 
   // Auto-sync on mount if WHOOP Access Token is stored and sleep values are currently empty
   useEffect(() => {
@@ -919,6 +929,45 @@ export const SleepView: React.FC<SleepViewProps> = ({
             <bdi className="tabular-nums px-2 py-0.5 rounded-md bg-white/5 border border-white/5">
               {scheduleWake !== '--' ? scheduleWake : (isRtl ? '07:15 ص' : '07:15 AM')}
             </bdi>
+          </div>
+        </div>
+
+        
+        {/* Smart Haptic Wake Alarm Status Card (Requirement 4) */}
+        <div
+          onClick={onOpenAlarmModal}
+          className="p-3.5 rounded-2xl bg-[#16191E] border border-[#FFDE00]/30 hover:border-[#FFDE00]/60 flex items-center justify-between font-condensed cursor-pointer active:scale-95 transition-all group"
+        >
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-lg bg-[#FFDE00]/15 flex items-center justify-center flex-shrink-0 text-[#FFDE00]">
+              <Vibrate className="w-4 h-4 animate-pulse" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-white uppercase tracking-wide">
+                  {isRtl ? 'منبه السوار الصامت (Smart Haptic Alarm)' : 'Smart Haptic Wake Alarm'}
+                </span>
+                <span className={`text-[9px] px-1.5 py-0.2 rounded-full font-mono font-bold uppercase ${
+                  alarmSettings.enabled ? 'bg-[#FFDE00]/20 text-[#FFDE00] border border-[#FFDE00]/40' : 'bg-zinc-800 text-zinc-500'
+                }`}>
+                  {alarmSettings.enabled ? (isRtl ? 'مفعّل' : 'ON') : (isRtl ? 'معطّل' : 'OFF')}
+                </span>
+              </div>
+              <span className="text-[10px] text-zinc-400 font-sans block mt-0.5">
+                {alarmSettings.enabled
+                  ? (alarmSettings.mode === 'exact_time'
+                      ? (isRtl ? `سيهتز السوار الساعة ${alarmSettings.exactTime}` : `Vibrates strap at ${alarmSettings.exactTime}`)
+                      : (isRtl ? 'سيهتز السوار عند بلوغ هدف النوم' : 'Vibrates when sleep need is met'))
+                  : (isRtl ? 'انقر لضبط وقت الاستيقاظ واهتزاز السوار' : 'Tap to arm strap wake vibration')}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1.5 text-zinc-400 group-hover:text-white transition-colors">
+            <span className="text-xs font-mono font-bold text-[#FFDE00]" dir="ltr">
+              {alarmSettings.exactTime || '07:00'}
+            </span>
+            <ChevronRight className={`w-3.5 h-3.5 ${isRtl ? 'rotate-180' : ''}`} />
           </div>
         </div>
 

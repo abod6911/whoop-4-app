@@ -219,6 +219,12 @@ export interface SessionRecord {
   type: SessionType;
   title: string;
   sport?: string;
+  muscularLoad?: number;
+  totalVolumeKg?: number;
+  cardioPercentage?: number;
+  muscularPercentage?: number;
+  exercisesCount?: number;
+  setsCount?: number;
   startTime: number;
   endTime: number;
   durationSec: number;
@@ -435,6 +441,12 @@ export interface WorkoutEntity {
   sport: string;
   title: string;
   type: SessionType;
+  muscularLoad?: number;
+  totalVolumeKg?: number;
+  cardioPercentage?: number;
+  muscularPercentage?: number;
+  exercisesCount?: number;
+  setsCount?: number;
   startTime: number;
   endTime: number;
   durationSec: number;

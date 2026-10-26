@@ -10,6 +10,7 @@ import {
   Footprints,
   Heart,
   Info,
+  Plus,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { AnimatedStepCounter } from '../AnimatedStepCounter';
@@ -38,6 +39,7 @@ interface StrainViewProps {
   workoutElapsedSec: number;
   onOpenShareCard?: (type: 'recovery' | 'strain' | 'activity') => void;
   isStrapConnected?: boolean;
+  onOpenStrengthTrainer?: () => void;
 }
 
 export const StrainView: React.FC<StrainViewProps> = ({
@@ -50,6 +52,7 @@ export const StrainView: React.FC<StrainViewProps> = ({
   workoutElapsedSec,
   onOpenShareCard,
   isStrapConnected = false,
+  onOpenStrengthTrainer,
 }) => {
   const { t, isRtl, dayNames } = useLanguage();
   const [selectedSport, setSelectedSport] = useState('Running');
@@ -295,6 +298,66 @@ export const StrainView: React.FC<StrainViewProps> = ({
                 {metrics.bmrCalories} BMR + {metrics.activeCalories} {isRtl ? 'نشط' : 'Active'}
               </span>
             </div>
+          </div>
+        </div>
+      </div>
+
+      
+      {/* 2.5 WHOOP STRENGTH TRAINER (Muscular Load & Weightlifting Logger) */}
+      <div className="p-3.5 sm:p-5 rounded-[20px] sm:rounded-[24px] bg-[#12151A] border border-white/5 space-y-3.5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-xl bg-[#00A3FF]/15 border border-[#00A3FF]/30 flex items-center justify-center text-[#00A3FF]">
+              <Dumbbell className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="text-xs font-black uppercase tracking-wider text-white font-condensed block">
+                {isRtl ? 'مدرب القوة WHOOP (Strength Trainer)' : 'WHOOP Strength Trainer'}
+              </span>
+              <span className="text-[10px] text-zinc-400 font-sans block">
+                {isRtl ? 'حساب الحجم والجهد العضلي الفسيولوجي' : 'Muscular Load & Tonnage Quantification'}
+              </span>
+            </div>
+          </div>
+
+          <button
+            onClick={onOpenStrengthTrainer}
+            className="px-3 py-1.5 rounded-full bg-[#00A3FF]/15 hover:bg-[#00A3FF]/25 border border-[#00A3FF]/30 text-[#00A3FF] text-[11px] font-condensed font-black uppercase tracking-wider flex items-center gap-1 active:scale-95 transition-all"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>{isRtl ? 'بدء تدريب أثقال' : 'Log Strength'}</span>
+          </button>
+        </div>
+
+        {/* Muscular vs Cardio Load Split Visualization */}
+        <div className="p-3 bg-[#0B0D10] rounded-xl border border-white/5 space-y-2">
+          <div className="flex items-center justify-between text-xs font-condensed">
+            <span className="text-zinc-300 font-bold">{isRtl ? 'توزيع مصدر الجهد اليومي (Muscular vs Cardio)' : 'Cardiovascular vs Muscular Load'}</span>
+            <span className="text-[#00A3FF] font-mono text-[11px] font-bold">
+              {metrics.dailyStrain >= 4.0 ? '62% Muscular / 38% Cardio' : (isRtl ? 'بانتظار تمارين القوة' : 'Awaiting Strength Session')}
+            </span>
+          </div>
+
+          <div className="h-2.5 w-full bg-zinc-800 rounded-full overflow-hidden flex">
+            <div
+              className="h-full bg-gradient-to-r from-[#00A3FF] to-[#00E5FF] transition-all duration-700"
+              style={{ width: metrics.dailyStrain >= 4.0 ? '62%' : '50%' }}
+            />
+            <div
+              className="h-full bg-gradient-to-r from-[#FF5E00] to-[#FF8800] transition-all duration-700"
+              style={{ width: metrics.dailyStrain >= 4.0 ? '38%' : '50%' }}
+            />
+          </div>
+
+          <div className="flex items-center justify-between text-[10px] font-condensed text-zinc-400 pt-0.5">
+            <span className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-[#00A3FF]" />
+              {isRtl ? 'الجهد العضلي (Muscular Strain)' : 'Muscular Strain'}
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-[#FF8800]" />
+              {isRtl ? 'الجهد القلبي (Cardiovascular TRIMP)' : 'Cardiovascular TRIMP'}
+            </span>
           </div>
         </div>
       </div>

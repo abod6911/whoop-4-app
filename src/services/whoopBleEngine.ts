@@ -2418,6 +2418,19 @@ export class WhoopBleEngine {
     }
   }
 
+  public async triggerHapticAlarm(): Promise<void> {
+    console.log("[WHOOP 4.0] ⏰ Triggering Physical Smart Haptic Alarm [0x23, 0x01, 0x01]...");
+    try {
+      const wakePayload = new Uint8Array([0x23, 0x01, 0x01]);
+      await this.sendRawBuffer(encodeWhoopFrame(wakePayload)).catch(() => {});
+      const rawFallback = new Uint8Array([0xaa, 0x04, 0x00, 0x23, 0x01, 0x01]);
+      await this.sendRawBuffer(rawFallback).catch(() => {});
+      await this.triggerStrapVibration('alarm');
+    } catch (err) {
+      console.warn('[WHOOP 4.0] Smart Haptic Alarm trigger notice:', err);
+    }
+  }
+
   public async sendTriggerHapticAlarm(): Promise<void> {
     await this.triggerStrapVibration('pulse');
   }

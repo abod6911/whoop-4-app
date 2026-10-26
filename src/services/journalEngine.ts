@@ -76,6 +76,22 @@ export const WHOOP_STANDARD_HABITS: JournalHabitItem[] = [
     defaultVal: false,
   },
   {
+    id: 'high_protein',
+    category: 'nutrition',
+    titleEn: 'High Protein Intake',
+    titleAr: 'تناول بروتين كافٍ',
+    type: 'boolean',
+    defaultVal: false,
+  },
+  {
+    id: 'stretching',
+    category: 'recovery',
+    titleEn: 'Stretching and Mobility',
+    titleAr: 'إطالة ومرونة',
+    type: 'boolean',
+    defaultVal: false,
+  },
+  {
     id: 'sleep_mask',
     category: 'sleep',
     titleEn: 'Pitch-Black Room / Eye Mask',
@@ -172,6 +188,8 @@ export class JournalEngine {
           cold_exposure: 7,
           outdoor_sunlight: 9,
           sleep_mask: 6,
+          high_protein: 7,
+          stretching: 8,
         };
 
         const impact = scienceBaselines[habit.id] || 0;

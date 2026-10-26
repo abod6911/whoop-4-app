@@ -156,8 +156,8 @@ export class AlarmEngine {
 
     console.log(`[ALARM ENGINE] ⏰ WHOOP 4.0 Haptic Alarm Triggered: ${reason}`);
 
-    // 1. Buzz physical WHOOP strap
-    await whoopBleEngine.triggerStrapVibration(this.settings.vibrationPattern);
+    // 1. Buzz physical WHOOP strap via 3-pulse wake command [0x23, 0x01, 0x01]
+    await whoopBleEngine.triggerHapticAlarm();
 
     // 2. Vibrate phone / browser
     hapticAlarm();

@@ -64,7 +64,7 @@ import { notificationEngine } from './services/notificationEngine';
 import { telemetryWorkerManager } from './services/telemetryWorkerManager';
 import { hapticMedium, hapticLight } from './utils/haptics';
 
-import { AlertCircle, X, AlertTriangle, Wind, Dumbbell, Moon, Clock, ShieldCheck, Plus } from 'lucide-react';
+import { AlertCircle, X, AlertTriangle, Wind, Dumbbell, Moon, Clock, ShieldCheck, Plus, Vibrate } from 'lucide-react';
 import { useLanguage } from './i18n/LanguageContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { OnboardingFlow } from './components/onboarding/OnboardingFlow';
@@ -112,6 +112,17 @@ export const App: React.FC = () => {
   const [isHapticAlarmOpen, setIsHapticAlarmOpen] = useState(false);
   const [isShareCardOpen, setIsShareCardOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+
+  const [isAlarmRinging, setIsAlarmRinging] = useState(() => alarmEngine.isRinging());
+
+  useEffect(() => {
+    return alarmEngine.subscribe(() => {
+      setIsAlarmRinging(alarmEngine.isRinging());
+    });
+  }, []);
+
+
+
   const [isStreakModalOpen, setIsStreakModalOpen] = useState(() =>
     typeof window !== 'undefined' && (window.location.search.includes('sheet=streak') || window.location.hash === '#streak')
   );
@@ -737,6 +748,41 @@ export const App: React.FC = () => {
     settings,
   ]);
 
+
+  useEffect(() => {
+    alarmEngine.evaluateBiometricAlarm(effectiveMetrics, liveSleepMetrics);
+  }, [effectiveMetrics, liveSleepMetrics]);
+
+  // Dynamic Biometric Ambient Aura Glow
+  const ambientAuraGradient = useMemo(() => {
+    if (mainTab === 'plan') {
+      return 'radial-gradient(circle at 50% 0%, rgba(0, 240, 255, 0.08), transparent 65%)';
+    }
+    if (mainTab === 'community') {
+      return 'radial-gradient(circle at 50% 0%, rgba(155, 81, 224, 0.08), transparent 65%)';
+    }
+    if (mainTab === 'more') {
+      return 'radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.05), transparent 65%)';
+    }
+    if (homeSubTab === 'strain') {
+      return 'radial-gradient(circle at 50% 0%, rgba(0, 147, 233, 0.09), transparent 65%)';
+    }
+    if (homeSubTab === 'sleep') {
+      return 'radial-gradient(circle at 50% 0%, rgba(155, 81, 224, 0.09), transparent 65%)';
+    }
+    const rec = effectiveMetrics.recoveryScore;
+    if (rec !== null) {
+      if (rec >= 67) {
+        return 'radial-gradient(circle at 50% 0%, rgba(22, 236, 6, 0.08), transparent 65%)';
+      }
+      if (rec >= 34) {
+        return 'radial-gradient(circle at 50% 0%, rgba(255, 190, 0, 0.08), transparent 65%)';
+      }
+      return 'radial-gradient(circle at 50% 0%, rgba(255, 42, 75, 0.08), transparent 65%)';
+    }
+    return 'radial-gradient(circle at 50% 0%, rgba(0, 147, 233, 0.07), transparent 65%)';
+  }, [mainTab, homeSubTab, effectiveMetrics.recoveryScore]);
+
   // Synchronize state when active user profile switches
   useEffect(() => {
     if (currentUser) {
@@ -844,6 +890,12 @@ export const App: React.FC = () => {
 
       {/* Main Mobile Chassis Container */}
       <div className="h-[100dvh] w-full max-w-md mx-auto md:min-h-[820px] md:h-[92vh] md:max-h-[880px] bg-gradient-to-b from-[#161B22] via-[#0B0D10] to-[#000000] flex flex-col relative overflow-x-hidden overflow-y-hidden shadow-2xl md:border md:border-white/15 md:rounded-[44px] select-none z-10">
+        {/* Dynamic Biometric Ambient Aura Glow (Requirement 1) */}
+        <div
+          className="pointer-events-none absolute inset-x-0 top-0 h-96 transition-all duration-1000 ease-out z-0"
+          style={{ background: ambientAuraGradient }}
+        />
+
         {/* Dynamic Island Floating Athletic Banner */}
         <DynamicIslandBanner onAction={handleBannerAction} />
 
@@ -970,6 +1022,7 @@ export const App: React.FC = () => {
                     sleepEngine.activateRealSleepCalculation();
                     refreshSessions();
                   }}
+                  onOpenAlarmModal={() => setIsHapticAlarmOpen(true)}
                 />
               )}
 
@@ -1000,6 +1053,7 @@ export const App: React.FC = () => {
                     setIsShareCardOpen(true);
                   }}
                   isStrapConnected={metadata.connected}
+                  onOpenStrengthTrainer={() => setIsStrengthTrainerOpen(true)}
                 />
               )}
             </>
@@ -1013,6 +1067,7 @@ export const App: React.FC = () => {
               daysHistory={daysHistory}
               onOpenSleepPlanner={() => setIsSleepPlannerOpen(true)}
               onOpenAlarmModal={() => setIsHapticAlarmOpen(true)}
+              onOpenDailyJournal={() => setIsDailyJournalOpen(true)}
             />
           )}
 
@@ -1266,6 +1321,42 @@ export const App: React.FC = () => {
             setDaysHistory(storageService.getDaysHistory(30));
           }}
         />
+
+        
+        {/* Real Smart Haptic Alarm Ringing Sheet (Requirement 4) */}
+        {isAlarmRinging && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl animate-in fade-in">
+            <div className="w-full max-w-sm rounded-[32px] bg-[#16191E] border border-[#FFDE00]/40 p-6 text-center space-y-5 shadow-[0_0_50px_rgba(255,222,0,0.25)] animate-in zoom-in-95">
+              <div className="relative w-20 h-20 mx-auto flex items-center justify-center">
+                <div className="absolute inset-0 rounded-full border-4 border-[#FFDE00] animate-ping opacity-60" />
+                <div className="w-16 h-16 rounded-full bg-[#FFDE00]/20 border border-[#FFDE00] flex items-center justify-center text-[#FFDE00]">
+                  <Vibrate className="w-8 h-8 animate-bounce" />
+                </div>
+              </div>
+              <div>
+                <span className="text-[11px] font-black uppercase tracking-widest text-[#FFDE00] font-condensed">
+                  {isRtl ? 'اهتزاز سوار WHOOP 4.0' : 'WHOOP 4.0 HAPTIC ALARM'}
+                </span>
+                <h3 className="text-2xl font-black font-condensed text-white uppercase mt-1">
+                  {isRtl ? 'حان وقت الاستيقاظ' : 'Time to Wake Up'}
+                </h3>
+                <p className="text-xs text-zinc-400 font-sans mt-1">
+                  {alarmEngine.getSettings().lastTriggerReason || (isRtl ? 'تم تفعيل منبه الاهتزاز الصامت بالسوار' : 'Silent haptic vibration active on strap')}
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  hapticMedium();
+                  alarmEngine.stopAlarm();
+                }}
+                className="w-full py-3.5 rounded-full bg-[#FFDE00] hover:bg-[#ffe633] text-black font-black font-condensed uppercase tracking-wider text-sm shadow-lg shadow-yellow-500/20 active:scale-95 transition-all"
+              >
+                {isRtl ? 'إيقاف المنبه الصامت' : 'Dismiss Alarm'}
+              </button>
+            </div>
+          </div>
+        )}
+
       </div>
 
       {/* Desktop Companion Wing - Right (visible on xl screens) */}

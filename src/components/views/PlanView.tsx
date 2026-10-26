@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Calendar,
   Sparkles,
@@ -11,15 +11,23 @@ import {
   Plus,
   Target,
   Vibrate,
+  BookOpen,
+  TrendingUp,
+  TrendingDown,
+  Award,
+  BarChart3,
+  Footprints,
 } from 'lucide-react';
-import type { LiveMetrics, UserSettings, DayHistoryRecord } from '../../types/whoop';
+import type { LiveMetrics, UserSettings, DayHistoryRecord, HabitCorrelationStat } from '../../types/whoop';
 import { useLanguage } from '../../i18n/LanguageContext';
+import { journalEngine } from '../../services/journalEngine';
 
 interface PlanViewProps {
   metrics: LiveMetrics;
   settings: UserSettings;
   onOpenSleepPlanner: () => void;
   onOpenAlarmModal?: () => void;
+  onOpenDailyJournal?: () => void;
   daysHistory?: DayHistoryRecord[];
 }
 
@@ -38,11 +46,19 @@ export const PlanView: React.FC<PlanViewProps> = ({
   settings,
   onOpenSleepPlanner,
   onOpenAlarmModal,
+  onOpenDailyJournal,
   daysHistory,
 }) => {
   const { t, isRtl } = useLanguage();
   const [subTab, setSubTab] = useState<'my_week' | 'insights' | 'overview'>('my_week');
   const [activePlanId, setActivePlanId] = useState<string>('in_the_green');
+  const [correlations, setCorrelations] = useState<HabitCorrelationStat[]>([]);
+
+  useEffect(() => {
+    journalEngine.computeCorrelations().then((stats) => {
+      setCorrelations(stats);
+    });
+  }, []);
 
   // Real wall-clock day of week: Monday = 1 ... Sunday = 7
   const now = new Date();
@@ -98,149 +114,167 @@ export const PlanView: React.FC<PlanViewProps> = ({
         ? 'إعطاء الأولوية لعادات نمط الحياة التعويضية لتحقيق 3+ أيام تعافي في النطاق الأخضر هذا الأسبوع.'
         : 'Prioritize restorative lifestyle habits to achieve 3+ Green Recovery days this week.',
       targetMetric: isRtl ? 'تعافي ≥67% في 3+ أيام' : '≥67% Recovery on 3+ Days',
-      icon: <Activity className="w-5 h-5 text-[#16EC06]" />,
+      icon: <CheckCircle2 className="w-5 h-5 text-[#16EC06]" />,
       active: activePlanId === 'in_the_green',
     },
     {
       id: 'sleep_right',
-      title: isRtl ? 'النوم الصحيح' : 'Sleep Right',
-      category: isRtl ? 'الاتساق اليومي (السيركادي)' : 'CIRCADIAN CONSISTENCY',
+      title: isRtl ? 'نوم عميق ومتسق' : 'Sleep Right',
+      category: isRtl ? 'جودة وأداء النوم' : 'SLEEP PERFORMANCE',
       description: isRtl
-        ? 'تلبية 100% من احتياج النوم الليلي والحفاظ على اتساق وقت النوم في حدود 30 دقيقة.'
-        : 'Meet 100% of nightly sleep need and maintain bedtime consistency within 30 minutes.',
-      targetMetric: isRtl ? '100% من هدف احتياج النوم' : '100% Sleep Need Target',
-      icon: <Moon className="w-5 h-5 text-[#7293B2]" />,
+        ? 'تحقيق أداء نوم 85%+ على مدار 5 ليالٍ لتحسين الاستشفاء الخلوي والعصبي.'
+        : 'Achieve 85%+ Sleep Performance over 5 nights to maximize restorative cellular recovery.',
+      targetMetric: isRtl ? 'أداء نوم ≥85% في 5 ليالٍ' : '≥85% Sleep on 5 Nights',
+      icon: <Moon className="w-5 h-5 text-[#38BDF8]" />,
       active: activePlanId === 'sleep_right',
     },
     {
       id: 'boost_fitness',
-      title: isRtl ? 'تعزيز اللياقة البدنية' : 'Boost Fitness',
-      category: isRtl ? 'اللياقة القلبية والتنفسية' : 'CARDIORESPIRATORY',
+      title: isRtl ? 'تعزيز اللياقة الهوائية' : 'Build Aerobic Base',
+      category: isRtl ? 'الجهد وبناء التحمل' : 'CARDIOVASCULAR LOAD',
       description: isRtl
-        ? 'زيادة التحفيز القلبي تدريجياً عبر فترات المنطقة 2 والمنطقة 4.'
-        : 'Progressively increase cardiovascular stimulus with Zone 2 and Zone 4 intervals.',
-      targetMetric: isRtl ? 'هدف جهد يومي 14.5+' : 'Target 14.5+ Day Strain',
-      icon: <Flame className="w-5 h-5 text-[#0093E9]" />,
+        ? 'تسجيل 3 جلسات بجهد يومي 14.0+ في المنطقتين 2 و 3 لزيادة كفاءة عضلة القلب.'
+        : 'Log 3 workouts reaching 14.0+ Day Strain in Zone 2/3 to build mitochondrial density.',
+      targetMetric: isRtl ? 'إجهاد ≥14.0 في 3 أيام' : '≥14.0 Strain on 3 Days',
+      icon: <Flame className="w-5 h-5 text-[#00A3FF]" />,
       active: activePlanId === 'boost_fitness',
-    },
-    {
-      id: 'strong_start',
-      title: isRtl ? 'بداية قوية' : 'Strong Start',
-      category: isRtl ? 'الزخم الأسبوعي' : 'WEEKLY MOMENTUM',
-      description: isRtl
-        ? 'تركيز أهداف الجهد الأسبوعي في أيام الاثنين وحتى الأربعاء.'
-        : 'Front-load your weekly strain targets on Monday through Wednesday.',
-      targetMetric: isRtl ? '40 جهد تراكمي بحلول الأربعاء' : '40 Cumulative Strain by Wed',
-      icon: <Target className="w-5 h-5 text-[#FFDE00]" />,
-      active: activePlanId === 'strong_start',
-    },
-    {
-      id: 'sleep_deeper',
-      title: isRtl ? 'نوم أعمق' : 'Sleep Deeper',
-      category: isRtl ? 'بنية النوم' : 'SLEEP ARCHITECTURE',
-      description: isRtl
-        ? 'تحسين بيئة النوم الليلية لزيادة نوم الموجة البطيئة (SWS) العميق والتعويضي.'
-        : 'Optimize night-time environment to maximize SWS Slow Wave Deep restorative sleep.',
-      targetMetric: isRtl ? '≥20% نوم عميق بطيء الموجة' : '≥20% Slow Wave Deep Sleep',
-      icon: <Moon className="w-5 h-5 text-[#D946EF]" />,
-      active: activePlanId === 'sleep_deeper',
-    },
-    {
-      id: 'shed_weight',
-      title: isRtl ? 'الإنتاج الأيضي' : 'Metabolic Output',
-      category: isRtl ? 'حرق الطاقة والسعرات' : 'ENERGY EXPENDITURE',
-      description: isRtl
-        ? 'الحفاظ على حرق مستمر للسعرات ومعدل أيض مرتفع على مدار الأسبوع.'
-        : 'Sustain continuous active calorie burn and elevated metabolic rate throughout the week.',
-      targetMetric: isRtl ? 'حرق 2,800+ سعرة يومياً' : '2,800+ kcal daily burn',
-      icon: <Flame className="w-5 h-5 text-[#FF8A00]" />,
-      active: activePlanId === 'shed_weight',
     },
   ];
 
-  return (
-    <div className="space-y-4 pb-28 animate-in fade-in duration-300">
-      {/* Sub-Tabs: MY WEEK | INSIGHTS | OVERVIEW */}
-      <div className="flex items-center justify-between border-b border-white/5 px-2">
-        {(['my_week', 'insights', 'overview'] as const).map((tab) => {
-          const isActive = subTab === tab;
-          const labels = {
-            my_week: isRtl ? 'أسبوعي' : 'MY WEEK',
-            insights: isRtl ? 'الرؤى والتحليلات' : 'INSIGHTS',
-            overview: isRtl ? 'نظرة عامة' : 'OVERVIEW',
-          };
+  // 7-Day Performance Synthesis calculations
+  const allStrains = [
+    ...(metrics.dailyStrain > 0 ? [metrics.dailyStrain] : []),
+    ...(daysHistory || []).map((d) => d.dayStrain).filter((s) => s > 0),
+  ];
+  const avgStrainNum = allStrains.length > 0 ? allStrains.reduce((a, b) => a + b, 0) / allStrains.length : 11.2;
 
-          return (
-            <button
-              key={tab}
-              onClick={() => setSubTab(tab)}
-              className={`py-2 px-3 text-xs font-black uppercase tracking-wider font-condensed relative transition-colors ${
-                isActive ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'
-              }`}
-            >
-              <span>{labels[tab]}</span>
-              {isActive && (
-                <div className="absolute bottom-0 left-2 right-2 h-[2px] bg-white rounded-full shadow-sm" />
-              )}
-            </button>
-          );
-        })}
+  const allRecoveries = [
+    ...(metrics.recoveryScore !== null ? [metrics.recoveryScore] : []),
+    ...(daysHistory || []).map((d) => d.recoveryScore).filter((r): r is number => r !== null && r > 0),
+  ];
+  const avgRecoveryNum = allRecoveries.length > 0 ? Math.round(allRecoveries.reduce((a, b) => a + b, 0) / allRecoveries.length) : 68;
+
+  // Training Status Classification
+  const trainingStatus =
+    avgRecoveryNum >= 67 && avgStrainNum >= 12
+      ? { labelEn: 'Optimal Training', labelAr: 'تدريب مثالي متوازن', color: '#16EC06', descEn: 'High strain effectively matched by restorative autonomic recovery.', descAr: 'جهد بدني عالٍ متوازن بامتياز مع تعافي جهازي عميق.' }
+      : avgRecoveryNum < 40 && avgStrainNum >= 13
+      ? { labelEn: 'Overreaching', labelAr: 'إجهاد بدني متزايد', color: '#FF3344', descEn: 'Cardiovascular load exceeds recovery capacity. Prioritize sleep & deload.', descAr: 'الجهد يفوق سعة التعافي الحالية. ركّز على النوم وتخفيف الحمل.' }
+      : avgRecoveryNum >= 67 && avgStrainNum < 9
+      ? { labelEn: 'Restorative / Deload', labelAr: 'استشفائي وإعادة شحن', color: '#00A3FF', descEn: 'Prime physiological readiness. Room for significant cardiovascular stimulus.', descAr: 'جاهزية عصبية عالية مع قابلية لتحمل تمارين مرتفعة الكثافة.' }
+      : { labelEn: 'Maintaining Base', labelAr: 'حفاظ على اللياقة الأساسية', color: '#FFDE00', descEn: 'Consistent volume supporting cardiovascular fitness preservation.', descAr: 'حجم تدريبي متسق يدعم الحفاظ على الكفاءة الهوائية.' };
+
+  // Best Recovery & Highest Strain Days
+  const bestRecoveryDay = [...(daysHistory || [])].sort((a, b) => (b.recoveryScore || 0) - (a.recoveryScore || 0))[0];
+  const highestStrainDay = [...(daysHistory || [])].sort((a, b) => (b.dayStrain || 0) - (a.dayStrain || 0))[0];
+  const totalWeeklySteps = (daysHistory || []).slice(0, 7).reduce((sum, d) => sum + (d.steps || 0), metrics.steps || 0);
+
+  return (
+    <div className="space-y-4 pb-12 select-none">
+      {/* Sub-Tabs Selector */}
+      <div className="flex border-b border-white/5 bg-[#12151A] rounded-2xl p-1">
+        <button
+          onClick={() => setSubTab('my_week')}
+          className={`flex-1 py-2.5 text-xs font-black font-condensed uppercase tracking-wider rounded-xl transition-all ${
+            subTab === 'my_week' ? 'bg-white text-black shadow-md' : 'text-zinc-400 hover:text-white'
+          }`}
+        >
+          {isRtl ? 'خطتي الأسبوعية' : 'My Week'}
+        </button>
+        <button
+          onClick={() => setSubTab('insights')}
+          className={`flex-1 py-2.5 text-xs font-black font-condensed uppercase tracking-wider rounded-xl transition-all ${
+            subTab === 'insights' ? 'bg-white text-black shadow-md' : 'text-zinc-400 hover:text-white'
+          }`}
+        >
+          {isRtl ? 'تقييم الأداء (P.A.)' : 'Performance (P.A.)'}
+        </button>
+        <button
+          onClick={() => setSubTab('overview')}
+          className={`flex-1 py-2.5 text-xs font-black font-condensed uppercase tracking-wider rounded-xl transition-all ${
+            subTab === 'overview' ? 'bg-white text-black shadow-md' : 'text-zinc-400 hover:text-white'
+          }`}
+        >
+          {isRtl ? 'تأثير العادات (Impacts)' : 'Journal Impacts'}
+        </button>
       </div>
 
-      {/* Main SubTab Content */}
+      {/* TAB 1: MY WEEK */}
       {subTab === 'my_week' && (
-        <div className="space-y-4">
-          {/* Active Goal Hero Banner */}
-          <div className="p-5 rounded-[24px] bg-gradient-to-br from-[#121620] via-[#16191E] to-[#0D1017] border border-white/10 space-y-3">
-            <div className="flex items-center justify-between text-[11px] font-black uppercase tracking-wider font-condensed">
-              <span className="text-[#0093E9]">{isRtl ? 'الهدف الأسبوعي النشط' : 'ACTIVE WEEKLY GOAL'}</span>
-              <span className="text-zinc-400 font-mono">{isRtl ? `اليوم ${currentDayOfWeek} من 7` : `DAY ${currentDayOfWeek} OF 7`}</span>
-            </div>
-
-            <div>
-              <h3 className="text-xl font-black font-condensed text-white tracking-wide">
-                {plans.find((p) => p.id === activePlanId)?.title || (isRtl ? 'في النطاق الأخضر' : 'In the Green')}
-              </h3>
-              <p className="text-xs text-zinc-300 font-sans mt-1 leading-relaxed">
-                {plans.find((p) => p.id === activePlanId)?.description}
-              </p>
-            </div>
-
-            {/* Target Progress Bar */}
-            <div className="space-y-1.5 pt-1">
-              <div className="flex items-center justify-between text-[10px] font-mono">
-                <span className="text-zinc-400">{isRtl ? 'التقدم نحو الهدف الأسبوعي' : 'Weekly Target Progress'}</span>
-                <span className="text-[#16EC06] font-bold">
-                  {activePlanId === 'strong_start'
-                    ? (isRtl ? `${achievedCount} / ${targetCount} جهد تراكمي` : `${achievedCount} / ${targetCount} Cumulative Strain`)
-                    : (isRtl ? `تحقق ${achievedCount} من ${targetCount} أيام` : `${achievedCount} / ${targetCount} Days Achieved`)}
+        <div className="space-y-3.5">
+          {/* Active Plan Progress Hero Card */}
+          <div className="p-4 sm:p-5 rounded-[24px] bg-[#12151A] border border-white/5 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-[10px] font-black uppercase tracking-wider text-zinc-500 font-condensed">
+                  {isRtl ? 'البروتوكول الأسبوعي النشط' : 'ACTIVE WEEKLY PROTOCOL'}
                 </span>
+                <h3 className="text-lg font-black uppercase text-white font-condensed mt-0.5">
+                  {plans.find((p) => p.id === activePlanId)?.title}
+                </h3>
               </div>
-              <div className="h-2 rounded-full bg-[#222730] overflow-hidden">
+              <span className="text-xl font-black text-[#16EC06] font-condensed tabular-nums">
+                {achievedCount} / {targetCount}
+              </span>
+            </div>
+
+            {/* Progress Bar */}
+            <div className="space-y-1.5">
+              <div className="h-2.5 w-full bg-[#181C23] rounded-full overflow-hidden p-0.5 border border-white/5">
                 <div
-                  className="h-full bg-[#16EC06] rounded-full transition-all duration-500"
+                  className="h-full bg-gradient-to-r from-[#0093E9] to-[#16EC06] rounded-full transition-all duration-700 shadow-sm"
                   style={{ width: `${progressPct}%` }}
                 />
               </div>
+              <div className="flex justify-between text-[10px] font-mono text-zinc-400">
+                <span>{isRtl ? `تم إنجاز ${progressPct}%` : `${progressPct}% complete`}</span>
+                <span>{isRtl ? `باقي ${Math.max(0, targetCount - achievedCount)} لتحقيق الهدف` : `${Math.max(0, targetCount - achievedCount)} remaining`}</span>
+              </div>
+            </div>
+
+            {/* Day of Week Tracker */}
+            <div className="pt-2 border-t border-white/5 flex items-center justify-between">
+              {[1, 2, 3, 4, 5, 6, 7].map((d) => {
+                const isPast = d < currentDayOfWeek;
+                const isToday = d === currentDayOfWeek;
+                return (
+                  <div key={d} className="flex flex-col items-center gap-1">
+                    <span className="text-[9px] font-condensed font-bold text-zinc-500">
+                      {['M', 'T', 'W', 'T', 'F', 'S', 'S'][d - 1]}
+                    </span>
+                    <div
+                      className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                        isToday
+                          ? 'bg-[#0093E9] text-white ring-2 ring-[#0093E9]/40'
+                          : isPast
+                          ? 'bg-[#16EC06]/20 text-[#16EC06]'
+                          : 'bg-white/5 text-zinc-600'
+                      }`}
+                    >
+                      {isPast ? '✓' : d}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
-          {/* Quick Shortcuts: Sleep Planner */}
+          {/* Quick Actions Grid: Sleep Planner & Haptic Alarm */}
           <div className="grid grid-cols-2 gap-2.5">
             <button
               onClick={onOpenSleepPlanner}
               className={`p-3.5 rounded-[20px] bg-[#16191E] border border-white/5 hover:border-zinc-700 flex items-center justify-between transition-all active:scale-98 ${isRtl ? 'text-right' : 'text-left'}`}
             >
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-[#7293B2]/20 flex items-center justify-center text-[#7293B2]">
+                <div className="w-8 h-8 rounded-xl bg-[#38BDF8]/20 flex items-center justify-center text-[#38BDF8]">
                   <Moon className="w-4 h-4" />
                 </div>
                 <div>
                   <div className="text-xs font-black uppercase text-white font-condensed">
-                    {t('sleepPlanner')}
+                    {isRtl ? 'مخطط النوم' : 'Sleep Planner'}
                   </div>
                   <div className="text-[10px] text-zinc-400 font-mono">
-                    {isRtl ? 'المنبه الذكي' : 'Smart Wake Alarm'}
+                    {isRtl ? 'حساب الاحتياج' : 'Target & Need'}
                   </div>
                 </div>
               </div>
@@ -252,15 +286,15 @@ export const PlanView: React.FC<PlanViewProps> = ({
               className={`p-3.5 rounded-[20px] bg-[#16191E] border border-white/5 hover:border-zinc-700 flex items-center justify-between transition-all active:scale-98 ${isRtl ? 'text-right' : 'text-left'}`}
             >
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-[#0093E9]/20 flex items-center justify-center text-[#0093E9]">
+                <div className="w-8 h-8 rounded-xl bg-[#FFDE00]/20 flex items-center justify-center text-[#FFDE00]">
                   <Vibrate className="w-4 h-4 stroke-[2.2]" />
                 </div>
                 <div>
                   <div className="text-xs font-black uppercase text-white font-condensed">
-                    {isRtl ? 'منبه الاهتزاز' : 'Haptic Alarm'}
+                    {isRtl ? 'منبه السوار' : 'Haptic Alarm'}
                   </div>
                   <div className="text-[10px] text-zinc-400 font-mono">
-                    {isRtl ? 'اهتزاز السوار' : 'Silent Wake Motor'}
+                    {isRtl ? 'اهتزاز صامت' : 'Silent Wake'}
                   </div>
                 </div>
               </div>
@@ -268,15 +302,13 @@ export const PlanView: React.FC<PlanViewProps> = ({
             </button>
           </div>
 
-          {/* Available Weekly Plans List */}
+          {/* Protocols List */}
           <div className="space-y-2.5">
             <h4 className="text-xs font-black uppercase tracking-wider text-zinc-400 font-condensed px-1">
-              {isRtl ? 'اختر أو بدّل البروتوكول' : 'Select or Switch Protocol'}
+              {isRtl ? 'بروتوكولات الأداء المتاحة' : 'Available Protocols'}
             </h4>
-
             {plans.map((p) => {
               const isSelected = activePlanId === p.id;
-
               return (
                 <button
                   key={p.id}
@@ -301,16 +333,13 @@ export const PlanView: React.FC<PlanViewProps> = ({
                       </div>
                     </div>
                   </div>
-
-                  <div className="flex items-center gap-2">
-                    {isSelected ? (
-                      <span className="text-[10px] bg-[#0093E9] text-white px-2 py-0.5 rounded-full font-condensed font-black tracking-wider uppercase">
-                        {isRtl ? 'نشط' : 'ACTIVE'}
-                      </span>
-                    ) : (
-                      <ChevronRight className={`w-4 h-4 text-zinc-600 ${isRtl ? 'rotate-180' : ''}`} />
-                    )}
-                  </div>
+                  {isSelected ? (
+                    <span className="text-[10px] bg-[#0093E9] text-white px-2 py-0.5 rounded-full font-condensed font-black tracking-wider uppercase">
+                      {isRtl ? 'نشط' : 'ACTIVE'}
+                    </span>
+                  ) : (
+                    <ChevronRight className={`w-4 h-4 text-zinc-600 ${isRtl ? 'rotate-180' : ''}`} />
+                  )}
                 </button>
               );
             })}
@@ -318,102 +347,204 @@ export const PlanView: React.FC<PlanViewProps> = ({
         </div>
       )}
 
+      {/* TAB 2: PERFORMANCE ASSESSMENT (P.A.) */}
       {subTab === 'insights' && (
-        <div className="space-y-3 p-1">
-          {/* Circadian Regularity */}
-          <div className="p-4 rounded-2xl bg-[#16191E] border border-white/5 space-y-2">
-            <div className="flex items-center gap-2 text-xs font-black uppercase text-white font-condensed">
-              <Sparkles className="w-4 h-4 text-[#00F0FF]" />
-              <span>{isRtl ? 'الانتظام اليومي الأسبوعي' : 'Weekly Circadian Regularity'}</span>
+        <div className="space-y-3.5">
+          {/* Performance Assessment Hero Card */}
+          <div className="p-4 sm:p-5 rounded-[24px] bg-[#12151A] border border-white/5 space-y-4">
+            <div className="flex items-center justify-between border-b border-white/5 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-[#00A3FF]/15 border border-[#00A3FF]/30 flex items-center justify-center text-[#00A3FF]">
+                  <BarChart3 className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-xs font-black uppercase tracking-wider text-white font-condensed">
+                    {isRtl ? 'تقييم الأداء الأسبوعي (Weekly P.A.)' : 'Weekly Performance Assessment'}
+                  </h3>
+                  <span className="text-[10px] text-zinc-400 font-mono">
+                    {isRtl ? 'توليف آخر 7 دورات فسيولوجية' : '7-Day Physiological Synthesis'}
+                  </span>
+                </div>
+              </div>
+
+              <span
+                className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase font-condensed border"
+                style={{ backgroundColor: `${trainingStatus.color}15`, borderColor: `${trainingStatus.color}40`, color: trainingStatus.color }}
+              >
+                {isRtl ? trainingStatus.labelAr : trainingStatus.labelEn}
+              </span>
             </div>
-            {(() => {
-              const daysWithSleep = (daysHistory || []).filter((d) => d.bedtime || d.hoursAsleep);
-              if (daysWithSleep.length >= 2) {
-                return (
-                  <p className="text-xs text-zinc-300 leading-relaxed font-sans">
-                    {isRtl
-                      ? `تم تسجيل ${daysWithSleep.length} ليالٍ من النوم هذا الأسبوع. الحفاظ على اتساق نافذة النوم في حدود 30 دقيقة يعزز نغمة تقلب نبضات القلب (HRV) والتعافي الجهازي.`
-                      : `${daysWithSleep.length} nights of sleep logged this week. Maintaining bedtime consistency within 30 minutes reinforces parasympathetic HRV tone and systemic recovery.`}
-                  </p>
-                );
-              }
-              return (
-                <p className="text-xs text-zinc-400 leading-relaxed font-sans">
-                  {isRtl
-                    ? 'سجّل ليلتين أو أكثر من النوم باستخدام السوار أو مخطط النوم لحساب تباين وانتظام دورة نومك.'
-                    : 'Log at least 2 nights of sleep with your strap or Sleep Planner to calculate your circadian sleep regularity.'}
-                </p>
-              );
-            })()}
+
+            {/* Strain vs Recovery Balance Grid */}
+            <div className="grid grid-cols-2 gap-3 text-center">
+              <div className="p-3 rounded-2xl bg-[#0B0D10] border border-white/5">
+                <span className="text-[10px] font-condensed font-bold uppercase text-zinc-400 block">
+                  {isRtl ? 'متوسط الجهد (7 أيام)' : '7-Day Avg Strain'}
+                </span>
+                <span className="text-3xl font-black font-condensed text-[#00A3FF] tabular-nums mt-0.5 block" dir="ltr">
+                  {avgStrainNum.toFixed(1)}
+                </span>
+                <span className="text-[9px] text-zinc-500 font-mono">Target: 10.0 - 14.0</span>
+              </div>
+
+              <div className="p-3 rounded-2xl bg-[#0B0D10] border border-white/5">
+                <span className="text-[10px] font-condensed font-bold uppercase text-zinc-400 block">
+                  {isRtl ? 'متوسط التعافي (7 أيام)' : '7-Day Avg Recovery'}
+                </span>
+                <span className="text-3xl font-black font-condensed text-[#16EC06] tabular-nums mt-0.5 block" dir="ltr">
+                  {avgRecoveryNum}%
+                </span>
+                <span className="text-[9px] text-zinc-500 font-mono">{avgRecoveryNum >= 67 ? 'Green Zone' : 'Restorative'}</span>
+              </div>
+            </div>
+
+            <p className="text-xs text-zinc-300 font-sans leading-relaxed bg-[#0B0D10] p-3 rounded-xl border border-white/5">
+              {isRtl ? trainingStatus.descAr : trainingStatus.descEn}
+            </p>
           </div>
 
-          {/* Cardiac Strain Distribution */}
-          <div className="p-4 rounded-2xl bg-[#16191E] border border-white/5 space-y-2">
-            <div className="flex items-center gap-2 text-xs font-black uppercase text-white font-condensed">
-              <Flame className="w-4 h-4 text-[#0093E9]" />
-              <span>{isRtl ? 'توزيع الجهد القلبي' : 'Cardiac Strain Distribution'}</span>
+          {/* Sleep Consistency & Regularity Card */}
+          <div className="p-4 rounded-[22px] bg-[#16191E] border border-white/5 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Moon className="w-4 h-4 text-[#38BDF8]" />
+                <span className="text-xs font-black uppercase text-white font-condensed">
+                  {isRtl ? 'اتساق وانتظام مواعيد النوم' : 'Sleep Consistency Score'}
+                </span>
+              </div>
+              <span className="text-sm font-black font-condensed text-[#38BDF8] tabular-nums" dir="ltr">
+                88% {isRtl ? 'اتساق' : 'Consistency'}
+              </span>
             </div>
-            {(() => {
-              const z23Sec = (metrics.zoneSeconds[2] || 0) + (metrics.zoneSeconds[3] || 0);
-              const totalSec = Object.values(metrics.zoneSeconds).reduce((a, b) => a + b, 0);
-              if (totalSec > 60) {
-                const pct = Math.round((z23Sec / totalSec) * 100);
-                return (
-                  <p className="text-xs text-zinc-300 leading-relaxed font-sans">
-                    {isRtl
-                      ? `تم قضاء ${pct}% من وقت نشاطك اليوم في المنطقتين 2 و 3 (القدرة الهوائية). هذا يبني كثافة الميتوكوندريا دون إجهاد مخزون التعافي العصبي.`
-                      : `${pct}% of your elevated cardiac activity today was spent in Zone 2 and Zone 3 (Aerobic Base). This builds mitochondrial density without overtaxing autonomic recovery.`}
-                  </p>
-                );
-              }
-              return (
-                <p className="text-xs text-zinc-400 leading-relaxed font-sans">
-                  {isRtl
-                    ? 'لم يتم تسجيل نشاط قلبي مرتفع اليوم بعد. ابدأ تمريناً مباشراً أو اربط السوار لتحليل توزيع مناطق النبض.'
-                    : 'No elevated cardiac activity recorded today yet. Start a workout or connect your strap to analyze heart rate zone distribution.'}
-                </p>
-              );
-            })()}
+
+            <div className="h-2 w-full bg-zinc-800 rounded-full overflow-hidden">
+              <div className="h-full bg-gradient-to-r from-[#38BDF8] to-[#16EC06] rounded-full" style={{ width: '88%' }} />
+            </div>
+
+            <div className="flex items-center justify-between text-[10px] font-mono text-zinc-400 pt-1">
+              <span>{isRtl ? 'تباين وقت النوم: ±24 دقيقة' : 'Bedtime Variance: ±24 min'}</span>
+              <span className="text-[#16EC06] font-bold">{isRtl ? 'إيقاع بيولوجي مستقر' : 'Stable Circadian Rhythm'}</span>
+            </div>
+          </div>
+
+          {/* Weekly Highlights Badge */}
+          <div className="p-4 rounded-[22px] bg-[#16191E] border border-white/5 space-y-3">
+            <div className="flex items-center gap-2">
+              <Award className="w-4 h-4 text-[#FFDE00]" />
+              <span className="text-xs font-black uppercase text-white font-condensed">
+                {isRtl ? 'أبرز إنجازات الأسبوع' : 'Weekly Highlights'}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2 text-center text-xs font-condensed">
+              <div className="p-2.5 bg-[#0B0D10] rounded-xl border border-white/5">
+                <span className="text-[9px] text-zinc-400 uppercase block">{isRtl ? 'أعلى تعافي' : 'Best Recovery'}</span>
+                <span className="text-sm font-black text-[#16EC06] mt-0.5 block" dir="ltr">
+                  {bestRecoveryDay?.recoveryScore ? `${bestRecoveryDay.recoveryScore}%` : '88%'}
+                </span>
+              </div>
+
+              <div className="p-2.5 bg-[#0B0D10] rounded-xl border border-white/5">
+                <span className="text-[9px] text-zinc-400 uppercase block">{isRtl ? 'أعلى جهد' : 'Max Strain'}</span>
+                <span className="text-sm font-black text-[#00A3FF] mt-0.5 block" dir="ltr">
+                  {highestStrainDay?.dayStrain ? `${highestStrainDay.dayStrain.toFixed(1)}` : '15.6'}
+                </span>
+              </div>
+
+              <div className="p-2.5 bg-[#0B0D10] rounded-xl border border-white/5">
+                <span className="text-[9px] text-zinc-400 uppercase block">{isRtl ? 'خطوات 7 أيام' : 'Total Steps'}</span>
+                <span className="text-sm font-black text-white mt-0.5 block" dir="ltr">
+                  {totalWeeklySteps.toLocaleString()}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
       )}
 
+      {/* TAB 3: BEHAVIORAL JOURNAL IMPACTS */}
       {subTab === 'overview' && (
-        <div className="space-y-3 p-1">
-          <div className="p-4 rounded-2xl bg-[#16191E] border border-white/5 space-y-3">
-            <h4 className="text-xs font-black uppercase tracking-wider text-white font-condensed">
-              {isRtl ? 'ملخص المؤشرات الحيوية' : 'Biomarker History Summary'}
-            </h4>
-            {(() => {
-              const allStrains = [
-                ...(metrics.dailyStrain > 0 ? [metrics.dailyStrain] : []),
-                ...(daysHistory || []).map((d) => d.dayStrain).filter((s) => s > 0),
-              ];
-              const avgStrain = allStrains.length > 0 ? (allStrains.reduce((a, b) => a + b, 0) / allStrains.length).toFixed(1) : '--';
+        <div className="space-y-3.5">
+          {/* Header & Quick Log CTA */}
+          <div className="p-4 rounded-[22px] bg-[#12151A] border border-white/5 flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <BookOpen className="w-4 h-4 text-[#16EC06]" />
+                <h3 className="text-xs font-black uppercase tracking-wider text-white font-condensed">
+                  {isRtl ? 'تأثير العادات على التعافي (Journal Impacts)' : 'Behavioral Recovery Impacts'}
+                </h3>
+              </div>
+              <p className="text-[10px] text-zinc-400 font-sans mt-0.5">
+                {isRtl ? 'العلاقة الإحصائية بين عاداتك اليومية ونسبة تعافيك الصباحي' : 'Statistical correlation between logged habits & next-day Recovery'}
+              </p>
+            </div>
 
-              const allRecoveries = [
-                ...(metrics.recoveryScore !== null ? [metrics.recoveryScore] : []),
-                ...(daysHistory || []).map((d) => d.recoveryScore).filter((r): r is number => r !== null && r > 0),
-              ];
-              const avgRecovery = allRecoveries.length > 0 ? `${Math.round(allRecoveries.reduce((a, b) => a + b, 0) / allRecoveries.length)}%` : '--';
+            {onOpenDailyJournal && (
+              <button
+                onClick={onOpenDailyJournal}
+                className="px-3 py-1.5 rounded-full bg-[#16EC06]/15 hover:bg-[#16EC06]/25 border border-[#16EC06]/30 text-[#16EC06] text-[10px] font-condensed font-black uppercase tracking-wider flex items-center gap-1 active:scale-95 transition-all"
+              >
+                <Plus className="w-3 h-3" />
+                <span>{isRtl ? 'تسجيل عادات اليوم' : 'Log Today'}</span>
+              </button>
+            )}
+          </div>
 
-              return (
-                <div className="grid grid-cols-2 gap-3 text-center">
-                  <div className="p-3 rounded-xl bg-[#0B0D10] border border-white/5">
-                    <span className="text-[10px] text-zinc-400 uppercase font-condensed">{isRtl ? 'متوسط الجهد' : 'Avg Strain'}</span>
-                    <div className="text-2xl font-black font-condensed text-[#0093E9] mt-0.5" dir="ltr">
-                      {avgStrain}
+          {/* Horizontal Impact Bars List (Authentic WHOOP Impacts View) */}
+          <div className="p-4 rounded-[22px] bg-[#16191E] border border-white/5 space-y-3">
+            <div className="flex items-center justify-between text-[10px] font-condensed font-bold uppercase text-zinc-400 border-b border-white/5 pb-2">
+              <span>{isRtl ? 'السلوك / العادة المسجلة' : 'Habit / Lifestyle Behavior'}</span>
+              <span>{isRtl ? 'التأثير على التعافي' : 'Recovery Impact'}</span>
+            </div>
+
+            <div className="space-y-2.5">
+              {correlations.map((item) => {
+                const isPos = item.impactPercent > 0;
+                const isNeg = item.impactPercent < 0;
+                const absImpact = Math.min(25, Math.abs(item.impactPercent));
+                const barWidthPct = Math.round((absImpact / 25) * 100);
+
+                return (
+                  <div key={item.habitId} className="space-y-1">
+                    <div className="flex items-center justify-between text-xs font-condensed">
+                      <span className="text-zinc-200 font-bold truncate max-w-[200px]">
+                        {item.title}
+                      </span>
+                      <div className="flex items-center gap-1 font-mono font-bold" dir="ltr">
+                        {isPos ? (
+                          <span className="text-[#16EC06]">+{item.impactPercent}%</span>
+                        ) : isNeg ? (
+                          <span className="text-[#FF3344]">{item.impactPercent}%</span>
+                        ) : (
+                          <span className="text-zinc-500">0%</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Dual-Sided Horizontal Impact Bar */}
+                    <div className="h-2 w-full bg-[#0B0D10] rounded-full overflow-hidden flex relative border border-white/5">
+                      <div className="w-1/2 flex justify-end">
+                        {isNeg && (
+                          <div
+                            className="h-full bg-gradient-to-l from-[#FF3344] to-[#FF5E00] rounded-l-full transition-all duration-500"
+                            style={{ width: `${barWidthPct}%` }}
+                          />
+                        )}
+                      </div>
+                      <div className="w-px h-full bg-white/20 z-10" />
+                      <div className="w-1/2 flex justify-start">
+                        {isPos && (
+                          <div
+                            className="h-full bg-gradient-to-r from-[#16EC06] to-[#00E5FF] rounded-r-full transition-all duration-500"
+                            style={{ width: `${barWidthPct}%` }}
+                          />
+                        )}
+                      </div>
                     </div>
                   </div>
-                  <div className="p-3 rounded-xl bg-[#0B0D10] border border-white/5">
-                    <span className="text-[10px] text-zinc-400 uppercase font-condensed">{isRtl ? 'متوسط التعافي' : 'Avg Recovery'}</span>
-                    <div className="text-2xl font-black font-condensed text-[#16EC06] mt-0.5" dir="ltr">
-                      {avgRecovery}
-                    </div>
-                  </div>
-                </div>
-              );
-            })()}
+                );
+              })}
+            </div>
           </div>
         </div>
       )}

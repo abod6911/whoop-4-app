@@ -21,6 +21,8 @@ const HABIT_ICONS: Record<string, string> = {
   breathwork: '🧘',
   cold_exposure: '❄️',
   outdoor_sunlight: '☀️',
+  high_protein: '🥩',
+  stretching: '🤸',
   sleep_mask: '🥽',
 };
 
