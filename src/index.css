@@ -152,3 +152,35 @@ html[dir="rtl"] .rtl-flip {
   direction: ltr;
   unicode-bidi: isolate;
 }
+
+/* Streak Progressive Milestone Shaders & Beams */
+@keyframes borderBeamSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.animate-border-beam {
+  animation: borderBeamSpin 4s linear infinite;
+}
+
+.animate-spin-slow {
+  animation: borderBeamSpin 16s linear infinite;
+}
+
+.animate-spin-reverse {
+  animation: borderBeamSpin 12s linear infinite reverse;
+}
+
+@keyframes chromaticPulse {
+  0%, 100% {
+    text-shadow: -2px 0px 0px rgba(255, 30, 86, 0.7), 2px 0px 0px rgba(0, 240, 255, 0.7);
+  }
+  50% {
+    text-shadow: -3px -1px 0px rgba(255, 30, 86, 0.9), 3px 1px 0px rgba(0, 240, 255, 0.9);
+  }
+}
+
+.animate-chromatic {
+  animation: chromaticPulse 1.8s ease-in-out infinite;
+}
+

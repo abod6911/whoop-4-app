@@ -1,15 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import {
   X,
-  Flame,
   CheckCircle2,
+  Share2,
+  Lock,
+  Flame,
   Calendar,
   Activity,
   Award,
-  Share2,
-  Lock,
-  ChevronRight,
-  TrendingUp,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SheetBackdrop, SheetPanel } from './motion/Sheet';
@@ -19,9 +17,15 @@ import {
   type StreakMilestone,
   type DayStreakItem,
 } from '../services/streakEngine';
+import {
+  getStreakMilestoneTier,
+  type StreakTierConfig,
+} from '../services/streakMilestoneEngine';
+import { StreakHeroCard } from './streak/StreakHeroCard';
+import { StreakMilestonePreviewer } from './streak/StreakMilestonePreviewer';
+import { StreakFlameEmblem } from './streak/StreakFlameEmblem';
 import { useLanguage } from '../i18n/LanguageContext';
 import { hapticLight, hapticMedium } from '../utils/haptics';
-import { BlazingFlame } from './motion/BlazingFlame';
 
 interface StreakModalProps {
   isOpen: boolean;
@@ -36,18 +40,36 @@ export const StreakModal: React.FC<StreakModalProps> = ({ isOpen, onClose }) => 
   const [selectedDay, setSelectedDay] = useState<DayStreakItem | null>(null);
   const [copiedShare, setCopiedShare] = useState(false);
 
+  // Milestone Previewer Scrubber State
+  const [activePreviewDays, setActivePreviewDays] = useState<number | null>(null);
+  const [burstKey, setBurstKey] = useState<number>(0);
+
   useEffect(() => {
     if (isOpen) {
       setStreakData(streakEngine.getStreakSummary());
+      // Trigger shockwave on modal open
+      setBurstKey((prev) => prev + 1);
+    } else {
+      // Reset preview state when modal closes
+      setActivePreviewDays(null);
     }
     return streakEngine.subscribe(setStreakData);
   }, [isOpen]);
 
+  const realDays = streakData.currentStreak;
+  const displayedDays = activePreviewDays !== null ? activePreviewDays : realDays;
+  const activeTier = getStreakMilestoneTier(displayedDays);
+
+  const handleSelectPreview = (previewDays: number | null) => {
+    setActivePreviewDays(previewDays);
+    setBurstKey((prev) => prev + 1);
+  };
+
   const handleShare = () => {
     hapticMedium();
     const shareText = isRtl
-      ? `سلسلة بيانات WHOOP: ${streakData.currentStreak} يوماً متتالياً من الرصد الفسيولوجي المباشر. معدل الانتظام: ${streakData.consistencyRate}% • إجمالي الدورات: ${streakData.totalDays}.`
-      : `WHOOP Data Streak: ${streakData.currentStreak} consecutive days of continuous physiological telemetry. Consistency: ${streakData.consistencyRate}% • Total Cycles: ${streakData.totalDays}.`;
+      ? `سلسلة بيانات WHOOP: ${displayedDays} يوماً متتالياً من الرصد الفسيولوجي المباشر [المستوى: ${activeTier.nameAr}]. معدل الانتظام: ${streakData.consistencyRate}% • إجمالي الدورات: ${streakData.totalDays}.`
+      : `WHOOP Data Streak: ${displayedDays} consecutive days of continuous physiological telemetry [Tier: ${activeTier.name}]. Consistency: ${streakData.consistencyRate}% • Total Cycles: ${streakData.totalDays}.`;
 
     if (typeof navigator !== 'undefined' && navigator.clipboard) {
       navigator.clipboard.writeText(shareText);
@@ -60,13 +82,19 @@ export const StreakModal: React.FC<StreakModalProps> = ({ isOpen, onClose }) => 
     <SheetBackdrop isOpen={isOpen} onClose={onClose}>
       <SheetPanel
         onClose={onClose}
-        className="h-[92vh] max-h-[92vh] bg-gradient-to-b from-[#161B22] via-[#0F1318] to-[#080A0D] flex flex-col p-0 overflow-hidden border-t border-white/10 select-none"
+        className="h-[94vh] max-h-[94vh] bg-gradient-to-b from-[#161B22] via-[#0F1318] to-[#080A0D] flex flex-col p-0 overflow-hidden border-t border-white/10 select-none"
       >
         {/* Top Header */}
-        <div className="pt-6 px-6 pb-3 flex items-center justify-between flex-shrink-0 border-b border-white/5 z-20">
+        <div className="pt-5 px-6 pb-3 flex items-center justify-between flex-shrink-0 border-b border-white/5 z-20">
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-8 h-8 rounded-lg bg-[#FF8800]/15 flex items-center justify-center flex-shrink-0">
-              <BlazingFlame size={20} showSparks={false} />
+            <div
+              className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors"
+              style={{
+                backgroundColor: `${activeTier.colors.primary}20`,
+                boxShadow: `0 0 10px ${activeTier.colors.glowRgba}`,
+              }}
+            >
+              <StreakFlameEmblem tier={activeTier} size={26} />
             </div>
             <div className="min-w-0">
               <div className="text-xs font-black uppercase tracking-[0.14em] text-white font-condensed truncate">
@@ -104,87 +132,66 @@ export const StreakModal: React.FC<StreakModalProps> = ({ isOpen, onClose }) => 
         </div>
 
         {/* Modal Scrollable Body */}
-        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
-          {/* 1. Official WHOOP Hero Metric Stage with Blazing Animated Flame */}
-          <div className="p-6 rounded-[28px] bg-gradient-to-b from-[#181D26] via-[#12151A] to-[#0A0D11] border border-amber-500/30 relative overflow-hidden text-center shadow-[0_0_35px_rgba(255,136,0,0.18)]">
-            {/* Shimmering gradient backdrop highlight */}
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-amber-400/[0.06] to-transparent bg-[length:200%_100%] animate-shimmer pointer-events-none" />
+        <div className="flex-1 overflow-y-auto px-5 sm:px-6 py-4 space-y-4">
+          {/* 1. Interactive Milestone Tier Previewer Scrubber */}
+          <StreakMilestonePreviewer
+            realStreakDays={realDays}
+            activePreviewDays={activePreviewDays}
+            activeTier={activeTier}
+            onSelectPreview={handleSelectPreview}
+          />
 
-            {/* Active telemetry indicator */}
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[10px] font-mono font-bold text-zinc-300 mb-3 relative z-10">
-              <span className="w-2 h-2 rounded-full bg-[#16EC06] animate-pulse" />
-              <span>{isRtl ? 'مزامنة حيوية متصلة' : 'CONTINUOUS TELEMETRY SYNC'}</span>
-            </div>
+          {/* 2. Official WHOOP Hero Metric Stage with Blazing Flame & Canvas */}
+          <StreakHeroCard
+            days={displayedDays}
+            realDays={realDays}
+            streakStartDate={streakData.streakStartDate}
+            nextMilestoneDaysRemaining={streakData.nextMilestone?.daysRemaining}
+            burstTrigger={burstKey}
+          />
 
-            {/* Blazing Flame Graphic & Giant Bold Metric */}
-            <div className="flex flex-col items-center justify-center py-2 relative z-10">
-              <div className="mb-2">
-                <BlazingFlame size={54} showSparks={true} />
-              </div>
-              <span className="text-7xl font-black font-condensed tracking-tight text-white tabular-nums leading-none drop-shadow-[0_4px_16px_rgba(255,136,0,0.35)]">
-                {streakData.currentStreak}
-              </span>
-              <span className="text-xs font-black uppercase tracking-[0.16em] text-zinc-400 font-condensed mt-2">
-                {isRtl
-                  ? streakData.currentStreak === 1
-                    ? 'يوم متتالي على المعصم'
-                    : 'أيام متتالية على المعصم'
-                  : streakData.currentStreak === 1
-                  ? 'CONSECUTIVE DAY COLLECTED'
-                  : 'CONSECUTIVE DAYS COLLECTED'}
-              </span>
-            </div>
-
-            {/* Sub-text / Next milestone countdown */}
-            <div className="mt-4 pt-3 border-t border-white/5 flex items-center justify-between text-[11px] font-sans">
-              <span className="text-zinc-500 text-[10px] whitespace-nowrap">
-                {isRtl ? 'بدء الرصد:' : 'Started:'}{' '}
-                <strong className="text-zinc-300 font-mono font-normal" dir="ltr">{streakData.streakStartDate}</strong>
-              </span>
-
-              {streakData.nextMilestone && (
-                <span className="text-[10px] font-mono text-zinc-400 bg-white/5 px-2.5 py-0.5 rounded-full border border-white/5 whitespace-nowrap">
-                  <span className="text-zinc-500">{isRtl ? 'المحطة القادمة:' : 'Next:'}</span>{' '}
-                  <strong className="text-white font-bold">{isRtl ? `${streakData.nextMilestone.daysRemaining} أيام` : `${streakData.nextMilestone.daysRemaining}d`}</strong>
-                </span>
-              )}
-            </div>
-          </div>
-
-          {/* 2. Bento Stats Matrix (4 Clinical Cards) */}
+          {/* 3. Bento Stats Matrix (4 Clinical Cards with Top-Edge Highlight & Hover Physics) */}
           <div className="grid grid-cols-2 gap-3">
             {/* Current Streak */}
-            <div className="p-4 rounded-2xl bg-[#12151A] border border-white/5 space-y-1">
+            <div className="p-4 rounded-2xl bg-[#12151A] border-t border-white/20 border-r border-b border-l border-white/5 shadow-sm space-y-1 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 cursor-default">
               <div className="text-[10px] font-black uppercase tracking-wider text-zinc-400 font-condensed">
                 {isRtl ? 'السلسلة الحالية' : 'CURRENT STREAK'}
               </div>
               <div className="flex items-baseline gap-1.5 pt-1">
                 <span className="text-2xl font-black font-condensed text-white tabular-nums">
-                  {streakData.currentStreak}
+                  {displayedDays}
                 </span>
                 <span className="text-xs font-bold text-zinc-500 font-condensed uppercase">
-                  {isRtl ? (streakData.currentStreak === 1 ? 'يوم' : streakData.currentStreak <= 10 ? 'أيام' : 'يوماً') : (streakData.currentStreak === 1 ? 'day' : 'days')}
+                  {isRtl
+                    ? displayedDays === 1
+                      ? 'يوم'
+                      : displayedDays <= 10
+                      ? 'أيام'
+                      : 'يوماً'
+                    : displayedDays === 1
+                    ? 'day'
+                    : 'days'}
                 </span>
               </div>
             </div>
 
             {/* All-Time Best */}
-            <div className="p-4 rounded-2xl bg-[#12151A] border border-white/5 space-y-1">
+            <div className="p-4 rounded-2xl bg-[#12151A] border-t border-white/20 border-r border-b border-l border-white/5 shadow-sm space-y-1 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 cursor-default">
               <div className="text-[10px] font-black uppercase tracking-wider text-zinc-400 font-condensed">
                 {isRtl ? 'أطول سلسلة' : 'ALL-TIME BEST'}
               </div>
               <div className="flex items-baseline gap-1.5 pt-1">
                 <span className="text-2xl font-black font-condensed text-white tabular-nums">
-                  {streakData.longestStreak}
+                  {Math.max(streakData.longestStreak, displayedDays)}
                 </span>
                 <span className="text-xs font-bold text-zinc-500 font-condensed uppercase">
-                  {isRtl ? (streakData.longestStreak === 1 ? 'يوم' : streakData.longestStreak <= 10 ? 'أيام' : 'يوماً') : (streakData.longestStreak === 1 ? 'day' : 'days')}
+                  {isRtl ? 'أيام' : 'days'}
                 </span>
               </div>
             </div>
 
             {/* Total Cycles */}
-            <div className="p-4 rounded-2xl bg-[#12151A] border border-white/5 space-y-1">
+            <div className="p-4 rounded-2xl bg-[#12151A] border-t border-white/20 border-r border-b border-l border-white/5 shadow-sm space-y-1 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 cursor-default">
               <div className="text-[10px] font-black uppercase tracking-wider text-zinc-400 font-condensed">
                 {isRtl ? 'إجمالي الدورات' : 'TOTAL CYCLES'}
               </div>
@@ -199,7 +206,7 @@ export const StreakModal: React.FC<StreakModalProps> = ({ isOpen, onClose }) => 
             </div>
 
             {/* Sync Consistency */}
-            <div className="p-4 rounded-2xl bg-[#12151A] border border-white/5 space-y-1">
+            <div className="p-4 rounded-2xl bg-[#12151A] border-t border-white/20 border-r border-b border-l border-white/5 shadow-sm space-y-1 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 cursor-default">
               <div className="text-[10px] font-black uppercase tracking-wider text-zinc-400 font-condensed">
                 {isRtl ? 'دقة المزامنة' : 'SYNC ACCURACY'}
               </div>
@@ -214,7 +221,7 @@ export const StreakModal: React.FC<StreakModalProps> = ({ isOpen, onClose }) => 
             </div>
           </div>
 
-          {/* 3. 30-Day Activity Heatmap Matrix */}
+          {/* 4. 30-Day Activity Heatmap Matrix with Staggered Glow Effects */}
           <div className="p-4 rounded-[24px] bg-[#12151A] border border-white/5 space-y-3">
             <div className="flex items-center justify-between">
               <div className="text-xs font-black uppercase tracking-wider text-zinc-300 font-condensed">
@@ -226,16 +233,19 @@ export const StreakModal: React.FC<StreakModalProps> = ({ isOpen, onClose }) => 
               </span>
             </div>
 
-            {/* 30-Day Dots Grid */}
+            {/* 30-Day Dots Grid with Staggered Entrance */}
             <div className="grid grid-cols-6 sm:grid-cols-10 gap-2 pt-1">
-              {streakData.last30Days.map((item) => {
+              {streakData.last30Days.map((item, idx) => {
                 const isActive = item.status === 'active';
                 const isToday = item.isToday;
                 const isSelected = selectedDay?.date === item.date;
 
                 return (
-                  <button
+                  <motion.button
                     key={item.date}
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.015, duration: 0.2 }}
                     onClick={() => {
                       hapticLight();
                       setSelectedDay(item);
@@ -244,9 +254,9 @@ export const StreakModal: React.FC<StreakModalProps> = ({ isOpen, onClose }) => 
                       isSelected
                         ? 'ring-2 ring-white bg-[#222731]'
                         : isActive
-                        ? 'bg-[#181C23] border border-[#16EC06]/30 hover:border-[#16EC06]'
+                        ? 'bg-[#181C23] border border-[#16EC06]/40 shadow-[0_0_8px_rgba(22,236,6,0.2)] hover:border-[#16EC06]'
                         : isToday
-                        ? 'bg-[#181C23] border border-white/30'
+                        ? 'bg-[#181C23] border border-cyan-400/40 shadow-[0_0_8px_rgba(0,240,255,0.2)]'
                         : 'bg-[#0E1015] border border-white/5 opacity-40'
                     }`}
                     title={`${item.date} - ${item.status}`}
@@ -259,7 +269,7 @@ export const StreakModal: React.FC<StreakModalProps> = ({ isOpen, onClose }) => 
                         isActive
                           ? 'text-white'
                           : isToday
-                          ? 'text-[#00A3FF]'
+                          ? 'text-[#00F0FF]'
                           : 'text-zinc-600'
                       }`}
                     >
@@ -269,14 +279,14 @@ export const StreakModal: React.FC<StreakModalProps> = ({ isOpen, onClose }) => 
                     {/* Small Status Dot */}
                     <div className="mt-1 flex items-center justify-center">
                       {isActive ? (
-                        <div className="w-1.5 h-1.5 rounded-full bg-[#16EC06]" />
+                        <div className="w-1.5 h-1.5 rounded-full bg-[#16EC06] shadow-[0_0_4px_#16EC06]" />
                       ) : isToday ? (
-                        <div className="w-1.5 h-1.5 rounded-full bg-[#00A3FF] animate-pulse" />
+                        <div className="w-1.5 h-1.5 rounded-full bg-[#00F0FF] animate-pulse" />
                       ) : (
                         <div className="w-1.5 h-1.5 rounded-full bg-zinc-800" />
                       )}
                     </div>
-                  </button>
+                  </motion.button>
                 );
               })}
             </div>
@@ -297,7 +307,7 @@ export const StreakModal: React.FC<StreakModalProps> = ({ isOpen, onClose }) => 
                         selectedDay.status === 'active'
                           ? 'bg-[#16EC06]/15 text-[#16EC06]'
                           : selectedDay.isToday
-                          ? 'bg-[#00A3FF]/15 text-[#00A3FF]'
+                          ? 'bg-[#00F0FF]/15 text-[#00F0FF]'
                           : 'bg-zinc-800 text-zinc-400'
                       }`}
                     >
@@ -328,8 +338,8 @@ export const StreakModal: React.FC<StreakModalProps> = ({ isOpen, onClose }) => 
             </AnimatePresence>
           </div>
 
-          {/* 4. Cycle Milestones (Official WHOOP Benchmarks) */}
-          <div className="space-y-3">
+          {/* 5. Cycle Milestones (Official WHOOP Benchmarks) */}
+          <div className="space-y-3 pb-4">
             <div className="flex items-center justify-between">
               <div className="text-xs font-black uppercase tracking-wider text-zinc-300 font-condensed">
                 {isRtl ? 'محطات الدورات الفسيولوجية' : 'CYCLE MILESTONES'}

@@ -2,9 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { ChevronRight, CheckCircle2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { streakEngine, type StreakSummary } from '../services/streakEngine';
+import { getStreakMilestoneTier } from '../services/streakMilestoneEngine';
+import { StreakFlameEmblem } from './streak/StreakFlameEmblem';
 import { useLanguage } from '../i18n/LanguageContext';
-import { hapticLight, hapticMedium } from '../utils/haptics';
-import { BlazingFlame } from './motion/BlazingFlame';
+import { hapticMedium } from '../utils/haptics';
 
 interface StreakBadgeProps {
   onClick: () => void;
@@ -27,6 +28,7 @@ export const StreakBadge: React.FC<StreakBadgeProps> = ({
   }, []);
 
   const streak = streakData.currentStreak;
+  const tier = getStreakMilestoneTier(streak);
 
   const handleClick = () => {
     hapticMedium();
@@ -38,19 +40,42 @@ export const StreakBadge: React.FC<StreakBadgeProps> = ({
     return (
       <div
         onClick={handleClick}
-        className={`rounded-[24px] bg-gradient-to-br from-[#161B22] via-[#12151A] to-[#0E1116] border border-amber-500/25 hover:border-amber-400/50 p-4 relative overflow-hidden cursor-pointer transition-all duration-300 group select-none shadow-[0_4px_24px_rgba(0,0,0,0.5)] hover:shadow-[0_4px_30px_rgba(255,136,0,0.18)] ${className}`}
+        className={`rounded-[24px] p-4 relative overflow-hidden cursor-pointer transition-all duration-300 group select-none shadow-[0_4px_24px_rgba(0,0,0,0.5)] ${className}`}
+        style={{
+          background: `linear-gradient(135deg, ${tier.colors.heroCardBgFrom} 0%, ${tier.colors.heroCardBgVia} 50%, ${tier.colors.heroCardBgTo} 100%)`,
+          border: `1px solid ${tier.colors.glowBorder}`,
+          boxShadow: `0 4px 28px ${tier.colors.glowRgba}`,
+        }}
       >
         {/* Subtle shimmering gradient flow */}
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-amber-400/[0.04] to-transparent bg-[length:200%_100%] animate-shimmer pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.04] to-transparent bg-[length:200%_100%] animate-shimmer pointer-events-none" />
 
         <div className="flex items-center justify-between pb-2 border-b border-white/5 relative z-10">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-md bg-[#FF8800]/15 flex items-center justify-center">
-              <BlazingFlame size={18} showSparks={true} />
+            <div
+              className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors"
+              style={{
+                backgroundColor: `${tier.colors.primary}18`,
+                boxShadow: `0 0 10px ${tier.colors.glowRgba}`,
+              }}
+            >
+              <StreakFlameEmblem tier={tier} size={22} />
             </div>
-            <span className="text-[11px] font-black uppercase tracking-[0.08em] text-zinc-300 font-condensed">
-              {isRtl ? 'سلسلة البيانات المتصلة' : 'DATA STREAK'}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-black uppercase tracking-[0.08em] text-zinc-300 font-condensed">
+                {isRtl ? 'سلسلة البيانات المتصلة' : 'DATA STREAK'}
+              </span>
+              <span
+                className="text-[9px] font-mono px-1.5 py-0.2 rounded-full border"
+                style={{
+                  color: tier.colors.primary,
+                  borderColor: `${tier.colors.primary}40`,
+                  backgroundColor: `${tier.colors.primary}15`,
+                }}
+              >
+                {isRtl ? tier.badgeLabelAr : tier.badgeLabel}
+              </span>
+            </div>
           </div>
 
           <div className="flex items-center gap-1.5 text-zinc-400 group-hover:text-white transition-colors">
@@ -62,10 +87,15 @@ export const StreakBadge: React.FC<StreakBadgeProps> = ({
         </div>
 
         {/* Main Content */}
-        <div className="pt-3 flex items-end justify-between">
+        <div className="pt-3 flex items-end justify-between relative z-10">
           <div>
             <div className="flex items-baseline gap-1.5">
-              <span className="text-3xl font-black font-condensed text-white tabular-nums tracking-tight">
+              <span
+                className={`text-3xl font-black font-condensed tabular-nums tracking-tight bg-gradient-to-r ${tier.colors.textGradient} bg-clip-text text-transparent`}
+                style={{
+                  filter: `drop-shadow(0 2px 8px ${tier.colors.glowRgba})`,
+                }}
+              >
                 {streak}
               </span>
               <span className="text-xs font-bold font-condensed text-zinc-400 uppercase tracking-wider">
@@ -78,7 +108,7 @@ export const StreakBadge: React.FC<StreakBadgeProps> = ({
                   : 'DAYS'}
               </span>
             </div>
-            <p className="text-[11px] text-zinc-400 font-sans mt-0.5">
+            <p className="text-[11px] text-zinc-400 font-sans mt-0.5 max-w-[240px] truncate">
               {streak === 0
                 ? isRtl
                   ? 'ابدأ ارتداء سوارك اليوم لتسجيل أول دورة'
@@ -113,11 +143,17 @@ export const StreakBadge: React.FC<StreakBadgeProps> = ({
   return (
     <button
       onClick={handleClick}
-      className={`flex items-center gap-1.5 bg-[#16191E] border border-amber-500/30 hover:border-amber-400 px-2.5 py-1 rounded-full transition-all active:scale-95 select-none shadow-[0_0_12px_rgba(255,136,0,0.2)] ${className}`}
-      title={isRtl ? `سلسلة البيانات: ${streak} أيام متتالية` : `Data Streak: ${streak} consecutive days`}
+      className={`flex items-center gap-1.5 bg-[#16191E] border px-2.5 py-1 rounded-full transition-all active:scale-95 select-none ${className}`}
+      style={{
+        borderColor: `${tier.colors.primary}50`,
+        boxShadow: `0 0 12px ${tier.colors.glowRgba}`,
+      }}
+      title={isRtl ? `سلسلة البيانات: ${streak} أيام متتالية (${tier.nameAr})` : `Data Streak: ${streak} consecutive days (${tier.name})`}
     >
-      <BlazingFlame size={14} showSparks={false} />
-      <span className="text-xs font-bold font-condensed tabular-nums tracking-wide text-white">
+      <StreakFlameEmblem tier={tier} size={15} />
+      <span
+        className={`text-xs font-bold font-condensed tabular-nums tracking-wide bg-gradient-to-r ${tier.colors.textGradient} bg-clip-text text-transparent`}
+      >
         {streak}
       </span>
       <span className="text-[10px] font-medium font-condensed text-zinc-400 uppercase">
